@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학습 게임 아케이드</title>
+  <style>
+    :root {
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      font-size: 1.1rem;
+      color: var(--text-sub);
+    }
+
+    /* 인증 성공 시 나타나는 상단 학생 정보 뱃지 */
+    #user-badge-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+
+    #btn-logout {
+      background: none;
+      border: none;
+      color: #4f46e5;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 360px));
+      gap: 28px;
+      width: 100%;
+      max-width: 800px;
+      justify-content: center;
+    }
+
+    .game-card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #e2e8f0;
+      transition: transform 0.2s ease;
+    }
+
+    .game-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .card-banner {
+      height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    }
+
+    .banner-game2 {
+      background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+    }
+
+    .card-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .card-tag {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+
+    .card-desc {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+      line-height: 1.5;
+      margin-bottom: 24px;
+      flex-grow: 1;
+    }
+
+    .play-btn {
+      display: block;
+      text-align: center;
+      background-color: var(--primary);
+      color: #ffffff;
+      padding: 14px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    /* ================= 학생 명단 인증 팝업 레이어 ================= */
+    #auth-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-box {
+      background: #ffffff;
+      width: 100%;
+      max-width: 380px;
+      border-radius: 24px;
+      padding: 32px 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+      text-align: center;
+    }
+
+    .auth-box h2 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .auth-box p {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 22px;
+      line-height: 1.4;
+    }
+
+    .auth-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .auth-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    #auth-error-msg {
+      display: none;
+      color: var(--danger);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      text-align: left;
+      padding-left: 4px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background-color: var(--primary);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-login:hover {
+      background-color: var(--primary-hover);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- [학생 명단 대조 로그인 팝업] -->
+  <div id="auth-overlay">
+    <div class="auth-box">
+      <div style="font-size: 2.2rem; margin-bottom: 10px;">🔒</div>
+      <h2>학생 인증</h2>
+      <p>수업 참여 학생만 접속할 수 있습니다.<br>본인의 학번과 이름을 정확히 입력하세요.</p>
+      
+      <div class="auth-input-group">
+        <input type="text" id="input-id" class="auth-input" placeholder="학번 (예: 20315)" autocomplete="off">
+        <input type="text" id="input-name" class="auth-input" placeholder="이름 (예: 홍길동)" autocomplete="off">
+      </div>
+
+      <div id="auth-error-msg">⚠️ 등록되지 않은 학생이거나 정보가 일치하지 않습니다.</div>
+
+      <button type="button" class="btn-login" onclick="validateStudent()">인증하고 입장하기</button>
+    </div>
+  </div>
+
+  <header>
+    <h1>🎮 온라인 보드게임</h1>
+    <p>플레이할 미션을 선택해 접속하세요</p>
+  </header>
+
+  <main class="game-grid">
+    <!-- 게임 1 카드 -->
+    <article class="game-card">
+      <div class="card-banner">🎲</div>
+      <div class="card-body">
+        <span class="card-tag">모의 인생 시뮬레이션</span>
+        <h2 class="card-title">인생게임 보드게임</h2>
+        <p class="card-desc">선택과 투자를 통해 자산을 관리하고 금융 흐름을 체험해보는 턴제 전략 게임입니다.</p>
+        <a href="./인생게임/index.html" class="play-btn">게임 시작하기</a>
+      </div>
+    </article>
+
+    <!-- 게임 2 카드 -->
+    <article class="game-card">
+      <div class="card-banner">🎲</div>
+      <div class="card-body">
+        <span class="card-tag">모의 인생 시뮬레이션</span>
+        <h2 class="card-title">인생게임(ver.캐시플로우) 보드게임</h2>
+        <p class="card-desc">선택과 투자를 통해 자산을 관리하고 금융 흐름을 체험해보는 턴제 전략 게임입니다.</p>
+        <a href="./인생게임(ver.캐시플로우)/index.html" class="play-btn">게임 시작하기</a>
+      </div>
+    </article>
+
+    <!-- 게임 3 카드 -->
+    <article class="game-card">
+      <div class="card-banner banner-game2">🪐</div>
+      <div class="card-body">
+        <span class="card-tag">3D 방탈출</span>
+        <h2 class="card-title">천체 관측 방탈출</h2>
+        <p class="card-desc">천체 관측 단서를 활용해 암호를 풀고 탈출하는 방탈출 게입니다.</p>
+        <a href="./방탈출/index.html" class="play-btn">게임 시작하기</a>
+      </div>
+    </article>
+
+  </main>
+  <script>
+    // ===============================================================
+    // 1. 접속 허용 학생 명단 (화이트리스트)
+    // 선생님의 학급 학생 명단으로 변경/추가하세요.
+    // ===============================================================
+    const ALLOWED_STUDENTS = [
+      { id: "970827", name: "박하늘" },
+  { id: "1", name: "김나엘" },
+  { id: "2", name: "남재현" },
+  { id: "3", name: "박진영" },
+  { id: "4", name: "백연서" },
+  { id: "5", name: "신나래" },
+  { id: "6", name: "안지율" },
+  { id: "7", name: "이가온" },
+  { id: "8", name: "이수성" },
+  { id: "9", name: "이수인" },
+  { id: "10", name: "이은교" },
+  { id: "11", name: "임서은" },
+  { id: "12", name: "정문수" },
+  { id: "13", name: "조현호" },
+  { id: "14", name: "채윤제" },
+
+      ///////////////////////// 필요한 만큼 { id: "학번", name: "이름" } 계속 추가 가능/////////////////////////////
+    ];
+
+    // 페이지 진입 시 이전 인증 여부 확인
+    window.addEventListener('DOMContentLoaded', () => {
+      checkExistingAuth();
+    });
+
+    // 엔터키 입력 시 자동 검증
+    document.getElementById('input-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') validateStudent();
+    });
+    document.getElementById('input-id').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('input-name').focus();
+    });
+
+    // 기존 로그인 상태 확인
+    function checkExistingAuth() {
+      const savedId = sessionStorage.getItem('authorized_student_id');
+      const savedName = sessionStorage.getItem('authorized_student_name');
+
+      if (savedId && savedName) {
+        // 명단에 여전히 존재하는지 재검증
+        const isStillValid = ALLOWED_STUDENTS.some(
+          s => s.id === savedId && s.name === savedName
+        );
+
+        if (isStillValid) {
+          showAuthorizedUI(savedId, savedName);
+          return;
+        }
+      }
+      showLoginModal();
+    }
+
+    // 학생 명단 대조 검증 함수
+    function validateStudent() {
+      const inputId = document.getElementById('input-id').value.trim();
+      const inputName = document.getElementById('input-name').value.trim();
+      const errorMsg = document.getElementById('auth-error-msg');
+
+      if (!inputId || !inputName) {
+        errorMsg.textContent = "⚠️ 학번과 이름을 모두 입력해 주세요.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      // 화이트리스트 목록에서 일치하는 학생 찾기
+      const matchedStudent = ALLOWED_STUDENTS.find(
+        student => student.id === inputId && student.name === inputName
+      );
+
+      if (matchedStudent) {
+        // [인증 성공]: 세션 저장소에 기록 (탭 닫을 때까지 유지)
+        sessionStorage.setItem('authorized_student_id', matchedStudent.id);
+        sessionStorage.setItem('authorized_student_name', matchedStudent.name);
+
+        errorMsg.style.display = "none";
+        showAuthorizedUI(matchedStudent.id, matchedStudent.name);
+      } else {
+        // [인증 실패]: 경고 메시지 표시 및 포커스
+        errorMsg.textContent = "⚠️ 학번과 이름을 확인하세요.";
+        errorMsg.style.display = "block";
+      }
+    }
+
+    function showAuthorizedUI(id, name) {
+      document.getElementById('auth-overlay').style.display = 'none';
+      document.getElementById('user-badge-bar').style.display = 'inline-flex';
+      document.getElementById('user-info-text').textContent = `👤 [${id}] ${name} 학생 접속 중`;
+    }
+
+    function showLoginModal() {
+      document.getElementById('auth-overlay').style.display = 'flex';
+      document.getElementById('user-badge-bar').style.display = 'none';
+    }
+
+    function logoutStudent() {
+      if (confirm('접속을 종료하고 다른 학생 정보로 로그인하시겠습니까?')) {
+        sessionStorage.removeItem('authorized_student_id');
+        sessionStorage.removeItem('authorized_student_name');
+        document.getElementById('input-id').value = '';
+        document.getElementById('input-name').value = '';
+        document.getElementById('auth-error-msg').style.display = 'none';
+        showLoginModal();
+      }
+    }
+  </script>
+</body>
+</html>
