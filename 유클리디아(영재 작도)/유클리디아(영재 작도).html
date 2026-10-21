@@ -255,95 +255,97 @@
     </main>
   </div>
 
-  <footer class="bg-slate-900/95 border-t border-slate-800 px-2 sm:px-6 py-2 shrink-0 z-30">
-    <div class="max-w-5xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+  <!-- [수정 후: 모바일 safe-area 대응 및 반응형 패딩/버튼 크기 최적화] -->
+  <footer class="bg-slate-900/95 border-t border-slate-800 px-2 sm:px-4 py-1.5 sm:py-2 shrink-0 z-30 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar touch-pan-x">
       <!-- 작도 도구 그룹 -->
-      <div class="flex items-center gap-1.5 sm:gap-2">
-        <button data-tool="move" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[54px] sm:min-w-[64px]" title="화면 이동 및 탐색">
-          <i class="fa-solid fa-hand text-sm sm:text-base mb-0.5"></i>
-          <span class="text-[10px] font-bold">화면이동</span>
-          <span class="text-[9px] text-slate-400">0L·0E</span>
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+        <button data-tool="move" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[48px] sm:min-w-[60px]" title="화면 이동 및 탐색">
+          <i class="fa-solid fa-hand text-xs sm:text-sm mb-0.5"></i>
+          <span class="text-[9px] sm:text-[10px] font-bold">화면이동</span>
+          <span class="text-[8px] sm:text-[9px] text-slate-400">0L·0E</span>
         </button>
 
-        <button data-tool="point" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[54px] sm:min-w-[64px]" title="교점 찍기 또는 도형 위의 점 찍기 (0L, 0E)">
-          <i class="fa-solid fa-circle-dot text-sm sm:text-base mb-0.5"></i>
-          <span class="text-[10px] font-bold">점/교점</span>
-          <span class="text-[9px] text-slate-400">0L·0E</span>
+        <button data-tool="point" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[48px] sm:min-w-[60px]" title="교점 찍기 또는 도형 위의 점 찍기 (0L, 0E)">
+          <i class="fa-solid fa-circle-dot text-xs sm:text-sm mb-0.5"></i>
+          <span class="text-[9px] sm:text-[10px] font-bold">점/교점</span>
+          <span class="text-[8px] sm:text-[9px] text-slate-400">0L·0E</span>
         </button>
 
-        <div class="w-px h-8 bg-slate-800 mx-0.5"></div>
+        <div class="w-px h-6 sm:h-8 bg-slate-800 mx-0.5"></div>
 
-        <button data-tool="line" class="tool-btn active px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[60px] sm:min-w-[70px]" title="눈금 없는 자: 두 점을 잇는 직선 긋기 (1L, 1E)">
-          <i class="fa-solid fa-ruler-horizontal text-sm sm:text-base mb-0.5"></i>
-          <span class="text-[10px] font-bold">눈금없는자</span>
-          <span class="text-[9px] text-indigo-300">1L·1E</span>
+        <button data-tool="line" class="tool-btn active px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[54px] sm:min-w-[66px]" title="눈금 없는 자: 두 점을 잇는 직선 긋기 (1L, 1E)">
+          <i class="fa-solid fa-ruler-horizontal text-xs sm:text-sm mb-0.5"></i>
+          <span class="text-[9px] sm:text-[10px] font-bold">눈금없는자</span>
+          <span class="text-[8px] sm:text-[9px] text-indigo-300">1L·1E</span>
         </button>
 
-        <button data-tool="circle" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[58px] sm:min-w-[68px]" title="컴퍼스: 중심점과 반지름 점으로 원 그리기 (1L, 1E)">
-          <i class="fa-solid fa-compass-drafting text-sm sm:text-base mb-0.5"></i>
-          <span class="text-[10px] font-bold">컴퍼스(원)</span>
-          <span class="text-[9px] text-indigo-300">1L·1E</span>
+        <button data-tool="circle" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[52px] sm:min-w-[64px]" title="컴퍼스: 중심점과 반지름 점으로 원 그리기 (1L, 1E)">
+          <i class="fa-solid fa-compass-drafting text-xs sm:text-sm mb-0.5"></i>
+          <span class="text-[9px] sm:text-[10px] font-bold">컴퍼스(원)</span>
+          <span class="text-[8px] sm:text-[9px] text-indigo-300">1L·1E</span>
         </button>
 
-        <button data-tool="compass_copy" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[62px] sm:min-w-[72px]" title="길이 옮기기 컴퍼스: 두 점의 거리를 재어 다른 중심에 원 그리기 (1L, 1E)">
-          <i class="fa-solid fa-arrows-left-right-to-line text-sm sm:text-base mb-0.5"></i>
-          <span class="text-[10px] font-bold">길이옮기기</span>
-          <span class="text-[9px] text-indigo-300">1L·1E</span>
+        <button data-tool="compass_copy" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[56px] sm:min-w-[68px]" title="길이 옮기기 컴퍼스: 두 점의 거리를 재어 다른 중심에 원 그리기 (1L, 1E)">
+          <i class="fa-solid fa-arrows-left-right-to-line text-xs sm:text-sm mb-0.5"></i>
+          <span class="text-[9px] sm:text-[10px] font-bold">길이옮기기</span>
+          <span class="text-[8px] sm:text-[9px] text-indigo-300">1L·1E</span>
         </button>
 
-        <div class="w-px h-8 bg-slate-800 mx-0.5"></div>
+        <div class="w-px h-6 sm:h-8 bg-slate-800 mx-0.5"></div>
 
         <!-- 해금형 매크로 도구 (유클리디아 스타일) -->
-        <button id="macro-perp-bisector" data-tool="perp_bisector" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[68px]" title="수직이등분선 도구 (2차시 문제1 클리어 시 해금: 1L, 3E)">
+        <button id="macro-perp-bisector" data-tool="perp_bisector" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[60px] sm:min-w-[68px]" title="수직이등분선 도구 (2차시 문제1 클리어 시 해금: 1L, 3E)">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-grip-lines-vertical text-sm mb-0.5"></i>
-            <i id="lock-perp_bisector" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+            <i class="fa-solid fa-grip-lines-vertical text-xs sm:text-sm mb-0.5"></i>
+            <i id="lock-perp_bisector" class="fa-solid fa-lock text-[9px] sm:text-[10px] text-amber-400"></i>
           </div>
-          <span class="text-[10px] font-bold">수직이등분</span>
-          <span class="text-[9px] text-emerald-300">1L·3E</span>
+          <span class="text-[9px] sm:text-[10px] font-bold">수직이등분</span>
+          <span class="text-[8px] sm:text-[9px] text-emerald-300">1L·3E</span>
         </button>
 
-        <button id="macro-angle-bisector" data-tool="angle_bisector" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[68px]" title="각의 이등분선 도구 (2차시 문제2 클리어 시 해금: 1L, 4E)">
+        <button id="macro-angle-bisector" data-tool="angle_bisector" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[60px] sm:min-w-[68px]" title="각의 이등분선 도구 (2차시 문제2 클리어 시 해금: 1L, 4E)">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-greater-than text-sm mb-0.5"></i>
-            <i id="lock-angle_bisector" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+            <i class="fa-solid fa-greater-than text-xs sm:text-sm mb-0.5"></i>
+            <i id="lock-angle_bisector" class="fa-solid fa-lock text-[9px] sm:text-[10px] text-amber-400"></i>
           </div>
-          <span class="text-[10px] font-bold">각이등분선</span>
-          <span class="text-[9px] text-emerald-300">1L·4E</span>
+          <span class="text-[9px] sm:text-[10px] font-bold">각이등분선</span>
+          <span class="text-[8px] sm:text-[9px] text-emerald-300">1L·4E</span>
         </button>
 
-        <button id="macro-perp" data-tool="perp_line" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[58px]" title="수선 도구: 직선과 한 점을 선택해 수선 긋기 (1L, 3E)">
+        <button id="macro-perp" data-tool="perp_line" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[52px] sm:min-w-[60px]" title="수선 도구: 직선과 한 점을 선택해 수선 긋기 (1L, 3E)">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-t text-sm mb-0.5 rotate-180"></i>
-            <i id="lock-perp_line" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+            <i class="fa-solid fa-t text-xs sm:text-sm mb-0.5 rotate-180"></i>
+            <i id="lock-perp_line" class="fa-solid fa-lock text-[9px] sm:text-[10px] text-amber-400"></i>
           </div>
-          <span class="text-[10px] font-bold">수선긋기</span>
-          <span class="text-[9px] text-emerald-300">1L·3E</span>
+          <span class="text-[9px] sm:text-[10px] font-bold">수선긋기</span>
+          <span class="text-[8px] sm:text-[9px] text-emerald-300">1L·3E</span>
         </button>
 
-        <button id="macro-parallel" data-tool="parallel_line" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[58px]" title="평행선 도구: 직선과 한 점을 선택해 평행선 긋기 (1L, 4E)">
+        <button id="macro-parallel" data-tool="parallel_line" class="tool-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[52px] sm:min-w-[60px]" title="평행선 도구: 직선과 한 점을 선택해 평행선 긋기 (1L, 4E)">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-equals text-sm mb-0.5"></i>
-            <i id="lock-parallel_line" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+            <i class="fa-solid fa-equals text-xs sm:text-sm mb-0.5"></i>
+            <i id="lock-parallel_line" class="fa-solid fa-lock text-[9px] sm:text-[10px] text-amber-400"></i>
           </div>
-          <span class="text-[10px] font-bold">평행선</span>
-          <span class="text-[9px] text-emerald-300">1L·4E</span>
+          <span class="text-[9px] sm:text-[10px] font-bold">평행선</span>
+          <span class="text-[8px] sm:text-[9px] text-emerald-300">1L·4E</span>
         </button>
       </div>
 
       <!-- 실행 취소 & 초기화 버튼 -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <button id="btn-undo" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1 transition" title="방금 그린 작도 취소 (Ctrl+Z)">
+      <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 pl-1">
+        <button id="btn-undo" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] sm:text-xs font-bold flex items-center gap-1 transition" title="방금 그린 작도 취소 (Ctrl+Z)">
           <i class="fa-solid fa-rotate-left"></i>
-          <span class="hidden sm:inline">되돌리기</span>
+          <span class="hidden md:inline">되돌리기</span>
         </button>
-        <button id="btn-reset" class="px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-800/60 text-xs font-bold flex items-center gap-1 transition" title="현재 스테이지 처음부터 다시 그리기">
+        <button id="btn-reset" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-800/60 text-[11px] sm:text-xs font-bold flex items-center gap-1 transition" title="현재 스테이지 처음부터 다시 그리기">
           <i class="fa-solid fa-trash-can"></i>
-          <span class="hidden sm:inline">초기화</span>
+          <span class="hidden md:inline">초기화</span>
         </button>
       </div>
     </div>
   </footer>
+
 
   <!-- 1. 스테이지 클리어 모달 -->
   <div id="victory-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
