@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>유클리디아: 오리지널 마스터 (Tutorial ~ Epsilon)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b1120;
+      color: #f8fafc;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.5);
+      border-radius: 9999px;
+    }
+
+    .tool-btn {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .tool-btn.active {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(99, 102, 241, 0.6);
+      transform: translateY(-2px);
+      border-color: #818cf8;
+    }
+    .tool-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      filter: grayscale(1);
+    }
+
+    #drag-home-tab {
+      position: fixed !important;
+      top: 42%;
+      left: 0 !important;
+      z-index: 2147483645 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 10px 12px 10px 14px !important;
+      background-color: rgba(15, 23, 42, 0.92) !important;
+      color: #f8fafc !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      border-radius: 0 12px 12px 0 !important;
+      border: 1px solid rgba(148, 163, 184, 0.3) !important;
+      border-left: none !important;
+      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.45) !important;
+      cursor: pointer !important;
+      touch-action: none !important;
+      transform: translateX(calc(-100% + 40px));
+      transition: transform 0.22s ease-out, color 0.2s ease;
+    }
+    #drag-home-tab:hover {
+      transform: translateX(0) !important;
+      color: #818cf8 !important;
+    }
+    #drag-home-tab * {
+      pointer-events: none !important;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.7)); }
+      50% { filter: drop-shadow(0 0 14px rgba(250, 204, 21, 1)); }
+    }
+    .star-glow {
+      animation: pulseGlow 2s infinite;
+    }
+
+    @keyframes starBounce {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.35); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-star-pop {
+      animation: starBounce 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950">
+
+  <div id="drag-home-tab" title="위아래로 드래그 이동 / 클릭 시 메인 포털로 이동">
+    <span>메인으로</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  </div>
+
+  <!-- 종료 확인 모달 -->
+  <div id="exit-modal-dim" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[2147483647] hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl">
+      <div class="text-4xl mb-3">⚠️</div>
+      <h3 class="text-lg font-bold text-white mb-2">메인으로 이동할까요?</h3>
+      <p class="text-sm text-slate-400 mb-6 leading-relaxed">
+        세션이 종료되면 이번 접속 기록은 초기화됩니다. 나가시겠습니까?
+      </p>
+      <div class="flex gap-3">
+        <button id="btn-cancel-exit" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition">계속 탐구하기</button>
+        <button id="btn-confirm-exit" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition">나가기</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="h-14 bg-slate-900/95 border-b border-slate-800 px-3 sm:px-5 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center gap-2.5">
+      <button id="btn-open-drawer" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-400 border border-slate-700 transition flex items-center gap-2 text-xs sm:text-sm font-bold">
+        <i class="fa-solid fa-compass-drafting"></i>
+        <span id="current-stage-badge">Tutorial 1: 선분 잇기</span>
+        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+      </button>
+      <div class="hidden md:flex items-center gap-1.5 bg-slate-800/70 px-3 py-1 rounded-full border border-slate-700/70 text-xs">
+        <span class="text-amber-400 font-bold"><i class="fa-solid fa-star mr-1"></i>총 획득 별점:</span>
+        <span id="total-stars-display" class="text-white font-extrabold">0 / 30</span>
+      </div>
+    </div>
+
+    <!-- 우측 상단 탭 & L/E 카운터 -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div id="le-hud" class="flex items-center gap-2.5 bg-slate-950/90 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
+        <div class="flex items-center gap-1" title="L (Lines): 도구 사용 횟수">
+          <span class="text-indigo-400 font-extrabold">L</span>
+          <span class="text-slate-400 text-[11px]">(도구사용)</span>
+          <span id="hud-l-count" class="font-mono font-bold text-white">0</span>
+          <span class="text-slate-500">/</span>
+          <span id="hud-l-goal" class="font-mono text-slate-400">1</span>
+        </div>
+        <div class="w-px h-3 bg-slate-800"></div>
+        <div class="flex items-center gap-1" title="E (Elementary): 기초 작도 횟수">
+          <span class="text-emerald-400 font-extrabold">E</span>
+          <span class="text-slate-400 text-[11px]">(기초작도)</span>
+          <span id="hud-e-count" class="font-mono font-bold text-white">0</span>
+          <span class="text-slate-500">/</span>
+          <span id="hud-e-goal" class="font-mono text-slate-400">1</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="relative flex-1 flex overflow-hidden">
+    <!-- 스테이지 드로어 -->
+    <aside id="stage-drawer" class="fixed inset-y-0 left-0 z-50 w-80 sm:w-96 bg-slate-900 border-r border-slate-800 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60 shrink-0">
+        <div>
+          <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-book-open text-indigo-400"></i>
+            Euclidea 공식 챕터 (Tutorial ~ ε)
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">오리지널 유클리디아 챕터별 문제 및 도구 해금</p>
+        </div>
+        <button id="btn-close-drawer" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- 챕터 선택 탭 바 -->
+      <div id="chapter-tabs" class="flex items-center gap-1.5 px-3 py-2.5 bg-slate-950/90 border-b border-slate-800 overflow-x-auto shrink-0">
+        <!-- JS에서 챕터 탭 동적 생성 -->
+      </div>
+
+      <div id="stage-list-container" class="flex-1 overflow-y-auto p-3 space-y-4"></div>
+    </aside>
+
+    <div id="drawer-backdrop" class="fixed inset-0 bg-black/60 z-40 hidden"></div>
+
+    <!-- 캔버스 영역 -->
+    <main class="relative flex-1 flex flex-col bg-slate-950 overflow-hidden">
+      <div class="absolute top-3 left-3 right-3 z-25 pointer-events-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 sm:px-4 shadow-xl max-w-2xl">
+          <div class="flex items-center gap-2 mb-1">
+            <span id="banner-chapter" class="text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Tutorial</span>
+            <h1 id="banner-title" class="text-sm sm:text-base font-extrabold text-white">Line Segment (선분 잇기)</h1>
+            <div id="banner-stars" class="flex items-center gap-0.5 text-xs ml-1">
+              <i class="fa-regular fa-star text-slate-600"></i>
+              <i class="fa-regular fa-star text-slate-600"></i>
+              <i class="fa-regular fa-star text-slate-600"></i>
+            </div>
+          </div>
+          <p id="banner-desc" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+            주어진 두 점 A와 B를 연결하는 직선을 작도하시오.
+          </p>
+        </div>
+
+        <div class="pointer-events-auto flex items-center gap-1.5 self-end sm:self-auto">
+          <button id="btn-toggle-target" class="px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 border border-amber-500/40 text-xs font-bold shadow-lg flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-eye"></i>
+            <span>목표 보기</span>
+          </button>
+          <button id="btn-show-hint" class="px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-sky-300 border border-sky-500/40 text-xs font-bold shadow-lg flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-lightbulb"></i>
+            <span>작도 힌트</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="canvas-wrapper" class="relative flex-1 w-full h-full cursor-crosshair overflow-hidden">
+        <canvas id="geo-canvas" class="block w-full h-full"></canvas>
+        <div id="tool-guide-toast" class="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none bg-slate-900/90 border border-slate-700 px-4 py-1.5 rounded-full text-xs text-slate-300 shadow-lg flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+          <span id="tool-guide-text">도구를 선택하고 점을 클릭하세요.</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="bg-slate-900/95 border-t border-slate-800 px-2 sm:px-6 py-2 shrink-0 z-30">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button data-tool="move" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[54px]" title="화면 이동">
+          <i class="fa-solid fa-hand text-sm mb-0.5"></i>
+          <span class="text-[10px] font-bold">화면이동</span>
+        </button>
+        <button data-tool="point" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[54px]" title="교점 및 점 찍기">
+          <i class="fa-solid fa-circle-dot text-sm mb-0.5"></i>
+          <span class="text-[10px] font-bold">점/교점</span>
+        </button>
+        <div class="w-px h-8 bg-slate-800 mx-0.5"></div>
+        <button data-tool="line" class="tool-btn active px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[60px]" title="눈금 없는 자 (1L)">
+          <i class="fa-solid fa-ruler-horizontal text-sm mb-0.5"></i>
+          <span class="text-[10px] font-bold">눈금없는자</span>
+          <span class="text-[9px] text-indigo-300">1L·1E</span>
+        </button>
+        <button data-tool="circle" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[58px]" title="컴퍼스 (1L)">
+          <i class="fa-solid fa-compass-drafting text-sm mb-0.5"></i>
+          <span class="text-[10px] font-bold">컴퍼스(원)</span>
+          <span class="text-[9px] text-indigo-300">1L·1E</span>
+        </button>
+
+        <div class="w-px h-8 bg-slate-800 mx-0.5"></div>
+
+        <!-- 매크로 도구 버튼 (챕터 클리어에 따라 순차 해금) -->
+        <button id="macro-perp_bisector" data-tool="perp_bisector" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[68px]" title="수직이등분선 (Alpha 1.2 클리어 시 해금)">
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-grip-lines-vertical text-sm mb-0.5"></i>
+            <i id="lock-perp_bisector" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+          </div>
+          <span class="text-[10px] font-bold">수직이등분</span>
+          <span class="text-[9px] text-emerald-300">1L·3E</span>
+        </button>
+
+        <button id="macro-angle_bisector" data-tool="angle_bisector" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[68px]" title="각의 이등분선 (Beta 2.1 클리어 시 해금)">
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-greater-than text-sm mb-0.5"></i>
+            <i id="lock-angle_bisector" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+          </div>
+          <span class="text-[10px] font-bold">각이등분선</span>
+          <span class="text-[9px] text-emerald-300">1L·4E</span>
+        </button>
+
+        <button id="macro-perp_line" data-tool="perp_line" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[62px]" title="수선 긋기 (Beta 2.6 클리어 시 해금)">
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-t text-sm mb-0.5 rotate-180"></i>
+            <i id="lock-perp_line" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+          </div>
+          <span class="text-[10px] font-bold">수선긋기</span>
+          <span class="text-[9px] text-emerald-300">1L·3E</span>
+        </button>
+
+        <button id="macro-parallel_line" data-tool="parallel_line" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[62px]" title="평행선 긋기 (Gamma 3.1 클리어 시 해금)">
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-equals text-sm mb-0.5"></i>
+            <i id="lock-parallel_line" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+          </div>
+          <span class="text-[10px] font-bold">평행선</span>
+          <span class="text-[9px] text-emerald-300">1L·4E</span>
+        </button>
+
+        <button id="macro-compass_copy" data-tool="compass_copy" class="tool-btn px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 flex flex-col items-center min-w-[66px]" title="길이 옮기기 컴퍼스 (Gamma 3.3 클리어 시 해금)">
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-arrows-left-right-to-line text-sm mb-0.5"></i>
+            <i id="lock-compass_copy" class="fa-solid fa-lock text-[10px] text-amber-400"></i>
+          </div>
+          <span class="text-[10px] font-bold">길이옮기기</span>
+          <span class="text-[9px] text-emerald-300">1L·4E</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="btn-undo" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1 transition">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span class="hidden sm:inline">되돌리기</span>
+        </button>
+        <button id="btn-reset" class="px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-800/60 text-xs font-bold flex items-center gap-1 transition">
+          <i class="fa-solid fa-trash-can"></i>
+          <span class="hidden sm:inline">초기화</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 승리 모달 -->
+  <div id="victory-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/40 w-full max-w-md rounded-3xl p-6 text-center shadow-2xl">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-amber-400 text-3xl mb-3 star-glow">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      <h2 class="text-xl font-extrabold text-white mb-1">작도 성공!</h2>
+      <p id="victory-stage-name" class="text-xs font-semibold text-indigo-300 mb-4"></p>
+
+      <div class="grid grid-cols-3 gap-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-3 mb-4">
+        <div class="flex flex-col items-center">
+          <div class="h-8 flex items-center justify-center">
+            <i id="v-star-1" class="fa-solid fa-star text-2xl text-slate-600 mb-1 transition-all"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">작도 완성</span>
+          <span class="text-[10px] text-emerald-400">달성 완료</span>
+        </div>
+        <div class="flex flex-col items-center border-x border-slate-800">
+          <div class="h-8 flex items-center justify-center">
+            <i id="v-star-2" class="fa-solid fa-star text-2xl text-slate-600 mb-1 transition-all"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">L-스타 (도구)</span>
+          <span id="v-l-result" class="text-[10px] text-slate-400"></span>
+        </div>
+        <div class="flex flex-col items-center">
+          <div class="h-8 flex items-center justify-center">
+            <i id="v-star-3" class="fa-solid fa-star text-2xl text-slate-600 mb-1 transition-all"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">E-스타 (기초)</span>
+          <span id="v-e-result" class="text-[10px] text-slate-400"></span>
+        </div>
+      </div>
+
+      <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3.5 text-left mb-5">
+        <div class="text-xs font-extrabold text-indigo-300 mb-1 flex items-center gap-1.5">
+          <i class="fa-solid fa-book-bookmark"></i>
+          <span>유클리디아 기하학 원리 해설</span>
+        </div>
+        <p id="victory-proof-text" class="text-xs text-slate-300 leading-relaxed"></p>
+      </div>
+
+      <div id="unlock-notice" class="hidden bg-emerald-950/60 border border-emerald-500/40 rounded-xl p-3 text-xs text-emerald-300 font-bold mb-4 text-left"></div>
+
+      <div class="flex gap-2.5">
+        <button id="btn-retry-stage" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition">다시 하기</button>
+        <button id="btn-next-stage" class="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30">다음 문제 <i class="fa-solid fa-arrow-right ml-1"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 힌트 모달 -->
+  <div id="info-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="info-modal-title" class="text-lg font-extrabold text-white flex items-center gap-2"></h3>
+        <button id="btn-close-info" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="info-modal-body" class="text-sm text-slate-300 space-y-3 leading-relaxed max-h-[65vh] overflow-y-auto pr-1"></div>
+      <div class="mt-5 flex justify-end">
+        <button id="btn-confirm-info" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 오리지널 유클리디아 챕터 메타데이터
+    const CHAPTER_META = [
+      { key: "ALL", label: "전체", symbol: "★" },
+      { key: "Tutorial", label: "Tutorial", symbol: "T" },
+      { key: "Alpha", label: "Alpha", symbol: "α" },
+      { key: "Beta", label: "Beta", symbol: "β" },
+      { key: "Gamma", label: "Gamma", symbol: "γ" },
+      { key: "Delta", label: "Delta", symbol: "δ" },
+      { key: "Epsilon", label: "Epsilon", symbol: "ε" }
+    ];
+
+    // 공식 유클리디아 챕터별 문제 구성 (Tutorial, Alpha, Beta, Gamma, Delta, Epsilon)
+    const STAGES = [
+      // ==================== Tutorial 챕터 ====================
+      {
+        id: "tut_1",
+        chapter: "Tutorial",
+        title: "T.1 Line (직선 긋기)",
+        desc: "주어진 두 점 A와 B를 지나는 직선을 작도하시오.",
+        lGoal: 1,
+        eGoal: 1,
+        unlockedMacros: [],
+        hint: "하단 도구에서 [눈금없는자]를 선택한 뒤, 점 A와 점 B를 차례대로 클릭하세요.",
+        proof: "유클리드 『원론』 공준 1번에 따라 임의의 서로 다른 두 점을 지나는 직선은 유일하게 결정됩니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.5, y: -1.0, label: "A", given: true },
+            { id: "B", x: 2.5, y: 1.0, label: "B", given: true }
+          ],
+          segments: [],
+          circles: [],
+          targets: [{ type: "line_through", x1: -2.5, y1: -1.0, x2: 2.5, y2: 1.0 }]
+        })
+      },
+      {
+        id: "tut_2",
+        chapter: "Tutorial",
+        title: "T.2 Circle (원 그리기)",
+        desc: "점 A를 중심으로 하고 점 B를 지나는 원을 작도하시오.",
+        lGoal: 1,
+        eGoal: 1,
+        unlockedMacros: [],
+        hint: "하단 도구에서 [컴퍼스(원)]를 선택하고, 먼저 중심점 A를 클릭한 다음 반지름 끝점 B를 클릭하세요.",
+        proof: "유클리드 공준 3번에 따라 임의의 중심과 반지름으로 원을 작도할 수 있습니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -1.0, y: 0, label: "A", given: true },
+            { id: "B", x: 2.0, y: 0, label: "B", given: true }
+          ],
+          segments: [],
+          circles: [],
+          targets: [{ type: "circle", cx: -1.0, cy: 0, r: 3.0 }]
+        })
+      },
+      {
+        id: "tut_3",
+        chapter: "Tutorial",
+        title: "T.3 Point (교점 찾기)",
+        desc: "주어진 두 원이 만나는 위쪽 교점에 정확히 점을 찍으시오.",
+        lGoal: 0,
+        eGoal: 0,
+        unlockedMacros: [],
+        hint: "하단에서 [점/교점] 도구를 선택한 뒤, 두 원이 만나는 위쪽 교차 지점(노란 과녁)을 클릭하세요.",
+        proof: "두 도형이 만나는 교점은 새로운 작도의 기준점으로 사용할 수 있으며 L/E 비용(0L, 0E)이 들지 않습니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -1.5, y: 0, label: "A", given: true },
+            { id: "B", x: 1.5, y: 0, label: "B", given: true }
+          ],
+          segments: [],
+          circles: [
+            { cx: -1.5, cy: 0, r: 2.5, given: true },
+            { cx: 1.5, cy: 0, r: 2.5, given: true }
+          ],
+          targets: [{ type: "point", x: 0, y: 2.0 }]
+        })
+      },
+
+      // ==================== Alpha (α) 챕터 ====================
+      {
+        id: "alpha_1_1",
+        chapter: "Alpha",
+        title: "α 1.1 Angle of 60° (60° 각도 작도)",
+        desc: "반직선 AB를 한 변으로 하는 60° 각도의 다른 한 변(직선 AC)을 작도하시오.",
+        lGoal: 3,
+        eGoal: 3,
+        unlockedMacros: [],
+        hint: "1) 점 A를 중심, 점 B를 지나는 원을 그립니다.\n2) 점 B를 중심, 점 A를 지나는 원을 그립니다.\n3) 점 A와 두 원의 위쪽 교점 C를 [눈금없는자]로 연결하세요.",
+        proof: "유클리드 『원론』 1권 명제 1번입니다. 두 원의 반지름이 AB로 같으므로 △ABC는 정삼각형이 되어 ∠CAB = 60°가 됩니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.0, y: -1.2, label: "A", given: true },
+            { id: "B", x: 2.0, y: -1.2, label: "B", given: true }
+          ],
+          segments: [{ p1: "A", p2: "B", color: "#38bdf8", width: 3, given: true }],
+          circles: [],
+          targets: [{ type: "line_through", x1: -2.0, y1: -1.2, x2: 0, y2: -1.2 + 3.4641 }]
+        })
+      },
+      {
+        id: "alpha_1_2",
+        chapter: "Alpha",
+        title: "α 1.2 Perpendicular Bisector (수직이등분선)",
+        desc: "선분 AB의 수직이등분선을 작도하시오. (클리어 시 [수직이등분] 도구 해금!)",
+        lGoal: 3,
+        eGoal: 3,
+        unlockedMacros: [],
+        unlocks: "perp_bisector",
+        hint: "점 A를 중심·B를 지나는 원과 점 B를 중심·A를 지나는 원을 그린 뒤, 두 원의 위·아래 교점을 직선으로 이으세요.",
+        proof: "두 끝점 A, B로부터 거리가 같은 두 교점을 이은 직선은 마름모의 대각선 성질(SSS 및 SAS 합동)에 의해 선분 AB를 수직이등분합니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.4, y: 0, label: "A", given: true },
+            { id: "B", x: 2.4, y: 0, label: "B", given: true }
+          ],
+          segments: [{ p1: "A", p2: "B", given: true }],
+          circles: [],
+          targets: [{ type: "line_through", x1: 0, y1: -3, x2: 0, y2: 3 }]
+        })
+      },
+      {
+        id: "alpha_1_3",
+        chapter: "Alpha",
+        title: "α 1.3 Midpoint (선분의 중점 찾기)",
+        desc: "주어진 두 점 A, B의 정확한 중점 M을 찾아 점을 찍으시오.",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector"],
+        hint: "1) [눈금없는자]로 두 점 A, B를 연결합니다.\n2) 방금 해금된 [수직이등분] 도구로 점 A와 B를 클릭하면 교점이 바로 중점 M입니다!",
+        proof: "직선 AB와 선분 AB의 수직이등분선이 만나는 교점은 A와 B로부터 같은 거리에 있는 중점(1L+1L=2L, 1E+3E=4E)입니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.4, y: -1.4, label: "A", given: true },
+            { id: "B", x: 2.4, y: 1.4, label: "B", given: true }
+          ],
+          segments: [],
+          circles: [],
+          targets: [{ type: "point", x: 0, y: 0 }]
+        })
+      },
+      {
+        id: "alpha_1_4",
+        chapter: "Alpha",
+        title: "α 1.4 Circle in Square (정사각형 내접원)",
+        desc: "주어진 정사각형 ABCD 내부에 꼭 맞게 내접하는 원을 작도하시오.",
+        lGoal: 2,
+        eGoal: 5,
+        unlockedMacros: ["perp_bisector"],
+        hint: "1) [수직이등분] 도구로 이웃한 두 꼭짓점 A, B를 클릭해 세로 이등분선을 긋습니다.\n2) [눈금없는자]로 대각선 AC(또는 BD)를 그어 정사각형의 중심 O를 찾고, 중심 O에서 변의 중점을 지나는 원을 그리세요! (또는 2L·4E 해법 도전)",
+        proof: "정사각형의 대각선과 변의 수직이등분선의 교점은 정사각형의 중심이며, 중심에서 변의 중점까지의 거리를 반지름으로 하면 내접원이 됩니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.2, y: 2.2, label: "A", given: true },
+            { id: "B", x: 2.2, y: 2.2, label: "B", given: true },
+            { id: "C", x: 2.2, y: -2.2, label: "C", given: true },
+            { id: "D", x: -2.2, y: -2.2, label: "D", given: true }
+          ],
+          segments: [
+            { p1: "A", p2: "B", given: true },
+            { p1: "B", p2: "C", given: true },
+            { p1: "C", p2: "D", given: true },
+            { p1: "D", p2: "A", given: true }
+          ],
+          circles: [],
+          targets: [{ type: "circle", cx: 0, cy: 0, r: 2.2 }]
+        })
+      },
+      {
+        id: "alpha_1_5",
+        chapter: "Alpha",
+        title: "α 1.5 Rhombus in Rectangle (직사각형 내 마름모)",
+        desc: "직사각형 ABCD의 네 변 위에 꼭짓점을 두며 대각선 BD의 수직이등분선을 공유하는 마름모의 두 변을 작도하시오.",
+        lGoal: 3,
+        eGoal: 5,
+        unlockedMacros: ["perp_bisector"],
+        hint: "1) [수직이등분] 도구로 대각선 양 끝점 B와 D를 클릭해 수직이등분선을 그으면 윗변 AB, 아랫변 CD와의 교점 E, F가 생깁니다.\n2) [눈금없는자]로 직선 DE와 직선 BF를 그으면 마름모가 완성됩니다!",
+        proof: "대각선 BD의 수직이등분선 위의 점 E, F는 B와 D로부터 거리가 같으므로(BE=DE, BF=DF), 대칭성에 의해 네 변의 길이가 모두 같은 마름모 BEDF가 됩니다.",
+        setup: () => {
+          // A(-3, 1.8), B(3, 1.8), C(3, -1.8), D(-3, -1.8)
+          // B(3, 1.8), D(-3, -1.8)의 수직이등분선: 6x + 3.6y = 0 -> y = 1.8일 때 x = -1.08, y = -1.8일 때 x = 1.08
+          return {
+            points: [
+              { id: "A", x: -3.0, y: 1.8, label: "A", given: true },
+              { id: "B", x: 3.0, y: 1.8, label: "B", given: true },
+              { id: "C", x: 3.0, y: -1.8, label: "C", given: true },
+              { id: "D", x: -3.0, y: -1.8, label: "D", given: true }
+            ],
+            segments: [
+              { p1: "A", p2: "B", given: true },
+              { p1: "B", p2: "C", given: true },
+              { p1: "C", p2: "D", given: true },
+              { p1: "D", p2: "A", given: true }
+            ],
+            circles: [],
+            targets: [
+              { type: "line_through", x1: -3.0, y1: -1.8, x2: -1.08, y2: 1.8 },
+              { type: "line_through", x1: 3.0, y1: 1.8, x2: 1.08, y2: -1.8 }
+            ]
+          };
+        }
+      },
+      {
+        id: "alpha_1_6",
+        chapter: "Alpha",
+        title: "α 1.6 Circle Center (원의 중심 찾기)",
+        desc: "중심이 지워진 원과 원 위의 세 점 A, B, C가 주어져 있습니다. 원의 중심 O를 작도하시오.",
+        lGoal: 2,
+        eGoal: 5,
+        unlockedMacros: ["perp_bisector"],
+        hint: "원 위의 세 점 A, B, C에 대하여 [수직이등분] 도구로 현 AB의 수직이등분선과 현 BC의 수직이등분선을 그으면 만나는 교점이 원의 중심입니다!",
+        proof: "원의 임의의 현의 수직이등분선은 항상 원의 중심을 지납니다. 따라서 서로 평행하지 않은 두 현의 수직이등분선의 교점이 원의 중심입니다.",
+        setup: () => {
+          const cx = 0.4, cy = -0.2, r = 2.6;
+          return {
+            points: [
+              { id: "A", x: cx + r * Math.cos(0.4), y: cy + r * Math.sin(0.4), label: "A", given: true },
+              { id: "B", x: cx + r * Math.cos(2.1), y: cy + r * Math.sin(2.1), label: "B", given: true },
+              { id: "C", x: cx + r * Math.cos(4.2), y: cy + r * Math.sin(4.2), label: "C", given: true }
+            ],
+            segments: [],
+            circles: [{ cx, cy, r, given: true }],
+            targets: [{ type: "point", x: cx, y: cy }]
+          };
+        }
+      },
+      {
+        id: "alpha_1_7",
+        chapter: "Alpha",
+        title: "α 1.7 Inscribed Square (원에 내접하는 정사각형)",
+        desc: "원의 중심 O와 원 위의 점 A가 주어져 있습니다. 점 A를 한 꼭짓점으로 하여 원에 내접하는 정사각형의 서로 수직인 두 대각선을 작도하시오.",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector"],
+        hint: "1) [눈금없는자]로 점 A와 원의 중심 O를 이어 지름 AC를 만듭니다.\n2) [수직이등분] 도구로 지름의 양 끝점 A, C를 클릭하면 직교하는 두 대각선이 완성됩니다!",
+        proof: "원의 두 지름이 서로 수직으로 만나면 원주를 4등분하므로, 그 네 교점을 이은 사각형은 내접 정사각형이 됩니다.",
+        setup: () => ({
+          points: [
+            { id: "O", x: 0, y: 0, label: "O", given: true },
+            { id: "A", x: 0, y: 2.6, label: "A", given: true }
+          ],
+          segments: [],
+          circles: [{ cx: 0, cy: 0, r: 2.6, given: true }],
+          targets: [
+            { type: "line_through", x1: 0, y1: -2.6, x2: 0, y2: 2.6 },
+            { type: "line_through", x1: -2.6, y1: 0, x2: 2.6, y2: 0 }
+          ]
+        })
+      },
+
+      // ==================== Beta (β) 챕터 ====================
+      {
+        id: "beta_2_1",
+        chapter: "Beta",
+        title: "β 2.1 Angle Bisector (각의 이등분선)",
+        desc: "주어진 각 XOY를 정확히 이등분하는 직선을 작도하시오. (클리어 시 [각이등분선] 도구 해금!)",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector"],
+        unlocks: "angle_bisector",
+        hint: "1) [컴퍼스]로 꼭짓점 O를 중심, 점 X를 지나는 원을 그려 아랫변과의 교점 Y'을 만듭니다.\n2) [수직이등분] 도구로 점 X와 Y'을 클릭하면 단 2L·4E 만에 각의 이등분선이 완성됩니다!",
+        proof: "점 O에서 같은 거리에 있는 두 점 X, Y'을 잡으면 △OXY'은 이등변삼각형이므로, 밑변 XY'의 수직이등분선은 꼭짓점 O를 지나며 각을 이등분합니다.",
+        setup: () => {
+          const ang = 1.0472;
+          return {
+            points: [
+              { id: "O", x: -3.2, y: -1.6, label: "O", given: true },
+              { id: "X", x: -3.2 + 2.8 * Math.cos(ang), y: -1.6 + 2.8 * Math.sin(ang), label: "X", given: true },
+              { id: "Y", x: 3.2, y: -1.6, label: "Y", given: true }
+            ],
+            lines: [
+              { x1: -3.2, y1: -1.6, x2: 3.2, y2: -1.6, given: true },
+              { x1: -3.2, y1: -1.6, x2: -3.2 + 5 * Math.cos(ang), y2: -1.6 + 5 * Math.sin(ang), given: true }
+            ],
+            segments: [],
+            circles: [],
+            targets: [
+              {
+                type: "line_through",
+                x1: -3.2,
+                y1: -1.6,
+                x2: -3.2 + 4 * Math.cos(ang / 2),
+                y2: -1.6 + 4 * Math.sin(ang / 2)
+              }
+            ]
+          };
+        }
+      },
+      {
+        id: "beta_2_2",
+        chapter: "Beta",
+        title: "β 2.2 Intersection of Angle Bisectors (내심 찾기)",
+        desc: "삼각형 ABC의 세 내각의 이등분선이 만나는 교점(내심 I)을 작도하시오.",
+        lGoal: 2,
+        eGoal: 8,
+        unlockedMacros: ["perp_bisector", "angle_bisector"],
+        hint: "방금 해금된 [각이등분선] 도구를 사용하세요! 점 A-B-C 순서로 클릭해 ∠B의 이등분선을 긋고, 점 B-C-A 순서로 클릭해 ∠C의 이등분선을 그으면 교점이 내심입니다.",
+        proof: "삼각형의 세 내각의 이등분선은 한 점(내심)에서 만나며, 이 점에서 세 변에 이르는 거리는 모두 같습니다.",
+        setup: () => {
+          const A = { x: 0, y: 2.5 }, B = { x: -3.5, y: -1.8 }, C = { x: 3.5, y: -1.8 };
+          const a = 7.0, b = Math.hypot(3.5, 4.3), c = b;
+          const iy = (a * A.y + b * B.y + c * C.y) / (a + b + c);
+          return {
+            points: [
+              { id: "A", x: A.x, y: A.y, label: "A", given: true },
+              { id: "B", x: B.x, y: B.y, label: "B", given: true },
+              { id: "C", x: C.x, y: C.y, label: "C", given: true }
+            ],
+            lines: [
+              { x1: A.x, y1: A.y, x2: B.x, y2: B.y, given: true },
+              { x1: B.x, y1: B.y, x2: C.x, y2: C.y, given: true },
+              { x1: C.x, y1: C.y, x2: A.x, y2: A.y, given: true }
+            ],
+            segments: [],
+            circles: [],
+            targets: [{ type: "point", x: 0, y: iy }]
+          };
+        }
+      },
+      {
+        id: "beta_2_3",
+        chapter: "Beta",
+        title: "β 2.3 Angle of 30° (30° 각도 작도)",
+        desc: "주어진 반직선 AB를 기준으로 30° 각도를 이루는 직선을 작도하시오.",
+        lGoal: 3,
+        eGoal: 3,
+        unlockedMacros: ["perp_bisector", "angle_bisector"],
+        hint: "1) 점 B를 중심, 점 A를 지나는 원을 그립니다.\n2) 점 A를 중심, 점 B를 지나는 원을 그려 위쪽 교점 C를 찾습니다.\n3) 원 B와 직선 AB의 오른쪽 교점 D(또는 C와 반대쪽 교점)를 연결하거나 60°를 이등분하세요! (중심각 60°의 원주각은 30°입니다!)",
+        proof: "중심각이 60°인 호에 대한 원주각의 크기는 중심각의 절반인 30°이므로, 원 두 개와 직선 하나로 3L·3E 작도가 가능합니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.2, y: -0.8, label: "A", given: true },
+            { id: "B", x: 0.8, y: -0.8, label: "B", given: true }
+          ],
+          lines: [{ x1: -2.2, y1: -0.8, x2: 3.5, y2: -0.8, given: true }],
+          segments: [],
+          circles: [],
+          targets: [
+            {
+              type: "line_through",
+              x1: -2.2,
+              y1: -0.8,
+              x2: -2.2 + 4 * Math.cos(Math.PI / 6),
+              y2: -0.8 + 4 * Math.sin(Math.PI / 6)
+            }
+          ]
+        })
+      },
+      {
+        id: "beta_2_4",
+        chapter: "Beta",
+        title: "β 2.4 Double Angle (2배 각 작도)",
+        desc: "주어진 각 BAC의 한 변 AC를 공유하며 크기가 같은 각을 덧붙여 2배 크기의 각(직선 AE)을 작도하시오.",
+        lGoal: 3,
+        eGoal: 3,
+        unlockedMacros: ["perp_bisector", "angle_bisector"],
+        hint: "1) 점 A를 중심, 점 B를 지나는 원을 그려 반직선 AC와의 교점 D를 찾습니다.\n2) 점 D를 중심, 점 B를 지나는 원을 그려 첫 번째 원과의 교점 E를 찾습니다.\n3) [눈금없는자]로 점 A와 점 E를 연결하세요! (3L·3E)",
+        proof: "반지름이 같은 원 ⊙A와 호 위의 점 D를 중심으로 하는 원 ⊙D의 교점 E에 대해, 현 BD와 DE의 길이가 같으므로 △ABD ≡ △ADE (SSS 합동)입니다. 따라서 ∠DAE = ∠BAD가 되어 ∠BAE는 원래 각의 2배가 됩니다.",
+        setup: () => {
+          const ang = 0.62; // 약 35.5도
+          const r = 3.0;
+          return {
+            points: [
+              { id: "A", x: -2.2, y: -1.2, label: "A", given: true },
+              { id: "B", x: -2.2 + r, y: -1.2, label: "B", given: true },
+              { id: "C", x: -2.2 + r * Math.cos(ang), y: -1.2 + r * Math.sin(ang), label: "C", given: true }
+            ],
+            lines: [
+              { x1: -2.2, y1: -1.2, x2: 3.5, y2: -1.2, given: true },
+              { x1: -2.2, y1: -1.2, x2: -2.2 + 4.5 * Math.cos(ang), y2: -1.2 + 4.5 * Math.sin(ang), given: true }
+            ],
+            segments: [],
+            circles: [],
+            targets: [
+              {
+                type: "line_through",
+                x1: -2.2,
+                y1: -1.2,
+                x2: -2.2 + 4.5 * Math.cos(2 * ang),
+                y2: -1.2 + 4.5 * Math.sin(2 * ang)
+              }
+            ]
+          };
+        }
+      },
+      {
+        id: "beta_2_5",
+        chapter: "Beta",
+        title: "β 2.5 Cut Rectangle (직사각형 넓이 이등분선)",
+        desc: "직사각형 ABCD 밖의 점 P를 지나면서 직사각형의 넓이를 정확히 2등분하는 직선을 작도하시오.",
+        lGoal: 3,
+        eGoal: 3,
+        unlockedMacros: ["perp_bisector", "angle_bisector"],
+        hint: "직사각형의 중심(두 대각선의 교점 M)을 지나는 모든 직선은 넓이를 2등분합니다!\n1) [눈금없는자]로 대각선 AC를 긋습니다.\n2) [눈금없는자]로 대각선 BD를 그어 중심 M을 찾습니다.\n3) 점 P와 중심 M을 잇는 직선을 그으세요! (3L·3E)",
+        proof: "직사각형은 두 대각선의 교점(대칭중심 M)에 대해 점대칭 도형입니다. 대칭중심을 지나는 임의의 직선은 직사각형을 서로 합동인 두 다각형으로 분할하므로 넓이가 항상 정확히 절반으로 나뉩니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.8, y: 1.6, label: "A", given: true },
+            { id: "B", x: 1.4, y: 1.6, label: "B", given: true },
+            { id: "C", x: 1.4, y: -1.4, label: "C", given: true },
+            { id: "D", x: -2.8, y: -1.4, label: "D", given: true },
+            { id: "P", x: 2.8, y: 1.8, label: "P", given: true }
+          ],
+          segments: [
+            { p1: "A", p2: "B", given: true },
+            { p1: "B", p2: "C", given: true },
+            { p1: "C", p2: "D", given: true },
+            { p1: "D", p2: "A", given: true }
+          ],
+          circles: [],
+          targets: [
+            { type: "line_through", x1: 2.8, y1: 1.8, x2: -0.7, y2: 0.1 }
+          ]
+        })
+      },
+      {
+        id: "beta_2_6",
+        chapter: "Beta",
+        title: "β 2.6 Drop a Perpendicular (수선 내리기)",
+        desc: "직선 AB 밖의 한 점 P에서 직선 AB에 내리는 수선을 작도하시오. (클리어 시 [수선긋기] 도구 해금!)",
+        lGoal: 2,
+        eGoal: 3,
+        unlockedMacros: ["perp_bisector", "angle_bisector"],
+        unlocks: "perp_line",
+        hint: "1) 점 P를 중심으로 직선 AB와 두 점에서 만나도록(예: 점 A를 지나도록) 원을 그립니다.\n2) 원과 직선 AB의 두 교점을 [수직이등분] 도구로 클릭하거나 두 원의 교점을 이으세요!",
+        proof: "점 P를 중심으로 원을 그리면 직선과 만나는 두 교점으로부터 P까지의 거리가 같으므로, 그 선분의 수직이등분선은 점 P를 지나며 직선과 수직입니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.6, y: -1.4, label: "A", given: true },
+            { id: "B", x: 3.0, y: -1.4, label: "B", given: true },
+            { id: "P", x: 0.4, y: 1.8, label: "P", given: true }
+          ],
+          lines: [{ x1: -3.5, y1: -1.4, x2: 3.5, y2: -1.4, given: true }],
+          segments: [],
+          circles: [],
+          targets: [{ type: "line_through", x1: 0.4, y1: -1.4, x2: 0.4, y2: 1.8 }]
+        })
+      },
+
+      // ==================== Gamma (γ) 챕터 ====================
+      {
+        id: "gamma_3_1",
+        chapter: "Gamma",
+        title: "γ 3.1 Parallel Line (평행선 작도)",
+        desc: "직선 AB 밖의 점 P를 지나고 직선 AB에 평행한 직선을 작도하시오. (클리어 시 [평행선] 도구 해금!)",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line"],
+        unlocks: "parallel_line",
+        hint: "해금된 [수선긋기] 도구를 두 번 연속으로 사용하거나(직선 AB에 수선을 긋고, 그 수선에 다시 점 P를 지나는 수선 긋기: 2L·6E), 반원/수직이등분선을 이용해 2L·4E에 도전해 보세요!",
+        proof: "한 평면 위에서 같은 직선에 수직인 두 직선은 서로 평행합니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -3.0, y: -1.6, label: "A", given: true },
+            { id: "B", x: 3.0, y: -1.6, label: "B", given: true },
+            { id: "P", x: -0.8, y: 1.6, label: "P", given: true }
+          ],
+          lines: [{ x1: -3.0, y1: -1.6, x2: 3.0, y2: -1.6, given: true }],
+          segments: [],
+          circles: [],
+          targets: [{ type: "line_through", x1: -3.0, y1: 1.6, x2: 3.0, y2: 1.6 }]
+        })
+      },
+      {
+        id: "gamma_3_2",
+        chapter: "Gamma",
+        title: "γ 3.2 Angle of 45° (45° 각도 작도)",
+        desc: "반직선 AB를 한 변으로 하는 45° 각도를 작도하시오.",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line"],
+        hint: "1) [수선긋기]로 직선 AB와 점 B를 클릭해 직각삼각형의 수선을 세웁니다.\n2) [컴퍼스]로 점 B를 중심, 점 A를 지나는 원을 그려 수선과의 교점 C를 찾고 점 A와 이으면 직각이등변삼각형(45°) 완성!",
+        proof: "두 직각변의 길이가 BA = BC로 같은 직각이등변삼각형 ABC에서 밑각 ∠CAB는 45°입니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -2.4, y: -1.5, label: "A", given: true },
+            { id: "B", x: 1.2, y: -1.5, label: "B", given: true }
+          ],
+          lines: [{ x1: -2.4, y1: -1.5, x2: 3.0, y2: -1.5, given: true }],
+          segments: [],
+          circles: [],
+          targets: [{ type: "line_through", x1: -2.4, y1: -1.5, x2: 1.2, y2: 2.1 }]
+        })
+      },
+      {
+        id: "gamma_3_3",
+        chapter: "Gamma",
+        title: "γ 3.3 Non-collapsing Compass (길이 옮기기 원)",
+        desc: "선분 AB의 길이를 반지름으로 하고 점 C를 중심으로 하는 원을 작도하시오. (클리어 시 [길이옮기기] 도구 해금!)",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line"],
+        unlocks: "compass_copy",
+        hint: "평행사변형 또는 대칭성을 이용합니다!\n1) [수직이등분] 도구로 점 A와 점 C를 클릭해 대칭축을 만듭니다.\n2) 점 B에서 대칭축을 이용해 길이를 옮기거나 평행선을 그어 반지름이 AB인 점 C의 원을 그리세요!",
+        proof: "유클리드 『원론』 1권 명제 2번(접히는 컴퍼스로도 임의의 선분 길이를 다른 점으로 옮길 수 있음)의 증명입니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -3.2, y: 1.2, label: "A", given: true },
+            { id: "B", x: -1.0, y: 1.2, label: "B", given: true },
+            { id: "C", x: 1.6, y: -0.6, label: "C", given: true }
+          ],
+          segments: [{ p1: "A", p2: "B", color: "#38bdf8", width: 3, given: true }],
+          circles: [],
+          targets: [{ type: "circle", cx: 1.6, cy: -0.6, r: 2.2 }]
+        })
+      },
+      {
+        id: "gamma_3_4",
+        chapter: "Gamma",
+        title: "γ 3.4 Circle Tangent to Line (직선에 접하는 원)",
+        desc: "점 O를 중심으로 하고 주어진 직선 AB에 정확히 접하는 원을 작도하시오.",
+        lGoal: 2,
+        eGoal: 4,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [수선긋기] 도구로 직선 AB와 중심 O를 클릭해 수선의 발 H를 찾습니다.\n2) [컴퍼스]로 점 O를 중심, 수선의 발 H를 지나는 원을 그리면 직선에 접합니다!",
+        proof: "원의 중심에서 직선에 내린 수선의 발까지의 거리를 반지름으로 하는 원은 그 직선과 오직 한 점에서 만나 접합니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -3.2, y: -1.5, label: "A", given: true },
+            { id: "B", x: 3.2, y: -1.5, label: "B", given: true },
+            { id: "O", x: 0.4, y: 1.2, label: "O", given: true }
+          ],
+          lines: [{ x1: -3.2, y1: -1.5, x2: 3.2, y2: -1.5, given: true }],
+          segments: [],
+          circles: [],
+          targets: [{ type: "circle", cx: 0.4, cy: 1.2, r: 2.7 }]
+        })
+      },
+      {
+        id: "gamma_3_5",
+        chapter: "Gamma",
+        title: "γ 3.5 Circumscribed Circle (삼각형의 외접원)",
+        desc: "세 점 A, B, C를 모두 지나는 삼각형의 외접원을 작도하시오.",
+        lGoal: 3,
+        eGoal: 7,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [수직이등분] 도구로 두 변 AB와 BC의 수직이등분선을 각각 그어 교점(외심 O)을 찾습니다.\n2) [컴퍼스]로 외심 O를 중심, 꼭짓점 A를 지나는 원을 그리세요!",
+        proof: "세 변의 수직이등분선의 교점인 외심 O는 세 꼭짓점 A, B, C에 이르는 거리가 모두 같으므로 외접원의 중심이 됩니다.",
+        setup: () => {
+          const cx = 0, cy = -0.3, r = 2.8;
+          return {
+            points: [
+              { id: "A", x: cx + r * Math.cos(1.3), y: cy + r * Math.sin(1.3), label: "A", given: true },
+              { id: "B", x: cx + r * Math.cos(3.5), y: cy + r * Math.sin(3.5), label: "B", given: true },
+              { id: "C", x: cx + r * Math.cos(5.6), y: cy + r * Math.sin(5.6), label: "C", given: true }
+            ],
+            segments: [],
+            circles: [],
+            targets: [{ type: "circle", cx, cy, r }]
+          };
+        }
+      },
+
+      // ==================== Delta (δ) 챕터 ====================
+      {
+        id: "delta_4_1",
+        chapter: "Delta",
+        title: "δ 4.1 Tangents to Circle from Point (원 밖의 점에서 접선)",
+        desc: "원 O 밖의 한 점 A에서 원 O에 그은 두 접선을 모두 작도하시오.",
+        lGoal: 4,
+        eGoal: 6,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [수직이등분]으로 점 A와 중심 O의 중점 M을 찾습니다 (선분 AO와 만나는 교점 생성을 위해 직선 AO나 원 활용).\n2) 중점 M을 중심, 점 O를 지나는 원(탈레스의 원)을 그려 원 O와의 두 교점 T1, T2를 찾고 점 A와 직선으로 연결하세요!",
+        proof: "탈레스의 정리에 의해 지름 AO에 대한 원주각 ∠ATO = 90°이므로 직선 AT는 반지름 OT에 수직인 접선이 됩니다.",
+        setup: () => {
+          const ax = -3.8, ay = 0, ox = 1.6, oy = 0, r = 2.2;
+          const d = ox - ax;
+          const sinA = r / d, cosA = Math.sqrt(1 - sinA * sinA);
+          const tx = ax + d * cosA * cosA, ty = d * cosA * sinA;
+          return {
+            points: [
+              { id: "A", x: ax, y: ay, label: "A", given: true },
+              { id: "O", x: ox, y: oy, label: "O", given: true }
+            ],
+            lines: [{ x1: ax, y1: ay, x2: ox, y2: oy, given: true }],
+            segments: [],
+            circles: [{ cx: ox, cy: oy, r, given: true }],
+            targets: [
+              { type: "line_through", x1: ax, y1: ay, x2: tx, y2: ty },
+              { type: "line_through", x1: ax, y1: ay, x2: tx, y2: -ty }
+            ]
+          };
+        }
+      },
+      {
+        id: "delta_4_2",
+        chapter: "Delta",
+        title: "δ 4.2 Inscribed Circle (삼각형의 내접원)",
+        desc: "삼각형 ABC의 세 변에 모두 접하는 내접원을 작도하시오.",
+        lGoal: 4,
+        eGoal: 12,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [각이등분선] 도구로 두 내각을 이등분하여 내심 I를 찾습니다.\n2) [수선긋기]로 내심 I에서 한 변에 수선을 내려 수선의 발 H를 찾습니다.\n3) [컴퍼스]로 중심 I, 점 H를 지나는 원을 그리세요!",
+        proof: "내심에서 세 변에 내린 수선의 길이는 모두 같으므로 수선의 발을 지나는 원은 세 변에 동시에 내접합니다.",
+        setup: () => {
+          const A = { x: 0.5, y: 2.6 }, B = { x: -3.8, y: -1.8 }, C = { x: 3.6, y: -1.8 };
+          const a = Math.hypot(B.x - C.x, B.y - C.y);
+          const b = Math.hypot(A.x - C.x, A.y - C.y);
+          const c = Math.hypot(A.x - B.x, A.y - B.y);
+          const ix = (a * A.x + b * B.x + c * C.x) / (a + b + c);
+          const iy = (a * A.y + b * B.y + c * C.y) / (a + b + c);
+          return {
+            points: [
+              { id: "A", x: A.x, y: A.y, label: "A", given: true },
+              { id: "B", x: B.x, y: B.y, label: "B", given: true },
+              { id: "C", x: C.x, y: C.y, label: "C", given: true }
+            ],
+            lines: [
+              { x1: A.x, y1: A.y, x2: B.x, y2: B.y, given: true },
+              { x1: B.x, y1: B.y, x2: C.x, y2: C.y, given: true },
+              { x1: C.x, y1: C.y, x2: A.x, y2: A.y, given: true }
+            ],
+            segments: [],
+            circles: [],
+            targets: [{ type: "circle", cx: ix, cy: iy, r: iy - (-1.8) }]
+          };
+        }
+      },
+      {
+        id: "delta_4_3",
+        chapter: "Delta",
+        title: "δ 4.3 Equilateral Triangle in Circle (내접 정삼각형)",
+        desc: "원 O 위의 점 A를 한 꼭짓점으로 하여 원에 내접하는 정삼각형의 세 변을 작도하시오.",
+        lGoal: 4,
+        eGoal: 6,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [수직이등분] 도구로 중심 O와 점 A의 반대쪽(또는 점 A를 중심으로 반지름 OA인 원을 그려 원 O와의 두 교점 생성 후 수직이등분선 활용)으로 밑변 BC를 찾습니다.\n2) 세 꼭짓점 A, B, C를 직선으로 연결하세요!",
+        proof: "반지름이 R인 원에서 중심 O로부터 R/2만큼 떨어진 현의 길이는 √3·R이 되어 내접 정삼각형을 이룹니다.",
+        setup: () => {
+          const r = 2.6;
+          const B = { x: -r * Math.cos(Math.PI / 6), y: -r * Math.sin(Math.PI / 6) };
+          const C = { x: r * Math.cos(Math.PI / 6), y: -r * Math.sin(Math.PI / 6) };
+          return {
+            points: [
+              { id: "O", x: 0, y: 0, label: "O", given: true },
+              { id: "A", x: 0, y: r, label: "A", given: true }
+            ],
+            segments: [],
+            circles: [{ cx: 0, cy: 0, r, given: true }],
+            targets: [
+              { type: "line_through", x1: 0, y1: r, x2: B.x, y2: B.y },
+              { type: "line_through", x1: 0, y1: r, x2: C.x, y2: C.y },
+              { type: "line_through", x1: B.x, y1: B.y, x2: C.x, y2: C.y }
+            ]
+          };
+        }
+      },
+
+      // ==================== Epsilon (ε) 챕터 ====================
+      {
+        id: "epsilon_5_1",
+        chapter: "Epsilon",
+        title: "ε 5.1 Golden Section (선분의 황금분할)",
+        desc: "선분 AB를 황금비(AP : PB = AB : AP)로 내분하는 점 P를 지나는 원(중심 A, 반지름 AP)을 작도하시오.",
+        lGoal: 5,
+        eGoal: 9,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [수직이등분]으로 선분 AB의 중점 M을 찾습니다.\n2) [수선긋기]로 점 B에서의 수선을 세우고, 중심 B·반지름 BM인 원을 그려 교점 O를 찾습니다.\n3) 직선 AO를 긋고, 중심 O·반지름 OB인 원을 그려 선분 AO와의 교점 C를 찾은 뒤, 중심 A·반지름 AC인 원을 그리세요!",
+        proof: "직각삼각형 ABO에서 AO = (√5/2)AB이고 AC = AO - BO = ((√5-1)/2)AB이므로 황금분할 비율이 정확히 성립합니다.",
+        setup: () => {
+          const ax = -2.8, ay = -1.2, bx = 2.8, by = -1.2;
+          const ab = 5.6;
+          const ac = ab * (Math.sqrt(5) - 1) / 2;
+          return {
+            points: [
+              { id: "A", x: ax, y: ay, label: "A", given: true },
+              { id: "B", x: bx, y: by, label: "B", given: true }
+            ],
+            lines: [{ x1: ax, y1: ay, x2: bx, y2: by, given: true }],
+            segments: [{ p1: "A", p2: "B", color: "#fbbf24", width: 3.5, given: true }],
+            circles: [],
+            targets: [{ type: "circle", cx: ax, cy: ay, r: ac }]
+          };
+        }
+      },
+      {
+        id: "epsilon_5_2",
+        chapter: "Epsilon",
+        title: "ε 5.2 Heron's Problem (헤론의 최단 경로)",
+        desc: "직선 AB 같은 쪽에 있는 두 점 P, Q에 대하여 PR + QR이 최소가 되도록 대칭점 P'과 Q를 잇는 직선을 작도하시오.",
+        lGoal: 3,
+        eGoal: 5,
+        unlockedMacros: ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"],
+        hint: "1) [수선긋기]로 직선 AB와 점 P를 선택해 수선의 발 H를 찾습니다.\n2) [컴퍼스]로 점 H를 중심, 점 P를 지나는 원을 그려 대칭점 P'을 찾습니다.\n3) [눈금없는자]로 점 P'과 점 Q를 연결하세요!",
+        proof: "빛의 반사 법칙(입사각=반사각)과 동일하며, 대칭점 P'을 일직선으로 이을 때 삼각부등식에 의해 경로의 합이 최소가 됩니다.",
+        setup: () => ({
+          points: [
+            { id: "A", x: -4.0, y: -0.6, label: "A", given: true },
+            { id: "B", x: 4.0, y: -0.6, label: "B", given: true },
+            { id: "P", x: -2.2, y: 1.4, label: "P", given: true },
+            { id: "Q", x: 2.2, y: 2.4, label: "Q", given: true }
+          ],
+          lines: [{ x1: -4.0, y1: -0.6, x2: 4.0, y2: -0.6, given: true }],
+          segments: [],
+          circles: [],
+          targets: [{ type: "line_through", x1: -2.2, y1: -2.6, x2: 2.2, y2: 2.4 }]
+        })
+      }
+    ];
+
+    const toolInfoMap = {
+      perp_bisector: {
+        name: "수직이등분선 도구",
+        desc: "두 점을 선택하여 수직이등분선을 1번의 도구 사용(1L, 3E)으로 즉시 작도합니다."
+      },
+      angle_bisector: {
+        name: "각의 이등분선 도구",
+        desc: "각을 이루는 세 점을 선택하여 각의 이등분선을 1번의 도구 사용(1L, 4E)으로 즉시 작도합니다."
+      },
+      perp_line: {
+        name: "수선 긋기 도구",
+        desc: "기준 직선과 한 점을 선택하여 수선을 1번의 도구 사용(1L, 3E)으로 즉시 작도합니다."
+      },
+      parallel_line: {
+        name: "평행선 도구",
+        desc: "기준 직선과 한 점을 선택하여 평행선을 1번의 도구 사용(1L, 4E)으로 즉시 작도합니다."
+      },
+      compass_copy: {
+        name: "길이 옮기기 컴퍼스",
+        desc: "두 점 사이의 거리를 재어 원하는 중심에 동일한 반지름의 원을 작도합니다(1L, 4E)."
+      }
+    };
+
+    const state = {
+      currentStageIdx: 0,
+      selectedChapterFilter: "ALL",
+      activeTool: "line",
+      selectedItems: [],
+      mouseWorld: { x: 0, y: 0 },
+      hoverPoint: null,
+      showTargetPreview: true,
+      lCount: 0,
+      eCount: 0,
+      historyStack: [],
+      points: [],
+      lines: [],
+      segments: [],
+      circles: [],
+      targets: [],
+      pan: { x: 0, y: 0 },
+      scale: 50,
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      // sessionStorage 사용하여 브라우저 닫을 시 데이터 초기화
+      progress: JSON.parse(sessionStorage.getItem("euclidea_original_progress") || "{}"),
+      unlockedMacros: JSON.parse(sessionStorage.getItem("euclidea_original_macros") || '[]')
+    };
+
+    function playTone(freq = 523.25, duration = 0.12, type = "sine") {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (err) {}
+    }
+
+    function playVictoryChord() {
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+        setTimeout(() => playTone(f, 0.25, "triangle"), idx * 90);
+      });
+    }
+
+    const canvas = document.getElementById("geo-canvas");
+    const ctx = canvas.getContext("2d");
+
+    function worldToScreen(wx, wy) {
+      return {
+        x: canvas.width / 2 + state.pan.x + wx * state.scale,
+        y: canvas.height / 2 + state.pan.y - wy * state.scale
+      };
+    }
+
+    function screenToWorld(sx, sy) {
+      return {
+        x: (sx - (canvas.width / 2 + state.pan.x)) / state.scale,
+        y: ((canvas.height / 2 + state.pan.y) - sy) / state.scale
+      };
+    }
+
+    function intersectLineLine(l1, l2) {
+      const denom = (l1.x1 - l1.x2) * (l2.y1 - l2.y2) - (l1.y1 - l1.y2) * (l2.x1 - l2.x2);
+      if (Math.abs(denom) < 1e-7) return [];
+      const px = ((l1.x1 * l1.y2 - l1.y1 * l1.x2) * (l2.x1 - l2.x2) - (l1.x1 - l1.x2) * (l2.x1 * l2.y2 - l2.y1 * l2.x2)) / denom;
+      const py = ((l1.x1 * l1.y2 - l1.y1 * l1.x2) * (l2.y1 - l2.y2) - (l1.y1 - l1.y2) * (l2.x1 * l2.y2 - l2.y1 * l2.x2)) / denom;
+      return [{ x: px, y: py }];
+    }
+
+    function intersectLineCircle(line, circle) {
+      const dx = line.x2 - line.x1, dy = line.y2 - line.y1;
+      const fx = line.x1 - circle.cx, fy = line.y1 - circle.cy;
+      const a = dx * dx + dy * dy;
+      if (a < 1e-9) return [];
+      const b = 2 * (fx * dx + fy * dy);
+      const c = fx * fx + fy * fy - circle.r * circle.r;
+      let disc = b * b - 4 * a * c;
+      if (disc < -1e-6) return [];
+      if (disc < 0) disc = 0;
+      const sqrtD = Math.sqrt(disc);
+      const t1 = (-b - sqrtD) / (2 * a);
+      const t2 = (-b + sqrtD) / (2 * a);
+      const res = [{ x: line.x1 + t1 * dx, y: line.y1 + t1 * dy }];
+      if (disc > 1e-6) res.push({ x: line.x1 + t2 * dx, y: line.y1 + t2 * dy });
+      return res;
+    }
+
+    function intersectCircleCircle(c1, c2) {
+      const dx = c2.cx - c1.cx, dy = c2.cy - c1.cy;
+      const d = Math.hypot(dx, dy);
+      if (d < 1e-7 || d > c1.r + c2.r + 1e-6 || d < Math.abs(c1.r - c2.r) - 1e-6) return [];
+      const a = (c1.r * c1.r - c2.r * c2.r + d * d) / (2 * d);
+      const h = Math.sqrt(Math.max(0, c1.r * c1.r - a * a));
+      const xm = c1.cx + (a * dx) / d, ym = c1.cy + (a * dy) / d;
+      const rx = (-dy * h) / d, ry = (dx * h) / d;
+      if (h < 1e-5) return [{ x: xm, y: ym }];
+      return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }];
+    }
+
+    function recomputeIntersections() {
+      const allLines = [...state.lines, ...state.segments.map(s => {
+        const p1 = state.points.find(p => p.id === s.p1);
+        const p2 = state.points.find(p => p.id === s.p2);
+        return p1 && p2 ? { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y } : null;
+      }).filter(Boolean), ...(state.lines || [])];
+
+      const candidates = [];
+      for (let i = 0; i < allLines.length; i++) {
+        for (let j = i + 1; j < allLines.length; j++) candidates.push(...intersectLineLine(allLines[i], allLines[j]));
+        for (let k = 0; k < state.circles.length; k++) candidates.push(...intersectLineCircle(allLines[i], state.circles[k]));
+      }
+      for (let i = 0; i < state.circles.length; i++) {
+        for (let j = i + 1; j < state.circles.length; j++) candidates.push(...intersectCircleCircle(state.circles[i], state.circles[j]));
+      }
+
+      candidates.forEach(pt => {
+        if (!isFinite(pt.x) || !isFinite(pt.y) || Math.hypot(pt.x, pt.y) > 30) return;
+        if (!state.points.some(ep => Math.hypot(ep.x - pt.x, ep.y - pt.y) < 0.06)) {
+          state.points.push({ id: "I_" + state.points.length, x: pt.x, y: pt.y, autoIntersection: true });
+        }
+      });
+    }
+
+    function isLineMatching(l1, l2) {
+      const dx = l1.x2 - l1.x1, dy = l1.y2 - l1.y1;
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-6) return false;
+      const d1 = Math.abs(dy * l2.x1 - dx * l2.y1 + l1.x2 * l1.y1 - l1.y2 * l1.x1) / len;
+      const d2 = Math.abs(dy * l2.x2 - dx * l2.y2 + l1.x2 * l1.y1 - l1.y2 * l1.x1) / len;
+      return d1 < 0.08 && d2 < 0.08;
+    }
+
+    function isCircleMatching(c1, c2) {
+      return Math.hypot(c1.cx - c2.cx, c1.cy - c2.cy) < 0.08 && Math.abs(c1.r - c2.r) < 0.08;
+    }
+
+    function checkTargetSolved(t) {
+      if (t.type === "line_through") return state.lines.some(l => !l.given && isLineMatching(l, t));
+      if (t.type === "circle") return state.circles.some(c => !c.given && isCircleMatching(c, t));
+      if (t.type === "point") return state.points.some(p => !p.given && Math.hypot(p.x - t.x, p.y - t.y) < 0.09);
+      return false;
+    }
+
+    function evaluateStageVictory() {
+      if (!state.targets || state.targets.length === 0) return;
+      if (!state.targets.every(t => checkTargetSolved(t))) return;
+
+      const stage = STAGES[state.currentStageIdx];
+      const lStar = state.lCount <= stage.lGoal;
+      const eStar = state.eCount <= stage.eGoal;
+      const starsEarned = 1 + (lStar ? 1 : 0) + (eStar ? 1 : 0);
+
+      const prev = state.progress[stage.id] || { stars: 0 };
+      state.progress[stage.id] = { stars: Math.max(prev.stars, starsEarned) };
+      sessionStorage.setItem("euclidea_original_progress", JSON.stringify(state.progress));
+
+      if (stage.unlocks && !state.unlockedMacros.includes(stage.unlocks)) {
+        state.unlockedMacros.push(stage.unlocks);
+        sessionStorage.setItem("euclidea_original_macros", JSON.stringify(state.unlockedMacros));
+      }
+
+      playVictoryChord();
+      updateTotalStarsUI();
+      renderStageDrawer();
+
+      document.getElementById("victory-stage-name").textContent = `${stage.chapter} · ${stage.title}`;
+      document.getElementById("v-l-result").textContent = `${state.lCount}L (목표 ${stage.lGoal}L 이하)`;
+      document.getElementById("v-e-result").textContent = `${state.eCount}E (목표 ${stage.eGoal}E 이하)`;
+      document.getElementById("victory-proof-text").textContent = stage.proof;
+
+      const unlockBox = document.getElementById("unlock-notice");
+      if (stage.unlocks && toolInfoMap[stage.unlocks]) {
+        const info = toolInfoMap[stage.unlocks];
+        unlockBox.innerHTML = `
+          <div class="flex items-center gap-2 mb-1">
+            <i class="fa-solid fa-unlock-keyhole text-amber-400"></i>
+            <span class="text-white font-extrabold">[${info.name}] 해금!</span>
+          </div>
+          <div class="text-[11px] text-emerald-300 font-normal leading-relaxed">
+            ✨ ${info.desc}
+          </div>
+        `;
+        unlockBox.classList.remove("hidden");
+      } else {
+        unlockBox.classList.add("hidden");
+      }
+
+      document.getElementById("victory-modal").classList.remove("hidden");
+      document.getElementById("victory-modal").classList.add("flex");
+
+      const stars = [
+        { el: document.getElementById("v-star-1"), active: true },
+        { el: document.getElementById("v-star-2"), active: lStar },
+        { el: document.getElementById("v-star-3"), active: eStar }
+      ];
+
+      stars.forEach((item, idx) => {
+        item.el.className = "fa-solid fa-star text-2xl mb-1 text-slate-600";
+        setTimeout(() => {
+          if (item.active) {
+            item.el.className = "fa-solid fa-star text-2xl mb-1 text-amber-400 star-glow animate-star-pop";
+            playTone(600 + idx * 150, 0.1, "triangle");
+          }
+        }, 200 + idx * 250);
+      });
+    }
+
+    function loadStage(index) {
+      state.currentStageIdx = index;
+      const stage = STAGES[index];
+      const data = stage.setup();
+
+      state.points = (data.points || []).map(p => ({ ...p }));
+      state.lines = (data.lines || []).map(l => ({ ...l }));
+      state.segments = (data.segments || []).map(s => ({ ...s }));
+      state.circles = (data.circles || []).map(c => ({ ...c }));
+      state.targets = (data.targets || []).map(t => ({ ...t }));
+
+      state.lCount = 0;
+      state.eCount = 0;
+      state.selectedItems = [];
+      state.historyStack = [];
+      state.pan = { x: 0, y: 0 };
+
+      recomputeIntersections();
+      updateStageUI();
+      drawCanvas();
+    }
+
+    function saveHistorySnapshot() {
+      state.historyStack.push({
+        points: JSON.parse(JSON.stringify(state.points)),
+        lines: JSON.parse(JSON.stringify(state.lines)),
+        circles: JSON.parse(JSON.stringify(state.circles)),
+        lCount: state.lCount,
+        eCount: state.eCount
+      });
+    }
+
+    function undoLastAction() {
+      if (state.historyStack.length === 0) return;
+      const snap = state.historyStack.pop();
+      state.points = snap.points;
+      state.lines = snap.lines;
+      state.circles = snap.circles;
+      state.lCount = snap.lCount;
+      state.eCount = snap.eCount;
+      state.selectedItems = [];
+      playTone(330, 0.08, "sine");
+      updateStageUI();
+      drawCanvas();
+    }
+
+    function updateStageUI() {
+      const stage = STAGES[state.currentStageIdx];
+      document.getElementById("current-stage-badge").textContent = `${stage.chapter}: ${stage.title.split(' ')[0]}`;
+      document.getElementById("banner-chapter").textContent = stage.chapter;
+      document.getElementById("banner-title").textContent = stage.title;
+      document.getElementById("banner-desc").textContent = stage.desc;
+
+      document.getElementById("hud-l-count").textContent = state.lCount;
+      document.getElementById("hud-l-goal").textContent = stage.lGoal;
+      document.getElementById("hud-e-count").textContent = state.eCount;
+      document.getElementById("hud-e-goal").textContent = stage.eGoal;
+
+      const prog = state.progress[stage.id] || { stars: 0 };
+      document.getElementById("banner-stars").innerHTML = [1, 2, 3]
+        .map(i => `<i class="fa-solid fa-star ${i <= prog.stars ? "text-amber-400" : "text-slate-700"}"></i>`)
+        .join("");
+
+      const macros = ["perp_bisector", "angle_bisector", "perp_line", "parallel_line", "compass_copy"];
+      macros.forEach(m => {
+        const btn = document.querySelector(`[data-tool="${m}"]`);
+        const lockIcon = document.getElementById(`lock-${m}`);
+        const allowed = stage.unlockedMacros.includes(m) || state.unlockedMacros.includes(m);
+        if (btn) {
+          btn.disabled = !allowed;
+          if (lockIcon) lockIcon.style.display = allowed ? "none" : "inline-block";
+        }
+      });
+
+      const currentBtn = document.querySelector(`[data-tool="${state.activeTool}"]`);
+      if (currentBtn && currentBtn.disabled) {
+        selectTool("line");
+      } else {
+        updateToolGuideText();
+      }
+    }
+
+    function updateTotalStarsUI() {
+      const total = Object.values(state.progress).reduce((acc, cur) => acc + (cur.stars || 0), 0);
+      document.getElementById("total-stars-display").textContent = `${total} / ${STAGES.length * 3}`;
+    }
+
+    function renderChapterTabs() {
+      const tabBar = document.getElementById("chapter-tabs");
+      if (!tabBar) return;
+      tabBar.innerHTML = "";
+
+      CHAPTER_META.forEach(ch => {
+        const isActive = state.selectedChapterFilter === ch.key;
+        const btn = document.createElement("button");
+        btn.className = `px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition shrink-0 flex items-center gap-1 border ${
+          isActive
+            ? "bg-indigo-600 text-white border-indigo-400 shadow-md"
+            : "bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-800"
+        }`;
+        btn.innerHTML = `<span class="text-indigo-300">${ch.symbol}</span><span>${ch.label}</span>`;
+        btn.addEventListener("click", () => {
+          state.selectedChapterFilter = ch.key;
+          renderChapterTabs();
+          renderStageDrawer();
+        });
+        tabBar.appendChild(btn);
+      });
+    }
+
+    function renderStageDrawer() {
+      renderChapterTabs();
+      const container = document.getElementById("stage-list-container");
+      container.innerHTML = "";
+
+      const chaptersToRender = state.selectedChapterFilter === "ALL"
+        ? CHAPTER_META.filter(c => c.key !== "ALL").map(c => c.key)
+        : [state.selectedChapterFilter];
+
+      chaptersToRender.forEach(chKey => {
+        const chStages = STAGES.map((st, idx) => ({ st, idx })).filter(item => item.st.chapter === chKey);
+        if (chStages.length === 0) return;
+
+        const chEarned = chStages.reduce((acc, item) => acc + ((state.progress[item.st.id] || {}).stars || 0), 0);
+        const chMax = chStages.length * 3;
+
+        const section = document.createElement("div");
+        section.className = "space-y-2";
+        section.innerHTML = `
+          <div class="flex items-center justify-between px-2 py-1 bg-slate-950/80 rounded-lg border border-slate-800/80">
+            <span class="text-xs font-extrabold text-indigo-300 uppercase tracking-wider">${chKey} 챕터</span>
+            <span class="text-[11px] font-bold text-amber-400"><i class="fa-solid fa-star mr-1"></i>${chEarned} / ${chMax}</span>
+          </div>
+        `;
+
+        chStages.forEach(({ st, idx }) => {
+          const prog = state.progress[st.id] || { stars: 0 };
+          const isCurrent = idx === state.currentStageIdx;
+          const prevStage = idx > 0 ? STAGES[idx - 1] : null;
+          const prevProg = prevStage ? (state.progress[prevStage.id] || { stars: 0 }) : { stars: 1 };
+          const isUnlocked = idx === 0 || prevProg.stars > 0;
+
+          const card = document.createElement("button");
+          card.disabled = !isUnlocked;
+          card.className = `w-full text-left p-3 rounded-2xl border transition flex items-center justify-between gap-2 ${
+            !isUnlocked
+              ? "opacity-40 cursor-not-allowed bg-slate-950/30 border-slate-900 text-slate-600"
+              : isCurrent
+              ? "bg-indigo-600/20 border-indigo-500 text-white"
+              : "bg-slate-950/60 hover:bg-slate-800/80 border-slate-800 text-slate-300"
+          }`;
+          card.innerHTML = `
+            <div class="min-w-0">
+              <div class="text-[10px] font-bold text-indigo-400 truncate">${st.chapter}</div>
+              <div class="text-xs sm:text-sm font-extrabold truncate mt-0.5 flex items-center gap-1.5">
+                ${!isUnlocked ? '<i class="fa-solid fa-lock text-xs text-amber-500"></i>' : ""}
+                <span>${st.title}</span>
+              </div>
+              <div class="text-[10px] text-slate-400 mt-1">목표: ${st.lGoal}L · ${st.eGoal}E</div>
+            </div>
+            <div class="flex items-center gap-0.5 shrink-0 text-xs">
+              <i class="fa-solid fa-star ${prog.stars >= 1 ? "text-amber-400" : "text-slate-700"}"></i>
+              <i class="fa-solid fa-star ${prog.stars >= 2 ? "text-amber-400" : "text-slate-700"}"></i>
+              <i class="fa-solid fa-star ${prog.stars >= 3 ? "text-amber-400" : "text-slate-700"}"></i>
+            </div>
+          `;
+          card.addEventListener("click", () => {
+            if (!isUnlocked) return;
+            loadStage(idx);
+            closeDrawer();
+          });
+          section.appendChild(card);
+        });
+
+        container.appendChild(section);
+      });
+    }
+
+    function selectTool(toolName) {
+      state.activeTool = toolName;
+      state.selectedItems = [];
+      document.querySelectorAll(".tool-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tool === toolName));
+      updateToolGuideText();
+      drawCanvas();
+    }
+
+    function updateToolGuideText() {
+      const n = state.selectedItems.length;
+      const guides = {
+        move: "화면을 드래그하여 도면을 이동할 수 있습니다.",
+        point: "교점이나 과녁 지점을 클릭하여 점을 찍으세요 (0L, 0E).",
+        line: n === 0 ? "[눈금없는자] 직선이 지날 첫 번째 점을 클릭하세요." : "[눈금없는자] 직선이 지날 두 번째 점을 클릭하세요 (1L, 1E).",
+        circle: n === 0 ? "[컴퍼스] 원의 중심이 될 점을 클릭하세요." : "[컴퍼스] 원이 지날 반지름 끝점을 클릭하세요 (1L, 1E).",
+        perp_bisector: n === 0 ? "[수직이등분 1/2] 첫 번째 기준점을 클릭하세요." : "[수직이등분 2/2] 두 번째 기준점을 클릭하세요 (1L, 3E).",
+        angle_bisector:
+          n === 0
+            ? "[각이등분선 1/3] 첫 번째 변 위의 점을 클릭하세요."
+            : n === 1
+            ? "[각이등분선 2/3] 각의 꼭짓점을 클릭하세요."
+            : "[각이등분선 3/3] 두 번째 변 위의 점을 클릭하세요 (1L, 4E).",
+        perp_line: n === 0 ? "[수선긋기 1/2] 기준 직선(또는 선분)을 먼저 클릭하세요." : "[수선긋기 2/2] 수선이 지날 점을 클릭하세요 (1L, 3E).",
+        parallel_line: n === 0 ? "[평행선 1/2] 기준 직선(또는 선분)을 먼저 클릭하세요." : "[평행선 2/2] 평행선이 지날 점을 클릭하세요 (1L, 4E).",
+        compass_copy:
+          n === 0
+            ? "[길이옮기기 1/3] 길이를 잴 첫 번째 점을 클릭하세요."
+            : n === 1
+            ? "[길이옮기기 2/3] 길이를 잴 두 번째 점을 클릭하세요."
+            : "[길이옮기기 3/3] 원을 그릴 중심점을 클릭하세요 (1L, 4E)."
+      };
+      const el = document.getElementById("tool-guide-text");
+      if (el) el.textContent = guides[state.activeTool] || "";
+    }
+
+    function findNearestPoint(wx, wy, thresholdPx = 18) {
+      let best = null, bestDist = thresholdPx / state.scale;
+      state.points.forEach(p => {
+        const d = Math.hypot(p.x - wx, p.y - wy);
+        if (d < bestDist) { bestDist = d; best = p; }
+      });
+      return best;
+    }
+
+    function findNearestLine(wx, wy, thresholdPx = 15) {
+      const maxDist = thresholdPx / state.scale;
+      const allLines = [
+        ...state.lines,
+        ...state.segments.map(s => {
+          const p1 = state.points.find(p => p.id === s.p1);
+          const p2 = state.points.find(p => p.id === s.p2);
+          return p1 && p2 ? { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y } : null;
+        }).filter(Boolean)
+      ];
+      let best = null, bestDist = maxDist;
+      allLines.forEach(l => {
+        const dx = l.x2 - l.x1, dy = l.y2 - l.y1, len = Math.hypot(dx, dy);
+        if (len < 1e-6) return;
+        const dist = Math.abs(dy * wx - dx * wy + l.x2 * l.y1 - l.y2 * l.x1) / len;
+        if (dist < bestDist) { bestDist = dist; best = l; }
+      });
+      return best;
+    }
+
+    function handleCanvasClick(wx, wy) {
+      const tool = state.activeTool;
+      if (tool === "move") return;
+      const snappedPt = findNearestPoint(wx, wy);
+
+      if (tool === "point") {
+        saveHistorySnapshot();
+        if (snappedPt) {
+          snappedPt.given = false;
+          snappedPt.userHighlighted = true;
+        } else {
+          state.points.push({ id: "P_" + (state.points.length + 1), x: wx, y: wy });
+        }
+        playTone(600, 0.08);
+        evaluateStageVictory();
+        updateStageUI();
+        drawCanvas();
+        return;
+      }
+
+      if (tool === "line") {
+        if (!snappedPt) return;
+        state.selectedItems.push(snappedPt);
+        playTone(440, 0.06);
+        if (state.selectedItems.length === 2) {
+          const [p1, p2] = state.selectedItems;
+          if (Math.hypot(p1.x - p2.x, p1.y - p2.y) > 1e-5) {
+            saveHistorySnapshot();
+            state.lines.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+            state.lCount += 1;
+            state.eCount += 1;
+            recomputeIntersections();
+            playTone(587.33, 0.12);
+            evaluateStageVictory();
+          }
+          state.selectedItems = [];
+        }
+        updateStageUI();
+        drawCanvas();
+        return;
+      }
+
+      if (tool === "circle") {
+        if (!snappedPt) return;
+        state.selectedItems.push(snappedPt);
+        playTone(440, 0.06);
+        if (state.selectedItems.length === 2) {
+          const [c, rPt] = state.selectedItems;
+          const r = Math.hypot(rPt.x - c.x, rPt.y - c.y);
+          if (r > 1e-5) {
+            saveHistorySnapshot();
+            state.circles.push({ cx: c.x, cy: c.y, r });
+            state.lCount += 1;
+            state.eCount += 1;
+            recomputeIntersections();
+            playTone(587.33, 0.12);
+            evaluateStageVictory();
+          }
+          state.selectedItems = [];
+        }
+        updateStageUI();
+        drawCanvas();
+        return;
+      }
+
+      if (tool === "compass_copy") {
+        if (!snappedPt) return;
+        state.selectedItems.push(snappedPt);
+        playTone(480, 0.06);
+        if (state.selectedItems.length === 3) {
+          const [p1, p2, center] = state.selectedItems;
+          const r = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          if (r > 1e-5) {
+            saveHistorySnapshot();
+            state.circles.push({ cx: center.x, cy: center.y, r });
+            state.lCount += 1;
+            state.eCount += 4;
+            recomputeIntersections();
+            playTone(659.25, 0.12);
+            evaluateStageVictory();
+          }
+          state.selectedItems = [];
+        }
+        updateStageUI();
+        drawCanvas();
+        return;
+      }
+
+      if (tool === "perp_bisector") {
+        if (!snappedPt) return;
+        state.selectedItems.push(snappedPt);
+        playTone(480, 0.06);
+        if (state.selectedItems.length === 2) {
+          const [p1, p2] = state.selectedItems;
+          const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          if (Math.hypot(dx, dy) > 1e-5) {
+            saveHistorySnapshot();
+            state.lines.push({ x1: mx - dy, y1: my + dx, x2: mx + dy, y2: my - dx });
+            state.lCount += 1;
+            state.eCount += 3;
+            recomputeIntersections();
+            playTone(659.25, 0.12);
+            evaluateStageVictory();
+          }
+          state.selectedItems = [];
+        }
+        updateStageUI();
+        drawCanvas();
+        return;
+      }
+
+      if (tool === "angle_bisector") {
+        if (!snappedPt) return;
+        state.selectedItems.push(snappedPt);
+        playTone(480, 0.06);
+        if (state.selectedItems.length === 3) {
+          const [A, O, B] = state.selectedItems;
+          const v1x = A.x - O.x, v1y = A.y - O.y;
+          const v2x = B.x - O.x, v2y = B.y - O.y;
+          const len1 = Math.hypot(v1x, v1y), len2 = Math.hypot(v2x, v2y);
+          if (len1 > 1e-5 && len2 > 1e-5) {
+            const bx = v1x / len1 + v2x / len2;
+            const by = v1y / len1 + v2y / len2;
+            saveHistorySnapshot();
+            state.lines.push({ x1: O.x, y1: O.y, x2: O.x + bx, y2: O.y + by });
+            state.lCount += 1;
+            state.eCount += 4;
+            recomputeIntersections();
+            playTone(659.25, 0.12);
+            evaluateStageVictory();
+          }
+          state.selectedItems = [];
+        }
+        updateStageUI();
+        drawCanvas();
+        return;
+      }
+
+      if (tool === "perp_line" || tool === "parallel_line") {
+        if (state.selectedItems.length === 0) {
+          const nearLine = findNearestLine(wx, wy);
+          if (!nearLine) return;
+          state.selectedItems.push(nearLine);
+          playTone(480, 0.06);
+        } else {
+          if (!snappedPt) return;
+          const baseLine = state.selectedItems[0];
+          const dx = baseLine.x2 - baseLine.x1, dy = baseLine.y2 - baseLine.y1;
+          saveHistorySnapshot();
+          if (tool === "perp_line") {
+            state.lines.push({ x1: snappedPt.x, y1: snappedPt.y, x2: snappedPt.x - dy, y2: snappedPt.y + dx });
+            state.lCount += 1;
+            state.eCount += 3;
+          } else {
+            state.lines.push({ x1: snappedPt.x, y1: snappedPt.y, x2: snappedPt.x + dx, y2: snappedPt.y + dy });
+            state.lCount += 1;
+            state.eCount += 4;
+          }
+          recomputeIntersections();
+          playTone(659.25, 0.12);
+          evaluateStageVictory();
+          state.selectedItems = [];
+        }
+        updateStageUI();
+        drawCanvas();
+      }
+    }
+
+    function drawInfiniteLine(x1, y1, x2, y2, strokeStyle, lineWidth = 2, dashed = false) {
+      const s1 = worldToScreen(x1, y1), s2 = worldToScreen(x2, y2);
+      const dx = s2.x - s1.x, dy = s2.y - s1.y, len = Math.hypot(dx, dy);
+      if (len < 1e-4) return;
+      const ux = dx / len, uy = dy / len, diag = Math.hypot(canvas.width, canvas.height) * 1.5;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = lineWidth;
+      if (dashed) ctx.setLineDash([7, 6]);
+      ctx.moveTo(s1.x - ux * diag, s1.y - uy * diag);
+      ctx.lineTo(s1.x + ux * diag, s1.y + uy * diag);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(30, 41, 59, 0.55)";
+      ctx.lineWidth = 1;
+      for (let gx = -20; gx <= 20; gx++) {
+        const sx = worldToScreen(gx, 0).x;
+        ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, canvas.height); ctx.stroke();
+      }
+      for (let gy = -20; gy <= 20; gy++) {
+        const sy = worldToScreen(0, gy).y;
+        ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(canvas.width, sy); ctx.stroke();
+      }
+      ctx.restore();
+
+      if (state.showTargetPreview) {
+        state.targets.forEach(t => {
+          const solved = checkTargetSolved(t);
+          const color = solved ? "rgba(16, 185, 129, 0.85)" : "rgba(250, 204, 21, 0.45)";
+          if (t.type === "line_through") drawInfiniteLine(t.x1, t.y1, t.x2, t.y2, color, solved ? 3.5 : 2.5, !solved);
+          else if (t.type === "circle") {
+            const sc = worldToScreen(t.cx, t.cy);
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = solved ? 3.5 : 2.5;
+            if (!solved) ctx.setLineDash([7, 6]);
+            ctx.arc(sc.x, sc.y, t.r * state.scale, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          } else if (t.type === "point") {
+            const sc = worldToScreen(t.x, t.y);
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = solved ? "#10b981" : "#facc15";
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([4, 3]);
+            ctx.arc(sc.x, sc.y, 11, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
+      }
+
+      state.circles.forEach(c => {
+        const sc = worldToScreen(c.cx, c.cy);
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = c.given ? "#cbd5e1" : "rgba(129, 140, 248, 0.75)";
+        ctx.lineWidth = c.given ? 2.5 : 1.8;
+        ctx.arc(sc.x, sc.y, c.r * state.scale, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      state.lines.forEach(l => {
+        drawInfiniteLine(l.x1, l.y1, l.x2, l.y2, "rgba(129, 140, 248, 0.85)", 2);
+      });
+
+      state.segments.forEach(s => {
+        const p1 = state.points.find(p => p.id === s.p1);
+        const p2 = state.points.find(p => p.id === s.p2);
+        if (!p1 || !p2) return;
+        const sc1 = worldToScreen(p1.x, p1.y), sc2 = worldToScreen(p2.x, p2.y);
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = s.color || "#e2e8f0";
+        ctx.lineWidth = s.width || 3;
+        ctx.lineCap = "round";
+        ctx.moveTo(sc1.x, sc1.y); ctx.lineTo(sc2.x, sc2.y);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      state.points.forEach(p => {
+        const sc = worldToScreen(p.x, p.y);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(sc.x, sc.y, p.given ? 5.5 : 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = p.given ? "#f8fafc" : "#818cf8";
+        ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "#0f172a"; ctx.stroke();
+        if (p.label) {
+          ctx.font = "bold 13px Pretendard, sans-serif";
+          ctx.fillStyle = "#f8fafc";
+          ctx.fillText(p.label, sc.x + 9, sc.y - 8);
+        }
+        ctx.restore();
+      });
+    }
+
+    function resizeCanvas() {
+      const wrapper = document.getElementById("canvas-wrapper");
+      canvas.width = wrapper.clientWidth;
+      canvas.height = wrapper.clientHeight;
+      state.scale = Math.min(canvas.width, canvas.height) / 12;
+      drawCanvas();
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
+    function getPointerPos(e, canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches && e.touches.length ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches && e.touches.length ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    canvas.addEventListener("pointerdown", e => {
+      const pos = getPointerPos(e, canvas);
+      const w = screenToWorld(pos.x, pos.y);
+      state.mouseWorld = w;
+      state.hoverPoint = findNearestPoint(w.x, w.y);
+
+      if (state.activeTool === "move") {
+        state.isPanning = true;
+        state.panStart = { x: e.clientX - state.pan.x, y: e.clientY - state.pan.y };
+        e.preventDefault();
+        return;
+      }
+      handleCanvasClick(w.x, w.y);
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("pointermove", e => {
+      const pos = getPointerPos(e, canvas);
+      if (state.isPanning) {
+        state.pan.x = e.clientX - state.panStart.x;
+        state.pan.y = e.clientY - state.panStart.y;
+        drawCanvas();
+        e.preventDefault();
+        return;
+      }
+      state.mouseWorld = screenToWorld(pos.x, pos.y);
+      drawCanvas();
+      e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener("pointerup", () => { state.isPanning = false; });
+
+    document.querySelectorAll(".tool-btn").forEach(btn => {
+      btn.addEventListener("click", () => { if (!btn.disabled) selectTool(btn.dataset.tool); });
+    });
+
+    document.getElementById("btn-undo").addEventListener("click", undoLastAction);
+    document.getElementById("btn-reset").addEventListener("click", () => loadStage(state.currentStageIdx));
+    document.getElementById("btn-toggle-target").addEventListener("click", () => { state.showTargetPreview = !state.showTargetPreview; drawCanvas(); });
+
+    const drawer = document.getElementById("stage-drawer");
+    const backdrop = document.getElementById("drawer-backdrop");
+    function openDrawer() { renderStageDrawer(); drawer.classList.remove("-translate-x-full"); backdrop.classList.remove("hidden"); }
+    function closeDrawer() { drawer.classList.add("-translate-x-full"); backdrop.classList.add("hidden"); }
+    document.getElementById("btn-open-drawer").addEventListener("click", openDrawer);
+    document.getElementById("btn-close-drawer").addEventListener("click", closeDrawer);
+    backdrop.addEventListener("click", closeDrawer);
+
+    const infoModal = document.getElementById("info-modal");
+    document.getElementById("btn-show-hint").addEventListener("click", () => {
+      const st = STAGES[state.currentStageIdx];
+      document.getElementById("info-modal-title").innerHTML = `<i class="fa-solid fa-lightbulb text-sky-400"></i> 작도 힌트`;
+      document.getElementById("info-modal-body").innerHTML = `<p class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl">${st.hint}</p>`;
+      infoModal.classList.remove("hidden"); infoModal.classList.add("flex");
+    });
+    document.getElementById("btn-close-info").addEventListener("click", () => infoModal.classList.add("hidden"));
+    document.getElementById("btn-confirm-info").addEventListener("click", () => infoModal.classList.add("hidden"));
+
+    document.getElementById("btn-retry-stage").addEventListener("click", () => {
+      document.getElementById("victory-modal").classList.add("hidden");
+      loadStage(state.currentStageIdx);
+    });
+    document.getElementById("btn-next-stage").addEventListener("click", () => {
+      document.getElementById("victory-modal").classList.add("hidden");
+      if (state.currentStageIdx < STAGES.length - 1) loadStage(state.currentStageIdx + 1);
+      else openDrawer();
+    });
+
+    (function initPortalReturnTab() {
+      const tab = document.getElementById("drag-home-tab");
+      const modal = document.getElementById("exit-modal-dim");
+      const getY = e => (e.touches && e.touches.length ? e.touches[0].clientY : e.clientY);
+      let isDragging = false, startY = 0, initialTop = 0, moveDist = 0;
+
+      tab.addEventListener("pointerdown", e => {
+        isDragging = true; moveDist = 0; startY = getY(e); initialTop = tab.getBoundingClientRect().top;
+      });
+      window.addEventListener("pointermove", e => {
+        if (!isDragging) return;
+        moveDist = Math.abs(getY(e) - startY);
+        tab.style.top = Math.max(16, Math.min(window.innerHeight - tab.offsetHeight - 16, initialTop + (getY(e) - startY))) + "px";
+      });
+      window.addEventListener("pointerup", () => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (moveDist < 8) { modal.classList.remove("hidden"); modal.classList.add("flex"); }
+      });
+      document.getElementById("btn-cancel-exit").addEventListener("click", () => modal.classList.add("hidden"));
+      document.getElementById("btn-confirm-exit").addEventListener("click", () => { window.location.href = "../index.html"; });
+    })();
+
+    window.onload = () => { resizeCanvas(); updateTotalStarsUI(); loadStage(0); };
+  </script>
+</body>
+</html>
