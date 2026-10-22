@@ -349,62 +349,66 @@
   </footer>
 
 
-  <!-- 1. 스테이지 클리어 모달 -->
-  <div id="victory-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-indigo-500/40 w-full max-w-md rounded-3xl p-6 text-center shadow-2xl">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-amber-400 text-3xl mb-3 star-glow">
-        <i class="fa-solid fa-trophy"></i>
-      </div>
-      <h2 class="text-xl font-extrabold text-white mb-1">작도 성공!</h2>
-      <p id="victory-stage-name" class="text-xs font-semibold text-indigo-300 mb-4"></p>
-
-      <!-- [수정 후 2: 개별 아이디가 부여되어 순차 애니메이션이 적용되는 승리 모달 HTML] -->
-<div class="grid grid-cols-3 gap-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-3 mb-4">
-  <div class="flex flex-col items-center">
-    <div class="h-8 flex items-center justify-center">
-      <i id="v-star-1" class="fa-solid fa-star text-2xl text-slate-600 mb-1 transition-all"></i>
-    </div>
-    <span class="text-[11px] font-bold text-slate-200">작도 완성</span>
-    <span class="text-[10px] text-emerald-400">달성 완료</span>
-  </div>
-  <div class="flex flex-col items-center border-x border-slate-800">
-    <div class="h-8 flex items-center justify-center">
-      <i id="v-star-2" class="fa-solid fa-star text-2xl text-slate-600 mb-1 transition-all"></i>
-    </div>
-    <span class="text-[11px] font-bold text-slate-200">L-스타 (도구)</span>
-    <span id="v-l-result" class="text-[10px] text-slate-400">2 / 2 이하</span>
-  </div>
-  <div class="flex flex-col items-center">
-    <div class="h-8 flex items-center justify-center">
-      <i id="v-star-3" class="fa-solid fa-star text-2xl text-slate-600 mb-1 transition-all"></i>
-    </div>
-    <span class="text-[11px] font-bold text-slate-200">E-스타 (기초)</span>
-    <span id="v-e-result" class="text-[10px] text-slate-400">2 / 2 이하</span>
-  </div>
-</div>
-
-      <!-- 교재 수학적 증명 및 해설 박스 -->
-      <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3.5 text-left mb-5">
-        <div class="text-xs font-extrabold text-indigo-300 mb-1 flex items-center gap-1.5">
-          <i class="fa-solid fa-book-bookmark"></i>
-          <span>교재 핵심 원리 & 합동 증명</span>
+  <!-- 1. 스테이지 클리어 하단 바텀 시트 (방안 1) -->
+  <div id="victory-modal" class="fixed inset-0 z-50 hidden items-end justify-center pointer-events-none transition-all duration-300">
+    <div class="pointer-events-auto bg-slate-900/95 backdrop-blur-md border-t-2 border-indigo-500/70 w-full max-w-2xl rounded-t-3xl p-4 sm:p-5 shadow-[0_-10px_35px_rgba(0,0,0,0.7)] flex flex-col max-h-[58vh] sm:max-h-[50vh]">
+      
+      <!-- 상단 핸들 바 및 슬림 헤더 -->
+      <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-2.5 shrink-0"></div>
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-amber-400 flex items-center justify-center text-sm star-glow shrink-0">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+          <div class="text-left">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-extrabold text-white">작도 성공!</span>
+              <span id="victory-stage-name" class="text-[11px] font-semibold text-indigo-300 truncate max-w-[200px] sm:max-w-xs"></span>
+            </div>
+            <div class="text-[10px] text-slate-400">상단 작도 도형을 확인하며 증명 빈칸을 완성하세요.</div>
+          </div>
         </div>
-        <p id="victory-proof-text" class="text-xs text-slate-300 leading-relaxed"></p>
+
+        <!-- 슬림 별점 배지 (가로형) -->
+        <div class="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl shrink-0">
+          <i id="v-star-1" class="fa-solid fa-star text-base text-slate-600 transition-all"></i>
+          <i id="v-star-2" class="fa-solid fa-star text-base text-slate-600 transition-all"></i>
+          <i id="v-star-3" class="fa-solid fa-star text-base text-slate-600 transition-all"></i>
+          <span id="v-l-result" class="hidden"></span>
+          <span id="v-e-result" class="hidden"></span>
+        </div>
       </div>
 
-      <!-- [수정 후: 도구 이름과 설명이 들어갈 수 있도록 ID 또는 내부 구조 확장] -->
-<div id="unlock-notice" class="hidden bg-emerald-950/60 border border-emerald-500/40 rounded-xl p-3 text-xs text-emerald-300 font-bold mb-4 text-left">
-  <!-- 동적 렌더링 영역 -->
-</div>
+      <!-- 교재 수학적 증명 및 빈칸 입력 박스 (스크롤 영역) -->
+      <div class="flex-1 overflow-y-auto space-y-2 pr-1 text-left">
+        <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs font-extrabold text-indigo-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-book-bookmark"></i>
+              <span>교재 핵심 원리 & 증명 완성</span>
+            </div>
+            <button id="btn-check-v-quiz" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition shadow">정답 확인</button>
+          </div>
+          <div id="victory-proof-text" class="text-xs text-slate-300 leading-relaxed font-medium"></div>
+          <div id="victory-quiz-feedback" class="hidden mt-2.5 p-2 rounded-lg text-center font-bold text-[11px]"></div>
+        </div>
 
-      <div class="flex gap-2.5">
-        <button id="btn-retry-stage" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition">
-          별점 도전(다시하기)
+        <!-- 매크로 도구 해금 알림 -->
+        <div id="unlock-notice" class="hidden bg-emerald-950/60 border border-emerald-500/40 rounded-xl p-2.5 text-xs text-emerald-300 font-bold"></div>
+      </div>
+
+      <!-- 하단 액션 버튼 -->
+      <div class="flex gap-2 pt-3 mt-1 border-t border-slate-800 shrink-0">
+        <button id="btn-retry-stage" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition">
+          다시하기
         </button>
-        <button id="btn-next-stage" class="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30">
-          다음 문제로 <i class="fa-solid fa-arrow-right ml-1"></i>
+        <button id="btn-next-stage" class="flex-1 py-2.5 rounded-xl bg-slate-700 text-slate-400 cursor-not-allowed font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1" disabled>
+          <span>빈칸 완성 필요</span>
+          <i class="fa-solid fa-lock text-xs"></i>
         </button>
       </div>
+
     </div>
   </div>
 
@@ -578,12 +582,12 @@
         id: "ch1_p1",
         chapter: "1차시. 작도의 기초 (교재 96p)",
         title: "문제 1. 착시 현상과 두 선분의 길이 비교",
-        desc: "[길이옮기기] 도구를 선택해 왼쪽 빨간 선분 AB의 길이를 측정한 뒤, 오른쪽 점 C를 중심으로 원을 그려 점 D를 지나는지(AB=CD인지) 확인하시오.",
+        desc: "[길이옮기기] 도구를 선택해 선분 AB의 길이와 선분 CD의 길이를 비교하시오.",
         lGoal: 1,
         eGoal: 1,
         unlockedMacros: [],
         hint: "1) 하단에서 [길이옮기기] 도구를 선택하세요.\n2) 왼쪽 빨간 선분의 양 끝점 A, B를 차례로 클릭해 반지름을 잽니다.\n3) 오른쪽 선분의 끝점 C를 클릭해 원을 그리면 두 빨간 선분의 길이가 정확히 같음을 확인할 수 있습니다!",
-        proof: "원근법 배경 선분들 때문에 오른쪽 선분이 더 길어 보이는 '폰조 착시(Ponzo illusion)' 현상입니다. 눈금 없는 자 대신 컴퍼스로 반지름 AB를 그대로 점 C에 옮겨 원을 그리면(유클리드 공준 3), 원이 정확히 점 D를 지나므로 두 선분 a와 b의 길이는 완전히 같습니다(a = b).",
+        proof: "원근법 배경 선분들 때문에 오른쪽 선분이 더 길어 보이는 '폰조 착시(Ponzo illusion)' 현상입니다. 눈금 없는 자 대신 <input data-ans=\"컴퍼스\" class=\"v-quiz-input w-16 px-1 py-0.5 bg-slate-800 border border-indigo-500/50 rounded text-center text-indigo-300 font-bold\" placeholder=\"?\">로 반지름 AB를 그대로 점 C에 옮겨 원을 그리면(유클리드 공준 3), 원이 정확히 점 D를 지나므로 두 선분 a와 b의 길이는 완전히 같습니다(a = b).",
         setup: () => ({
           points: [
             { id: "A", x: -4.2, y: -1.8, label: "A", given: true },
@@ -610,7 +614,11 @@
           circles: [],
           targets: [
             { type: "circle", cx: 3.2, cy: -1.8, r: 3.6 }
-          ]
+          ],
+textbookPoints: [
+  { x: 3.2, y: -1.8, label: "C" },
+  { x: 3.2, y: 1.8, label: "D" }
+]
         })
       },
       {
@@ -622,7 +630,7 @@
         eGoal: 3,
         unlockedMacros: [],
         hint: "1) 이미 점 O에서 그린 호가 두 변과 만나는 점 P, Q가 주어져 있습니다.\n2) [길이옮기기]로 O~P 반지름을 재어 O'을 중심으로 원을 그립니다(교점 Q' 생성).\n3) 다시 [길이옮기기]로 P~Q 거리를 재어 Q'을 중심으로 원을 그립니다.\n4) [눈금없는자]로 점 O'과 두 원의 교점(X')을 연결하면 완성!",
-        proof: "[삼각형의 SSS 합동 증명] △POQ와 △P'O'Q'에서 ① OP = O'P' (같은 반지름), ② OQ = O'Q' (같은 반지름), ③ PQ = P'Q' (컴퍼스로 옮긴 현의 길이)이므로 세 변의 길이가 모두 같아 SSS 합동입니다. 따라서 대응각인 ∠XOY = ∠X'O'Y'입니다.",
+        proof: "[삼각형의 합동 증명] △POQ와 △P'O'Q'에서 ① OP = O'P' (같은 반지름), ② OQ = O'Q' (같은 반지름), ③ PQ = P'Q' (컴퍼스로 옮긴 현의 길이)이므로 세 변의 길이가 모두 같아 SSS 합동입니다. 따라서 대응각인 ∠XOY = ∠X'O'Y'입니다.",
         setup: () => {
           const ang = 1.15; // 약 66도
           const r = 2.8;
@@ -648,7 +656,15 @@
                 x2: 1.0 + r * Math.cos(ang),
                 y2: -1.8 + r * Math.sin(ang)
               }
-            ]
+            ],
+textbookPoints: [
+  { x: -6.5, y: -1.8, label: "O" },
+  { x: -6.5 + r, y: -1.8, label: "Y" },
+  { x: -6.5 + r * Math.cos(ang), y: -1.8 + r * Math.sin(ang), label: "X" },
+  { x: 1.0, y: -1.8, label: "O'" },
+  { x: 6.2, y: -1.8, label: "Y'" },
+  { x: 1.0 + r * Math.cos(ang), y: -1.8 + r * Math.sin(ang), label: "X'" }
+]
           };
         }
       },
@@ -672,8 +688,14 @@
           ],
           segments: [{ p1: "A", p2: "B", given: true }],
           circles: [],
-          targets: [{ type: "line_through", x1: 0, y1: -3, x2: 0, y2: 3 }]
-        })
+          targets: [{ type: "line_through", x1: 0, y1: -3, x2: 0, y2: 3 }],
+textbookPoints: [
+  { x: -2.4, y: 0, label: "A" },
+  { x: 2.4, y: 0, label: "B" },
+  { x: 0, y: 3, label: "C" },
+  { x: 0, y: -3, label: "D" },
+  { x: 0, y: 0, label: "M (중점)" }
+]        })
       },
       {
         id: "ch2_p2",
@@ -708,7 +730,11 @@
                 x2: -3.5 + 4 * Math.cos(ang / 2),
                 y2: -1.8 + 4 * Math.sin(ang / 2)
               }
-            ]
+            ],
+textbookPoints: [
+  { x: -3.5, y: -1.8, label: "O" },
+  { x: -3.5 + 4 * Math.cos(ang / 2), y: -1.8 + 4 * Math.sin(ang / 2), label: "P (이등분점)" }
+]
           };
         }
       },
@@ -732,7 +758,12 @@
           lines: [{ x1: -3.2, y1: -1.8, x2: 3.2, y2: -1.8, given: true }],
           segments: [],
           circles: [],
-          targets: [{ type: "line_through", x1: -3.0, y1: 1.6, x2: 3.0, y2: 1.6 }]
+          targets: [{ type: "line_through", x1: -3.0, y1: 1.6, x2: 3.0, y2: 1.6 }],
+textbookPoints: [
+  { x: -3.2, y: -1.8, label: "A" },
+  { x: 3.2, y: -1.8, label: "B" },
+  { x: -1.0, y: 1.6, label: "P" }
+]
         })
       },
       {
@@ -758,7 +789,12 @@
             targets: [
               { type: "line_through", x1: -2.0, y1: -1.5, x2: 0, y2: -1.5 + h },
               { type: "line_through", x1: 2.0, y1: -1.5, x2: 0, y2: -1.5 + h }
-            ]
+            ],
+textbookPoints: [
+  { x: -2.0, y: -1.5, label: "A" },
+  { x: 2.0, y: -1.5, label: "B" },
+  { x: 0, y: -1.5 + h, label: "C" }
+]
           };
         }
       },
@@ -784,7 +820,13 @@
             { type: "line_through", x1: -2.0, y1: -2.0, x2: -2.0, y2: 2.0 },
             { type: "line_through", x1: 2.0, y1: -2.0, x2: 2.0, y2: 2.0 },
             { type: "line_through", x1: -2.0, y1: 2.0, x2: 2.0, y2: 2.0 }
-          ]
+          ],
+textbookPoints: [
+  { x: -2.0, y: -2.0, label: "A" },
+  { x: 2.0, y: -2.0, label: "B" },
+  { x: 2.0, y: 2.0, label: "C" },
+  { x: -2.0, y: 2.0, label: "D" }
+]
         })
       },
 
@@ -802,8 +844,8 @@
         setup: () => {
           // A(-3, -1.5), B(3, -1.5) -> AB = 6, BO = 3, AO = sqrt(36+9) = sqrt(45), AC = sqrt(45) - 3
           const ax = -3.0, ay = -1.5, bx = 3.0, by = -1.5;
-          const ab = 6.0;
           const ac = Math.sqrt(45) - 3.0;
+          const px = ax + ac; // 황금분할 점 P 위치
           return {
             points: [
               { id: "A", x: ax, y: ay, label: "A", given: true },
@@ -812,9 +854,14 @@
             lines: [{ x1: ax, y1: ay, x2: bx, y2: by, given: true }],
             segments: [{ p1: "A", p2: "B", color: "#f59e0b", width: 4, given: true }],
             circles: [],
-            targets: [
-              { type: "circle", cx: ax, cy: ay, r: ac }
-            ]
+            targets: [{ type: "circle", cx: ax, cy: ay, r: ac }],
+            // [방안 2 추가] 클리어 시 화면에 띄울 교재 도면 라벨 데이터
+            textbookPoints: [
+  { x: ax, y: ay, label: "A" },
+  { x: bx, y: by, label: "B" },
+  { x: 0, y: ay, label: "M (중점)" },
+  { x: ax + ac, y: ay, label: "P (황금분할점)" }
+]
           };
         }
       },
@@ -851,7 +898,12 @@
             targets: [
               { type: "line_through", x1: bx, y1: by, x2: 0, y2: by + h },
               { type: "line_through", x1: ex, y1: ey, x2: 0, y2: ey + h }
-            ]
+            ],
+textbookPoints: [
+  { x: -2.5, y: 0.5, label: "B" },
+  { x: 2.5, y: 0.5, label: "E" },
+  { x: 0, y: 0.5 + h, label: "A" }
+]
           };
         }
       },
@@ -885,8 +937,14 @@
             targets: [
               { type: "line_through", x1: ax, y1: ay, x2: tx1, y2: ty1 },
               { type: "line_through", x1: ax, y1: ay, x2: tx1, y2: -ty1 }
-            ]
-          };
+            ],
+textbookPoints: [
+  { x: ax, y: ay, label: "A" },
+  { x: ox, y: oy, label: "O" },
+  { x: (ax + ox) / 2, y: 0, label: "M (중점)" },
+  { x: tx1, y: ty1, label: "T1" },
+  { x: tx1, y: -ty1, label: "T2" }
+]          };
         }
       },
       {
@@ -920,7 +978,13 @@
               { type: "line_through", x1: -2, y1: p1.y - 0.4, x2: 2, y2: p1.y - 0.4 },
               { type: "line_through", x1: p2.x, y1: p2.y - 0.4, x2: p2.x - Math.sin(a2), y2: p2.y - 0.4 + Math.cos(a2) },
               { type: "line_through", x1: p3.x, y1: p3.y - 0.4, x2: p3.x - Math.sin(a3), y2: p3.y - 0.4 + Math.cos(a3) }
-            ]
+            ],
+textbookPoints: [
+  { x: 0, y: -0.4, label: "O" },
+  { x: p1.x, y: p1.y - 0.4, label: "T1" },
+  { x: p2.x, y: p2.y - 0.4, label: "T2" },
+  { x: p3.x, y: p3.y - 0.4, label: "T3" }
+]
           };
         }
       },
@@ -958,7 +1022,13 @@
             ],
             targets: [
               { type: "line_through", x1: t1x, y1: t1y, x2: t2x, y2: t2y }
-            ]
+            ],
+textbookPoints: [
+  { x: x1, y: y1, label: "O1" },
+  { x: x2, y: y2, label: "O2" },
+  { x: t2x, y: t2y, label: "T2" },
+  { x: t1x, y: t1y, label: "T1" }
+]
           };
         }
       },
@@ -995,7 +1065,13 @@
             ],
             segments: [],
             circles: [],
-            targets: [{ type: "circle", cx: ix, cy: iy, r: ir }]
+            targets: [{ type: "circle", cx: ix, cy: iy, r: ir }],
+textbookPoints: [
+  { x: A.x, y: A.y, label: "A" },
+  { x: B.x, y: B.y, label: "B" },
+  { x: C.x, y: C.y, label: "C" },
+  { x: ix, y: iy, label: "I (내심)" }
+]
           };
         }
       },
@@ -1035,7 +1111,15 @@
             ],
             segments: [],
             circles: [],
-            targets: [{ type: "line_through", x1: P.x, y1: P.y, x2: Q.x, y2: Q.y }]
+            targets: [{ type: "line_through", x1: P.x, y1: P.y, x2: Q.x, y2: Q.y }],
+textbookPoints: [
+  { x: A.x, y: A.y, label: "A" },
+  { x: B.x, y: B.y, label: "B" },
+  { x: C.x, y: C.y, label: "C" },
+  { x: P.x, y: P.y, label: "P" },
+  { x: M.x, y: M.y, label: "M (중점)" },
+  { x: Q.x, y: Q.y, label: "Q" }
+]
           };
         }
       },
@@ -1091,7 +1175,15 @@
             targets: [
               { type: "circle", cx: Ox, cy: Oy, r: r },
               { type: "line_through", x1: Ox, y1: Oy, x2: Ox, y2: -2.0 } // 수선(접점 확인용)
-            ]
+            ],
+textbookPoints: [
+  { x: A.x, y: A.y, label: "A" },
+  { x: B.x, y: B.y, label: "B" },
+  { x: C.x, y: C.y, label: "C" },
+  { x: D.x, y: D.y, label: "D" },
+  { x: Ox, y: Oy, label: "O (중심)" },
+  { x: Ox, y: -2.0, label: "P (접점)" }
+]
           };
         }
       },
@@ -1132,7 +1224,14 @@
             circles: [],
             targets: [
               { type: "line_through", x1: Ax, y1: topY, x2: Dx, y2: topY } // 완성된 정사각형의 윗변
-            ]
+            ],
+textbookPoints: [
+  { x: P.x, y: P.y, label: "P" },
+  { x: Q.x, y: Q.y, label: "Q" },
+  { x: R.x, y: R.y, label: "R" },
+  { x: Ax, y: topY, label: "A" },
+  { x: Dx, y: topY, label: "D" }
+]
           };
         }
       },
@@ -1160,7 +1259,13 @@
             circles: [{ cx: 0, cy: -2.0, r: Radius, given: true, semi: true }],
             targets: [
               { type: "line_through", x1: -2.0, y1: -2.0 + hSquare, x2: 2.0, y2: -2.0 + hSquare }
-            ]
+            ],
+textbookPoints: [
+  { x: -Radius, y: -2.0, label: "A" },
+  { x: 0, y: -2.0, label: "O" },
+  { x: Radius, y: -2.0, label: "B" },
+  { x: 0, y: -2.0 + hSquare, label: "F" }
+]
           };
         }
       }
@@ -1170,6 +1275,7 @@
       currentStageIdx: 0,
       activeTool: "line",
       selectedItems: [],
+      isStageSolved: false, // [방안 2 추가] 스테이지 클리어 여부 상태
       mouseWorld: { x: 0, y: 0 },
       hoverPoint: null,
       hoverShape: null,
@@ -1380,10 +1486,35 @@ sessionStorage.setItem("euclidea_kangnam_progress", JSON.stringify(state.progres
   updateTotalStarsUI();
   renderStageDrawer();
 
+  state.isStageSolved = true; // [방안 2 추가] 클리어 상태로 전환하여 교재 도면 점 표시 허용
+  drawCanvas(); // 캔버스를 다시 그려 교재 도면 포인트 즉시 반영
+
   document.getElementById("victory-stage-name").textContent = `${stage.chapter} · ${stage.title}`;
   document.getElementById("v-l-result").textContent = `${state.lCount}L (목표 ${stage.lGoal}L 이하)`;
   document.getElementById("v-e-result").textContent = `${state.eCount}E (목표 ${stage.eGoal}E 이하)`;
-  document.getElementById("victory-proof-text").textContent = stage.proof;
+document.getElementById("victory-proof-text").innerHTML = stage.proof;
+  
+  // 모달 렌더링 시 퀴즈 초기화
+  const nextBtn = document.getElementById("btn-next-stage");
+  const checkBtn = document.getElementById("btn-check-v-quiz");
+  const feedback = document.getElementById("victory-quiz-feedback");
+  feedback.classList.add("hidden");
+  
+  // 현재 스테이지 proof에 빈칸(v-quiz-input)이 있는지 확인
+  const hasQuiz = document.getElementById("victory-proof-text").querySelector(".v-quiz-input");
+  
+  if (hasQuiz) {
+    checkBtn.style.display = "block";
+    nextBtn.disabled = true;
+    nextBtn.className = "flex-1 py-3 rounded-xl bg-slate-700 text-slate-400 cursor-not-allowed font-bold text-xs sm:text-sm transition";
+    nextBtn.innerHTML = '빈칸 완성 필요 <i class="fa-solid fa-lock ml-1"></i>';
+  } else {
+    // 퀴즈가 없는 스테이지는 바로 다음으로 넘어가게 허용
+    checkBtn.style.display = "none";
+    nextBtn.disabled = false;
+    nextBtn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30";
+    nextBtn.innerHTML = '다음 문제로 <i class="fa-solid fa-arrow-right ml-1"></i>';
+  }
 
   // [수정 후 1: 해금되는 매크로 도구들의 상세 설명 정보 맵]
 const toolInfoMap = {
@@ -1423,9 +1554,14 @@ if (stage.unlocks && toolInfoMap[stage.unlocks]) {
   unlockBox.classList.add("hidden");
 }
 
-  // 승리 모달 열기
-  document.getElementById("victory-modal").classList.remove("hidden");
-  document.getElementById("victory-modal").classList.add("flex");
+  // 바텀 시트 열릴 때 도형이 위쪽 캔버스 중앙에 오도록 살짝 올려주고 다시 그리기
+  state.pan.y = -(canvas.height * 0.16);
+  drawCanvas();
+
+  // 바텀 시트 모달 표시
+  const vModal = document.getElementById("victory-modal");
+  vModal.classList.remove("hidden");
+  vModal.classList.add("flex");
 
   // 별점 3개 애니메이션 순차 실행 (클리어 별 항상, L스타/E스타 조건부)
   const starElements = [
@@ -1456,12 +1592,14 @@ if (stage.unlocks && toolInfoMap[stage.unlocks]) {
       state.circles = (data.circles || []).map(c => ({ ...c }));
       state.decorLines = (data.decorLines || []).map(d => ({ ...d }));
       state.targets = (data.targets || []).map(t => ({ ...t }));
+      state.textbookPoints = (data.textbookPoints || []).map(tp => ({ ...tp })); // [방안 2 추가] 교재 도면 핵심 포인트 로드
 
       state.lCount = 0;
       state.eCount = 0;
       state.selectedItems = [];
       state.historyStack = [];
       state.pan = { x: 0, y: 0 };
+      state.isStageSolved = false; // [방안 2 추가] 새 스테이지 로딩 시 클리어 상태 초기화
 
       recomputeIntersections();
       updateStageUI();
@@ -2033,6 +2171,28 @@ function renderStageDrawer() {
         }
         ctx.restore();
       });
+
+      // [방안 2 추가] 작도 성공(클리어) 시에만 교재 도면의 핵심 정답 포인트 및 기호(C, P, M 등) 오버레이 렌더링
+      if (state.isStageSolved && state.textbookPoints) {
+        state.textbookPoints.forEach(tp => {
+          const sc = worldToScreen(tp.x, tp.y);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sc.x, sc.y, 7, 0, Math.PI * 2);
+          ctx.fillStyle = "#fbbf24"; // 황금색 강조 점
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = "#ffffff";
+          ctx.stroke();
+
+          if (tp.label) {
+            ctx.font = "bold 14px Pretendard, sans-serif";
+            ctx.fillStyle = "#fbbf24";
+            ctx.fillText(tp.label, sc.x + 10, sc.y - 8);
+          }
+          ctx.restore();
+        });
+      }
     }
 
     function resizeCanvas() {
@@ -2151,22 +2311,25 @@ canvas.addEventListener("pointermove", e => {
 
     // 승리 모달 버튼
     document.getElementById("btn-retry-stage").addEventListener("click", () => {
-      document.getElementById("victory-modal").classList.add("hidden");
-      document.getElementById("victory-modal").classList.remove("flex");
+      const vModal = document.getElementById("victory-modal");
+      vModal.classList.add("hidden");
+      vModal.classList.remove("flex");
+      state.pan.y = 0; // 시점 복귀
       loadStage(state.currentStageIdx);
     });
-    // [수정 후: 마지막 스테이지가 아닐 때만 다음 스테이지로 순차 이동]
-document.getElementById("btn-next-stage").addEventListener("click", () => {
-  document.getElementById("victory-modal").classList.add("hidden");
-  document.getElementById("victory-modal").classList.remove("flex");
-  
-  if (state.currentStageIdx < STAGES.length - 1) {
-    loadStage(state.currentStageIdx + 1);
-  } else {
-    // 모든 스테이지 클리어 완료 시 첫 화면이나 드로어로 유도
-    openDrawer();
-  }
-});
+
+    document.getElementById("btn-next-stage").addEventListener("click", () => {
+      const vModal = document.getElementById("victory-modal");
+      vModal.classList.add("hidden");
+      vModal.classList.remove("flex");
+      state.pan.y = 0; // 시점 복귀
+      
+      if (state.currentStageIdx < STAGES.length - 1) {
+        loadStage(state.currentStageIdx + 1);
+      } else {
+        openDrawer();
+      }
+    });
 
     // 1차시 역사 빈칸 채우기 모달
     const historyModal = document.getElementById("history-modal");
@@ -2227,7 +2390,40 @@ document.getElementById("btn-check-quiz").addEventListener("click", () => {
         fb.textContent = `총 ${inputs.length}개 중 ${correct}개 정답입니다. 힌트: 기하학, 눈금 없는 자, 컴퍼스, 황금비, 원근법`;
       }
     });
+// 승리 모달 정답 확인 이벤트
+  document.getElementById("btn-check-v-quiz").addEventListener("click", () => {
+    let correct = 0;
+    const inputs = document.querySelectorAll("#victory-proof-text .v-quiz-input");
+    
+    inputs.forEach(inp => {
+      const val = inp.value.replace(/\s+/g, "");
+      const ans = inp.dataset.ans.replace(/\s+/g, "");
+      if (val === ans) {
+        correct++;
+        inp.classList.remove("border-rose-500", "border-indigo-500/50");
+        inp.classList.add("border-emerald-500", "text-emerald-300");
+      } else {
+        inp.classList.remove("border-indigo-500/50");
+        inp.classList.add("border-rose-500");
+      }
+    });
 
+    const fb = document.getElementById("victory-quiz-feedback");
+    fb.classList.remove("hidden");
+    
+    if (correct === inputs.length && inputs.length > 0) {
+      fb.className = "mt-3 p-2 rounded-lg text-center font-bold text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+      fb.textContent = "🎉 정답입니다! 다음 문제로 넘어갈 수 있습니다.";
+      
+      const nextBtn = document.getElementById("btn-next-stage");
+      nextBtn.disabled = false;
+      nextBtn.className = "flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30";
+      nextBtn.innerHTML = '다음 문제로 <i class="fa-solid fa-arrow-right ml-1"></i>';
+    } else {
+      fb.className = "mt-3 p-2 rounded-lg text-center font-bold text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/40";
+      fb.textContent = `총 ${inputs.length}개 중 ${correct}개 정답입니다.`;
+    }
+  });
     // 12쪽 소감문 모달 & 클립보드 복사
     const reflectionModal = document.getElementById("reflection-modal");
     document.getElementById("btn-reflection-modal").addEventListener("click", () => {
