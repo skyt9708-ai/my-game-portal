@@ -111,8 +111,48 @@
       animation: starBounce 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
 
-  </style>
-</head>
+    /* [추가] 모바일 가로 모드(높이 520px 이하) UI 컴팩트화 & 좌우 분할 스타일 */
+    @media (orientation: landscape) and (max-height: 520px) {
+      header {
+        height: 2.5rem !important; /* 헤더 높이 56px -> 40px 축소 */
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+      #le-hud {
+        padding: 2px 8px !important;
+      }
+      #le-hud span {
+        font-size: 10px !important;
+      }
+      footer {
+        padding-top: 2px !important;
+        padding-bottom: 3px !important;
+      }
+      .tool-btn {
+        padding: 2px 4px !important;
+        min-width: 42px !important;
+      }
+      .tool-btn span {
+        font-size: 8px !important;
+      }
+
+      /* 가로 모드 시 증명/승리 모달을 '좌측 사이드 패널(360px)'로 전환하여 우측 도면 완전 개방 */
+      #victory-modal {
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        padding: 8px !important;
+      }
+      #victory-modal > div {
+        width: 360px !important;
+        max-width: 44vw !important;
+        max-height: 100% !important;
+        height: 100% !important;
+        border-radius: 1.25rem !important;
+        border: 2px solid rgba(99, 102, 241, 0.7) !important;
+      }
+    }
+
+  </style></head>
 <body class="flex flex-col h-full w-full overflow-hidden bg-slate-950">
 
 
@@ -174,6 +214,11 @@
         </div>
       </div>
 
+      <!-- [추가] 브라우저 상하단 바를 숨기는 전체화면 토글 버튼 -->
+      <button id="btn-fullscreen" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 text-xs font-bold transition flex items-center gap-1" title="전체화면 전환 (주소창 숨기기)">
+        <i class="fa-solid fa-expand text-xs"></i>
+      </button>
+
       <button id="btn-history-modal" class="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5">
         <i class="fa-solid fa-scroll"></i>
         <span class="hidden sm:inline">1차시 역사·이론</span>
@@ -211,19 +256,21 @@
 
     <!-- 메인 캔버스 영역 -->
     <main class="relative flex-1 flex flex-col bg-slate-950 overflow-hidden">
-      <!-- 상단 문제 설명 및 힌트 플로팅 배너 -->
-      <div class="absolute top-3 left-3 right-3 z-20 pointer-events-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 sm:px-4 shadow-xl max-w-2xl">
-          <div class="flex items-center gap-2 mb-1">
-            <span id="banner-chapter" class="text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">1차시 기초</span>
-            <h1 id="banner-title" class="text-sm sm:text-base font-extrabold text-white">문제 1. 착시 선분 길이 비교</h1>
-            <div id="banner-stars" class="flex items-center gap-0.5 text-xs ml-1">
+      <!-- 상단 문제 설명 및 힌트 플로팅 배너 (접기/펼치기 지원) -->
+      <div class="absolute top-2 left-2 right-2 z-20 pointer-events-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5">
+        <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl sm:rounded-2xl p-2 sm:px-4 shadow-xl max-w-2xl transition-all duration-200">
+          <!-- 클릭 시 접히고 펼쳐지는 헤더 바 -->
+          <div id="banner-toggle-bar" class="flex items-center gap-2 cursor-pointer select-none" title="터치하여 문제 설명 접기/펼치기">
+            <span id="banner-chapter" class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">1차시 기초</span>
+            <h1 id="banner-title" class="text-xs sm:text-base font-extrabold text-white truncate">문제 1. 착시 선분 길이 비교</h1>
+            <div id="banner-stars" class="flex items-center gap-0.5 text-[11px] sm:text-xs shrink-0">
               <i class="fa-regular fa-star text-slate-600"></i>
               <i class="fa-regular fa-star text-slate-600"></i>
               <i class="fa-regular fa-star text-slate-600"></i>
             </div>
+            <i id="banner-chevron" class="fa-solid fa-chevron-up text-[10px] text-indigo-400 ml-1 transition-transform"></i>
           </div>
-          <p id="banner-desc" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          <p id="banner-desc" class="text-[11px] sm:text-sm text-slate-300 leading-relaxed mt-1">
             컴퍼스 도구를 사용하여 왼쪽 빨간 선분 AB의 길이를 오른쪽 선분 CD로 옮겨 두 선분의 길이를 비교하시오.
           </p>
         </div>
@@ -361,9 +408,9 @@
   </footer>
 
 
-  <!-- 1. 스테이지 클리어 하단 바텀 시트 (방안 1) -->
+  <!-- 1. 스테이지 클리어 하단 바텀 시트 (가로 모드 시 좌측 사이드 패널로 자동 전환) -->
   <div id="victory-modal" class="fixed inset-0 z-50 hidden items-end justify-center pointer-events-none transition-all duration-300">
-    <div class="pointer-events-auto bg-slate-900/95 backdrop-blur-md border-t-2 border-indigo-500/70 w-full max-w-2xl rounded-t-3xl p-4 sm:p-5 shadow-[0_-10px_35px_rgba(0,0,0,0.7)] flex flex-col max-h-[58vh] sm:max-h-[50vh]">
+    <div class="pointer-events-auto bg-slate-900/95 backdrop-blur-md border-t-2 border-indigo-500/70 w-full max-w-2xl rounded-t-3xl p-3 sm:p-5 shadow-[0_-10px_35px_rgba(0,0,0,0.7)] flex flex-col max-h-[60vh]">
       
       <!-- 상단 핸들 바 및 슬림 헤더 -->
       <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-2.5 shrink-0"></div>
@@ -1859,7 +1906,15 @@ function evaluateStageVictory() {
         unlockBox.classList.add("hidden");
       }
 
-      state.pan.y = -(canvas.height * 0.16);
+      // [수정] 가로 화면에서는 좌측 패널을 피하도록 도형을 우측으로, 세로 화면에서는 위쪽으로 이동
+      const isLandscape = window.innerWidth > window.innerHeight && window.innerHeight < 520;
+      if (isLandscape) {
+        state.pan.x = canvas.width * 0.22; // 우측 여백으로 도형 슬라이드
+        state.pan.y = 0;
+      } else {
+        state.pan.x = 0;
+        state.pan.y = -(canvas.height * 0.16);
+      }
       drawCanvas();
 
       const vModal = document.getElementById("victory-modal");
@@ -3027,7 +3082,14 @@ if (p.hidden) return; // 👈 추가
       const wrapper = document.getElementById("canvas-wrapper");
       canvas.width = wrapper.clientWidth;
       canvas.height = wrapper.clientHeight;
-      state.scale = Math.min(canvas.width, canvas.height) / 13.5;
+
+      const isLandscape = canvas.width > canvas.height;
+      // [수정] 가로 모드일 때는 세로 화면에 꽉 차도록 도형 배율을 대폭 확대 (13.5 -> 9.0)
+      if (isLandscape && canvas.height < 520) {
+        state.scale = Math.max(34, canvas.height / 8.8);
+      } else {
+        state.scale = Math.min(canvas.width, canvas.height) / 13.5;
+      }
       drawCanvas();
     }
 
@@ -3229,6 +3291,45 @@ canvas.addEventListener("pointermove", e => {
 
     document.getElementById("btn-undo").addEventListener("click", undoLastAction);
     document.getElementById("btn-reset").addEventListener("click", () => loadStage(state.currentStageIdx));
+
+// [추가] 전체화면 전환 토글 이벤트 (방안 4)
+    const btnFullscreen = document.getElementById("btn-fullscreen");
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+          btnFullscreen.innerHTML = '<i class="fa-solid fa-compress text-xs"></i>';
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+          btnFullscreen.innerHTML = '<i class="fa-solid fa-expand text-xs"></i>';
+        }
+      });
+    }
+
+    // [추가] 상단 문제 설명 배너 접기/펼치기 토글 이벤트 (방안 2)
+    const bannerBar = document.getElementById("banner-toggle-bar");
+    const bannerDesc = document.getElementById("banner-desc");
+    const bannerChevron = document.getElementById("banner-chevron");
+    let isBannerCollapsed = false;
+
+    if (bannerBar && bannerDesc) {
+      bannerBar.addEventListener("click", () => {
+        isBannerCollapsed = !isBannerCollapsed;
+        bannerDesc.classList.toggle("hidden", isBannerCollapsed);
+        if (bannerChevron) {
+          bannerChevron.className = isBannerCollapsed 
+            ? "fa-solid fa-chevron-down text-[10px] text-indigo-400 ml-1 transition-transform" 
+            : "fa-solid fa-chevron-up text-[10px] text-indigo-400 ml-1 transition-transform";
+        }
+      });
+
+      // 가로 모드 진입 시 시야 확보를 위해 초기에 배너를 1줄로 자동 접음
+      if (window.innerWidth > window.innerHeight && window.innerHeight < 520) {
+        isBannerCollapsed = true;
+        bannerDesc.classList.add("hidden");
+        if (bannerChevron) bannerChevron.className = "fa-solid fa-chevron-down text-[10px] text-indigo-400 ml-1 transition-transform";
+      }
+    }
 
     document.getElementById("btn-toggle-target").addEventListener("click", () => {
       state.showTargetPreview = !state.showTargetPreview;
