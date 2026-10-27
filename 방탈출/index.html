@@ -414,8 +414,14 @@
 
                 <!-- 과제 1 조작 영역 -->
                 <div id="tool-1-container" class="hidden space-y-2">
+                    <!-- 🔭 시점 전환 토글 버튼 추가 -->
+                    <button id="t1-view-toggle" type="button" class="interactive-btn w-full bg-indigo-950 hover:bg-indigo-800 text-cyan-200 border border-cyan-400/70 font-bold py-1.5 px-3 rounded-lg text-[11px] flex items-center justify-between shadow-[0_0_12px_rgba(56,189,248,0.3)] transition">
+                        <span id="t1-view-label">🛰️ 현재: 우주 궤도 조감도 뷰(궤도 관찰)</span>
+                        <span class="bg-cyan-500 text-slate-950 px-2 py-0.5 rounded text-[10px] font-black">🔭 지구 관측자 시점으로 전환 ➔</span>
+                    </button>
+
                     <div class="flex items-center justify-between bg-slate-950 px-3 py-1.5 rounded-lg border border-cyan-700 font-mono">
-                        <span class="text-[11px] text-cyan-200 font-bold">달-지구-태양이 이루는 각:</span>
+                        <span class="text-[11px] text-cyan-200 font-bold">지구 자전 각도 (정오 기준):</span>
                         <div class="flex items-baseline gap-1">
                             <span id="t1-angle-readout" class="text-xl font-black text-amber-400">75.0</span>
                             <span class="text-[10px] text-amber-300">°</span>
@@ -423,7 +429,7 @@
                     </div>
                     <div class="flex flex-col gap-1.5 bg-slate-950/90 p-2 rounded-lg border border-cyan-700">
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-mono text-cyan-200 whitespace-nowrap">달 위상(궤도) 조절:</span>
+                            <span class="text-[10px] font-mono text-cyan-200 whitespace-nowrap">지구 자전 조절:</span>
                             <input type="range" id="t1-slider" class="interactive-btn flex-1" min="60" max="90" step="0.5" value="75">
                         </div>
                         <div class="flex items-center justify-between pt-1 border-t border-slate-800">
@@ -2039,13 +2045,53 @@
                     moonOrbitRing.rotation.x = Math.PI / 2;
                     holoEarth.add(moonOrbitRing); // 지구에 종속되어 함께 공전
 
-                    // (C) 달 모델 (음영 대비를 완벽히 극대화하여 낮과 밤이 선명한 실사풍 달 재질)
-                    const moonMat = new THREE.MeshStandardMaterial({ 
-                        map: createDetailedMoonTexture(),
-                        roughness: 1.0,
-                        metalness: 0.0,
-                        emissive: 0x000000, // 자체 발광을 0으로 만들어 태양빛이 안 닿는 뒷면은 완벽한 암흑(그림자)으로 처리
-                        emissiveIntensity: 0
+                    // (C) 달 모델 (황금빛 반짝임 기능이 추가된 월드 좌표 기반 명암 쉐이더)
+                    const moonTex = createDetailedMoonTexture();
+                    const moonMat = new THREE.ShaderMaterial({
+                        uniforms: {
+                            sunGlobalPos: { value: new THREE.Vector3(-19.4, 3.2, 6.0) },
+                            texMap: { value: moonTex },
+                            time: { value: 0.0 },
+                            isGolden: { value: 0.0 } // 0=일반, 1=반짝임(정답 위치), 2=은은한 황금빛 고정(정답 인증 후)
+                        },
+                        vertexShader: `
+                            varying vec2 vUv;
+                            varying vec3 vWorldNormal;
+                            varying vec3 vWorldPos;
+                            void main() {
+                                vUv = uv;
+                                vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+                                vec4 worldPos = modelMatrix * vec4(position, 1.0);
+                                vWorldPos = worldPos.xyz;
+                                gl_Position = projectionMatrix * viewMatrix * worldPos;
+                            }
+                        `,
+                        fragmentShader: `
+                            uniform vec3 sunGlobalPos;
+                            uniform sampler2D texMap;
+                            uniform float time;
+                            uniform float isGolden;
+                            varying vec2 vUv;
+                            varying vec3 vWorldNormal;
+                            varying vec3 vWorldPos;
+                            void main() {
+                                vec3 lightDir = normalize(sunGlobalPos - vWorldPos);
+                                float diff = max(dot(vWorldNormal, lightDir), 0.0);
+                                float shadow = smoothstep(0.0, 0.15, diff);
+                                vec4 texColor = texture2D(texMap, vUv);
+                                
+                                vec3 finalColor = texColor.rgb * shadow;
+                                
+                                // 태양빛을 받는 부분(shadow > 0)에만 황금빛 발광 효과 합성
+                                if (isGolden > 0.5) {
+                                    vec3 goldColor = vec3(0.98, 0.8, 0.09); // #facc15 황금색
+                                    float glow = (isGolden > 1.5) ? 0.6 : (sin(time * 12.0) + 1.0) * 0.4;
+                                    finalColor += goldColor * glow * shadow;
+                                }
+                                
+                                gl_FragColor = vec4(finalColor, 1.0);
+                            }
+                        `
                     });
                     const holoMoon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 32, 32), moonMat);
                     holoGroup.add(holoMoon);
@@ -2077,12 +2123,97 @@
 
                     scene.add(holoGroup);
 
+                    // [추가] 지구 표면의 알렉산드리아 관측자 핀 & 시선 가이드선
+                    const obsMarker = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.032, 12, 12),
+                        new THREE.MeshBasicMaterial({ color: 0xef4444 })
+                    );
+                    obsMarker.position.set(0.22, 0, 0); // 지구 표면 반지름(0.22)에 위치
+                    
+                    const sightGeo = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(0.22, 0, 0),
+                        new THREE.Vector3(0.85, 0, 0)
+                    ]);
+                    const sightLine = new THREE.Line(
+                        sightGeo,
+                        new THREE.LineDashedMaterial({ color: 0xf87171, dashSize: 0.05, gapSize: 0.03, transparent: true, opacity: 0.85 })
+                    );
+                    sightLine.computeLineDistances();
+                    holoEarth.add(obsMarker);
+                    holoEarth.add(sightLine);
+
+                    // ==========================================
+                    // 🏛️ 알렉산드리아 관측소 3D 핀 마커 & 시선 레이저 빔 시스템
+                    // ==========================================
+                    const observerStationGroup = new THREE.Group();
+                    // 지구 반지름이 0.22이므로 표면 살짝 위(+X축 방향)에 배치
+                    observerStationGroup.position.set(0.22, 0, 0);
+
+                    // 1. 관측소 기단 (원형 사암 베이스)
+                    const obsBase = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.028, 0.035, 0.015, 12),
+                        sandstoneMat
+                    );
+                    obsBase.rotation.z = -Math.PI / 2;
+
+                    // 2. 알렉산드리아 관측 핀 (황금빛 첨탑 / 오벨리스크)
+                    const obsPin = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.02, 0.07, 8),
+                        new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.25 })
+                    );
+                    obsPin.rotation.z = -Math.PI / 2;
+                    obsPin.position.x = 0.035;
+
+                    // 3. 관측소 꼭대기 비콘 비즈 (붉은 발광 구체)
+                    const obsBeacon = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.014, 12, 12),
+                        new THREE.MeshBasicMaterial({ color: 0xef4444 })
+                    );
+                    obsBeacon.position.x = 0.075;
+
+                    observerStationGroup.add(obsBase, obsPin, obsBeacon);
+
+                    // 4. 관측자 시선 레이저 빔 (직관적인 얇은 실선 형태로 2.5m까지 뻗어나가도록 변경)
+                    const sightBeamGeo = new THREE.CylinderGeometry(0.003, 0.003, 2.5, 8, 1, true);
+                    sightBeamGeo.translate(0, 1.25, 0); // 시작점을 피벗으로 설정
+                    sightBeamGeo.rotateZ(-Math.PI / 2); // +X축 방향으로 눕힘
+                    
+                    const sightBeamMat = new THREE.MeshBasicMaterial({
+                        color: 0x38bdf8,
+                        transparent: true,
+                        opacity: 0,
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false
+                    });
+                    const sightBeam = new THREE.Mesh(sightBeamGeo, sightBeamMat);
+                    sightBeam.position.x = 0.075; // 핀 끝에서 출발
+                    observerStationGroup.add(sightBeam);
+
+                    // 5. 레이저 끝단의 달 조준 십자 링 (두께 감소)
+                    const targetRing = new THREE.Mesh(
+                        new THREE.RingGeometry(0.045, 0.055, 24),
+                        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
+                    );
+                    targetRing.rotation.y = Math.PI / 2;
+                    targetRing.position.set(0.075 + 0.65, 0, 0); // 달 궤도 반경(0.65) 지점에 고정
+                    observerStationGroup.add(targetRing);
+
+                    // 명패(sightLabelGroup) 삭제 완료
+
+                    // 지구 모델에 결합 (지구 자전 시 일체형 회전)
+                    holoEarth.add(observerStationGroup);
+
                     window.t1Holo = {
                         group: holoGroup,
                         earth: holoEarth, moon: holoMoon, sun: holoSun,
                         lineAB: laserLineAB, lineAC: laserLineAC, lineBC: laserLineBC,
                         edgeMat: thickWhiteMat,
                         rightAngle: holoRightAngle, raBar1, raBar2, raFill,
+                        observerStation: observerStationGroup,
+                        obsBeacon: obsBeacon,
+                        sightBeam: sightBeam,
+                        targetRing: targetRing,
+                        viewMode: 'orbit',
                         isAligned: false, sliderVal: 75,
                         earthOrbitAngle: 1.2, moonOrbitAngle: 0.0
                     };
@@ -4882,7 +5013,7 @@
             const guideInfo = {
                 '1': {
                     title: '과제 1: 반달 관측',
-                    desc: '슬라이더를 조작하여 지구에서 본 달의 위상을 관측하고, 하짓날 오후 5시 48분, 반달이 관측될 때의 <strong> 달-지구-태양이 이루는 각</strong>을 계산하여 입력하십시오.'
+                    desc: '슬라이더를 조작하여 지구에서 본 달의 위상을 관측하고, 하짓날 오후 5시 48분, 반달이 관측될 때의 <strong> 달-지구-태양이 이루는 각</strong>을 계산하여 입력하십시오. 이로써 알 수 있는 지구-태양 거리는 지구-달 거리의 몇 배인가?'
                 },
                 '2': {
                     title: '과제 2: 동전 월식',
@@ -5831,30 +5962,30 @@ document.body.classList.add('aiming-3d-active');
             const earthR = 1.5;
             const moonR = 0.65;
 
-            // 달(M)에서 직각(∠EMS = 90°)을 이루기 위한 기하학적 사잇각 α = arccos(moonR / earthR)
+            // 달에서 직각(∠EMS = 90°)을 형성하는 기하학 사잇각
             const rightAngleAlpha = Math.acos(moonR / earthR);
 
-            let earthRad, moonRad;
+            let earthRad = th.earthOrbitAngle;
+            const sliderDeg = th.sliderVal || 75;
+            let moonRad;
+
             if (th.isAligned) {
-                // ★ 정답(87°) 달성 시: 궤도 고정 (지구의 공전 각도를 그 자리에서 고정하여 삼각형 유지)
-                earthRad = th.earthOrbitAngle; 
+                // 정답 완료 시: 정확한 반달(87도 직각삼각형) 위치 고정
                 moonRad = earthRad + Math.PI - rightAngleAlpha;
             } else if (th.aimingPreview) {
-                // ★ 모듈 조작 중: 공전을 멈추고 슬라이더 조작에 따라 달의 위치가 변화하며 위상이 실시간 변경됨
-                earthRad = th.earthOrbitAngle; 
-                // 87도일 때 달에서 정확히 90도 직각이 되도록 오프셋 계산 (변화 체감을 위해 1.5배율 적용)
-                const sliderOffset = (((th.sliderVal || 75) - 87) * Math.PI) / 180 * 1.5;
-                moonRad = earthRad + Math.PI - rightAngleAlpha - sliderOffset;
+                // ★ 모듈 조작 중: 슬라이더(60~90도)를 조절하면 달의 상대 각도가 연동되어
+                // 지구에서 달을 볼 때 달의 위상(초승달 ↔ 반달 ↔ 상현망)이 실시간으로 변함! (87.0도에서 정확한 반달)
+                const phaseOffset = ((sliderDeg - 87.0) * Math.PI) / 180 * 2.2;
+                moonRad = earthRad + Math.PI - rightAngleAlpha - phaseOffset;
             } else {
-                // 평상시: 지구와 달 정상 공전
-                earthRad = th.earthOrbitAngle;
-                moonRad = earthRad + Math.PI - rightAngleAlpha + th.moonOrbitAngle;
+                // 평상시 대기 상태: 자유 공전
+                moonRad = earthRad + th.moonOrbitAngle;
             }
 
             const earthPos = new THREE.Vector3(
                 sunPos.x + Math.cos(earthRad) * earthR,
                 0,
-                Math.sin(earthRad) * earthR
+                sunPos.z + Math.sin(earthRad) * earthR
             );
             const moonPos = new THREE.Vector3(
                 earthPos.x + Math.cos(moonRad) * moonR,
@@ -5864,30 +5995,92 @@ document.body.classList.add('aiming-3d-active');
 
             th.earth.position.copy(earthPos);
             th.moon.position.copy(moonPos);
-            if (th.earth.children[0]) {
-                th.earth.children[0].position.set(0, 0, 0);
+
+            // [핵심] 지구 자전 각도 및 관측자 시선 빔 방향 계산
+            const toMoonDir = new THREE.Vector3().subVectors(moonPos, earthPos).normalize();
+            const moonAngle = Math.atan2(-toMoonDir.z, toMoonDir.x);
+
+            if (th.isAligned) {
+                // 정답 완료 시: 시선 빔을 달에 영구 고정
+                th.earth.rotation.y = moonAngle;
+            } else if (th.aimingPreview) {
+                // 모듈 조작 중: 슬라이더 각도에 맞춰 지구가 자전하며 파란 시선 빔이 회전 (87도에서 달과 일치)
+                const rotOffset = (sliderDeg - 87.0) * (Math.PI / 180);
+                th.earth.rotation.y = moonAngle + rotOffset;
             }
 
-            // ★ 지구 시점에서 달을 바라보는 카메라 망원경 추적 (모듈 조작 시에만 활성화)
-            if (th.aimingPreview && !th.isAligned && cinematicCamState.active && cinematicCamState.mode === 'aiming') {
-                const globalEarthPos = new THREE.Vector3(-18.0 + earthPos.x, 3.2 + earthPos.y, 6.0 + earthPos.z);
-                const globalMoonPos = new THREE.Vector3(-18.0 + moonPos.x, 3.2 + moonPos.y, 6.0 + moonPos.z);
-                cinematicCamState.targetPos.copy(globalEarthPos);
-                cinematicCamState.lookAtPos.copy(globalMoonPos);
+            // 레이저 빔 및 조준 링 가시성 제어
+            const isObserving = th.aimingPreview || th.isAligned;
+            if (th.sightBeam && th.targetRing) {
+                th.sightBeam.visible = isObserving;
+                th.targetRing.visible = isObserving;
+
+                if (isObserving) {
+                    const diff = Math.abs(sliderDeg - 87.0);
+                    if (diff < 0.1 || th.isAligned) {
+                        th.sightBeam.material.color.setHex(0xfacc15);
+                        th.targetRing.material.color.setHex(0xfacc15);
+                        th.sightBeam.material.opacity = 0.95;
+                        th.targetRing.material.opacity = 1.0;
+                        th.obsBeacon.material.color.setHex(0xfacc15);
+                        // 달 쉐이더 상태 업데이트: 정답 인증 후엔 은은하게 유지(2), 각도만 맞췄을 땐 반짝임(1)
+                        th.moon.material.uniforms.isGolden.value = th.isAligned ? 2.0 : 1.0;
+                    } else {
+                        th.sightBeam.material.color.setHex(0x38bdf8);
+                        th.targetRing.material.color.setHex(0x38bdf8);
+                        th.sightBeam.material.opacity = Math.max(0.3, 0.75 - diff * 0.03);
+                        th.targetRing.material.opacity = Math.max(0.35, 0.85 - diff * 0.04);
+                        th.obsBeacon.material.color.setHex(0xef4444);
+                        th.moon.material.uniforms.isGolden.value = 0.0;
+                    }
+                }
             }
 
-            // ★ 정답 달성 시: 두꺼운 흰색 직각삼각형 세 변과 동일 평면(XZ 수평면) 직각 표시를 상시 노출
+            // ★ [카메라 시점 변환 핵심 로직] (!th.isAligned 제한 해제하여 언제든 뷰 전환 가능)
+            if (isObserving && cinematicCamState.active && cinematicCamState.mode === 'aiming') {
+                if (th.viewMode === 'earth') {
+                    // 지구 관측자 시점 (어깨 너머 뷰)
+                    const obsLocal = new THREE.Vector3(0.22, 0, 0); 
+                    obsLocal.applyEuler(new THREE.Euler(0, th.earth.rotation.y, 0));
+                    
+                    const globalObsPos = new THREE.Vector3(
+                        -18.0 + earthPos.x + obsLocal.x,
+                        3.2 + earthPos.y,
+                        6.0 + earthPos.z + obsLocal.z
+                    );
+
+                    const lookDir = new THREE.Vector3(1, 0, 0);
+                    lookDir.applyEuler(new THREE.Euler(0, th.earth.rotation.y, 0));
+                    
+                    const camOffset = lookDir.clone().multiplyScalar(-0.4).add(new THREE.Vector3(0, 0.15, 0));
+                    const globalCamPos = globalObsPos.clone().add(camOffset);
+                    const globalLookAt = globalObsPos.clone().add(lookDir.multiplyScalar(2.0));
+
+                    cinematicCamState.targetPos.copy(globalCamPos);
+                    cinematicCamState.lookAtPos.copy(globalLookAt);
+                } else {
+                    // 우주 조감도 시점: 정답 인증 후(isAligned)에는 직각삼각형이 잘 보이도록 완벽한 Top-Down 앵글로 조정
+                    if (th.isAligned) {
+                        cinematicCamState.targetPos.set(-18.0, 7.5, 6.0);
+                        cinematicCamState.lookAtPos.set(-18.0, 3.2, 6.0);
+                    } else {
+                        cinematicCamState.targetPos.set(-18.0, 6.8, 7.2);
+                        cinematicCamState.lookAtPos.set(-18.5, 3.2, 6.0);
+                    }
+                }
+            }
+
+            // 정답 인증 시 직각삼각형 메쉬 노출
             if (th.isAligned) {
                 th.lineAB.visible = true;
                 th.lineAC.visible = true;
                 th.lineBC.visible = true;
                 th.edgeMat.opacity = 1.0;
 
-                placeThickSegment(th.lineAB, earthPos, moonPos); // 지구 - 달 변
-                placeThickSegment(th.lineAC, moonPos, sunPos);   // 달 - 태양 변
-                placeThickSegment(th.lineBC, earthPos, sunPos);  // 지구 - 태양 빗변
+                placeThickSegment(th.lineAB, earthPos, moonPos);
+                placeThickSegment(th.lineAC, moonPos, sunPos);
+                placeThickSegment(th.lineBC, earthPos, sunPos);
 
-                // 직각삼각형과 동일한 XZ 수평면(y=0) 상에서 달(moonPos)의 두 직교 변을 따라 직각(∟) 표시 생성
                 const uE = new THREE.Vector3().subVectors(earthPos, moonPos).normalize();
                 const uS = new THREE.Vector3().subVectors(sunPos, moonPos).normalize();
                 const sqSize = 0.22;
@@ -5937,6 +6130,28 @@ document.body.classList.add('aiming-3d-active');
             refreshT1HologramGeometry();
         }
 
+        // [추가] 과제 1: 우주 조감도 뷰 ↔ 지구 관측자 뷰 시점 전환 버튼 이벤트
+        const t1ViewToggleBtn = document.getElementById('t1-view-toggle');
+        if (t1ViewToggleBtn) {
+            t1ViewToggleBtn.addEventListener('click', () => {
+                if (!window.t1Holo) return;
+                const th = window.t1Holo;
+                th.viewMode = (th.viewMode === 'orbit') ? 'earth' : 'orbit';
+                
+                const labelEl = document.getElementById('t1-view-label');
+                const btnSpan = t1ViewToggleBtn.querySelector('span:last-child');
+                if (th.viewMode === 'earth') {
+                    if (labelEl) labelEl.innerText = "🔭 현재 시점: 지구 관측자 시점 (달 위상 관찰)";
+                    if (btnSpan) btnSpan.innerText = "🛰️ 우주 조감도 시점으로 전환 ➔";
+                } else {
+                    if (labelEl) labelEl.innerText = "🛰️ 현재: 우주 궤도 조감도 뷰(궤도 관찰)";
+                    if (btnSpan) btnSpan.innerText = "🔭 지구 관측자 시점으로 전환 ➔";
+                }
+                playInteractSound();
+                refreshT1HologramGeometry();
+            });
+        }
+
         const t1Slider = document.getElementById('t1-slider');
         const t1Input = document.getElementById('t1-input');
         if (t1Slider && t1Input) {
@@ -5973,14 +6188,21 @@ document.body.classList.add('aiming-3d-active');
                     inventory.scroll = true;
                     updateInventoryUI();
                 }
-
-                // ★ 4단계 과정: 천장에서 3D 직각삼각형을 완벽히 수직으로 내려다보는 시점으로 카메라 이동
-                cinematicCamState.targetPos.set(-18.0, 7.5, 6.0); // y값을 높이고 z값을 중심(6.0)으로 맞춰 탑다운 뷰 형성
-                cinematicCamState.lookAtPos.set(-18.0, 3.2, 6.0);
+                    
+// ★ 정답 동기화 시: 직각삼각형 구조를 한눈에 볼 수 있도록 우주 뷰(orbit)로 우선 전환
+                if (window.t1Holo) {
+                    window.t1Holo.viewMode = 'orbit';
+                    const labelEl = document.getElementById('t1-view-label');
+                    const btnSpan = document.getElementById('t1-view-toggle').querySelector('span:last-child');
+                    if (labelEl) labelEl.innerText = "🛰️ 현재: 우주 궤도 조감도 뷰(궤도 관찰)";
+                    if (btnSpan) btnSpan.innerText = "🔭 지구 관측자 시점으로 전환 ➔";
+                    refreshT1HologramGeometry();
+                }
 
                 setTimeout(() => {
                     playStampSound();
-                    
+
+
                     // 기존 화면을 가리는 알림창 대신 상단에 작고 세련된 질문 배너(Toast) 생성
                     const existingToast = document.getElementById('t1-question-toast');
                     if (existingToast) existingToast.remove();
@@ -6954,6 +7176,26 @@ document.getElementById('armillary-close').addEventListener('click', () => {
             const now = performance.now();
             const dt = Math.min((now - lastTime) / 1000, 0.1);
             lastTime = now;
+
+            // [수정] 과제 1 홀로그램 상태별 렌더링 동기화
+            if (window.t1Holo) {
+                const th = window.t1Holo;
+                // 달 쉐이더에 실시간 경과 시간을 전달하여 황금빛 반짝임(Blink) 효과 구동
+                if (th.moon.material.uniforms) {
+                    th.moon.material.uniforms.time.value = now / 1000;
+                }
+                
+                if (!th.aimingPreview && !th.isAligned) {
+                    // 1. 미해결 평상시 대기 상태: 연속 자전 및 공전
+                    th.earth.rotation.y += 0.015;
+                    th.earthOrbitAngle += 0.003;
+                    th.moonOrbitAngle += 0.012;
+                    refreshT1HologramGeometry();
+                } else if (th.isAligned) {
+                    // 2. ★ 정답 완료 상태: 시점 갱신 및 달 반짝임 렌더링 유지
+                    refreshT1HologramGeometry();
+                }
+            }
 
             if (gameStarted && missionTimeLeft > 0) {
                 missionTimeLeft -= dt;
