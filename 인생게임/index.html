@@ -2096,12 +2096,13 @@ function refreshSolvencyUI() {
     const deficit = Math.max(0, needed - p.balance);
 
     const bText = document.getElementById("solvencyBalanceText");
+    if(!bText) return; // [버그 수정] 파산 방지 모달 텍스트가 DOM에 없으면 즉시 중단
+
     const dText = document.getElementById("solvencyDeficitText");
     const actBtn = document.getElementById("modalActionBtn");
 
-    if(bText) bText.textContent = formatWon(p.balance);
+    bText.textContent = formatWon(p.balance);
     if(dText) dText.textContent = formatWon(deficit);
-
     if(actBtn) {
         if(p.balance >= needed) {
             actBtn.disabled = false;
@@ -2156,15 +2157,7 @@ async function ensureSolvency(p, cost) {
                 </div>
             </div>
             ${loanNotice}
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px;">
-                <button type="button" class="modal-btn btn-primary" style="padding:12px; font-size:0.9rem; background:#4f46e5;" onclick="openGlobalSellStockModal(${p.id})" ${stockCount > 0 ? '' : 'disabled'}>
-                    📈 주식 매도
-                </button>
-                <button type="button" class="modal-btn" style="background:#f59e0b; color:white; padding:12px; font-size:0.9rem;" onclick="triggerMidGameSellInModal()" ${houseCount > 0 ? '' : 'disabled'}>
-                    🏠 부동산 매각
-                </button>
-            </div>
-            <div style="margin-top:8px;">
+            <div style="margin-top:14px;">
                 <button type="button" class="modal-btn btn-secondary" style="width:100%; padding:12px; font-size:0.9rem;" onclick="modifyQuickLoan(1000)" ${canLoan ? '' : 'disabled'}>
                     ${canLoan ? '🏦 1,000만 원 대출 실행' : '⚠️ 대출 한도 초과(불가)'}
                 </button>
@@ -2322,8 +2315,10 @@ async function handleStock(p) {
 
         // 상단 요약 바 갱신
         const myBalEl = document.getElementById('cart-my-balance');
+        if (!myBalEl) return; // [버그 수정] 현재 주식 장바구니 모달이 아니라면 덮어쓰기 즉시 중단
+
         const remBalEl = document.getElementById('cart-remaining-balance');
-        if (myBalEl) myBalEl.textContent = formatWon(p.balance);
+        myBalEl.textContent = formatWon(p.balance);
         if (remBalEl) {
             remBalEl.textContent = formatWon(estRemaining);
             remBalEl.style.color = estRemaining < 0 ? '#dc2626' : '#166534';
