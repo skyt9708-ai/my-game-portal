@@ -81,6 +81,22 @@
         <button id="btn-reset" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-semibold text-sm transition active:scale-95 shadow-lg shadow-rose-950/40">새 게임</button>
       </div>
 
+      <!-- 복기 컨트롤 패널 (게임 종료 시 활성화) -->
+      <div id="review-panel" class="hidden bg-indigo-950/70 p-4 rounded-2xl border border-indigo-500/40 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            게임 복기 모드
+          </span>
+          <span id="review-step-indicator" class="text-xs text-indigo-200 font-medium">0 / 0 수</span>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-review-prev" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-xs transition active:scale-95">◀ 이전 수</button>
+          <button id="btn-review-next" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-xs transition active:scale-95">다음 수 ▶</button>
+        </div>
+        <button id="btn-exit-review" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">복기 종료하기</button>
+      </div>
+
       <!-- 룰 안내 카드 -->
       <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 text-xs text-slate-300 space-y-1.5 leading-relaxed">
         <div class="font-semibold text-amber-300">💡 렌주룰 안내</div>
@@ -98,7 +114,10 @@
       <div id="modal-winner-badge" class="w-14 h-14 mx-auto rounded-full mb-4 stone-black"></div>
       <h3 id="modal-winner-title" class="text-xl font-bold text-white mb-2">흑돌 승리!</h3>
       <p id="modal-winner-desc" class="text-xs text-slate-400 mb-6">오목을 완성하여 승리했습니다.</p>
-      <button id="btn-modal-restart" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 font-bold text-slate-950 text-sm transition">다시 시작하기</button>
+      <div class="flex flex-col gap-2">
+        <button id="btn-modal-review" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-white text-sm transition shadow-lg">게임 복기하기</button>
+        <button id="btn-modal-restart" class="w-full py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-slate-200 text-sm transition">다시 시작하기</button>
+      </div>
     </div>
   </div>
 
@@ -115,6 +134,10 @@
     let isVsAi = false;
     let gameOver = false;
 
+    // 복기 관련 상태 변수
+    let isReviewMode = false;
+    let reviewStep = 0; // 현재 복기 중 보여주고 있는 수의 인덱스 (0은 시작 직전)
+
     const boardEl = document.getElementById('board');
     const toastEl = document.getElementById('toast');
     const turnIndicator = document.getElementById('turn-indicator');
@@ -124,14 +147,16 @@
     const modalWinnerTitle = document.getElementById('modal-winner-title');
     const modalWinnerDesc = document.getElementById('modal-winner-desc');
     const modalWinnerBadge = document.getElementById('modal-winner-badge');
+    const reviewPanel = document.getElementById('review-panel');
+    const reviewStepIndicator = document.getElementById('review-step-indicator');
 
-    // 토스트 알림창 표시 함수 (금수 경고 시 사용)
+    // 토스트 알림창 표시 함수
     let toastTimeout = null;
     function showToast(message) {
       if (toastTimeout) clearTimeout(toastTimeout);
       toastEl.innerText = message;
       toastEl.classList.remove('hidden', 'animate-toast');
-      void toastEl.offsetWidth; // DOM 리플로우 강제 트리거
+      void toastEl.offsetWidth;
       toastEl.classList.add('animate-toast');
       toastTimeout = setTimeout(() => {
         toastEl.classList.add('hidden');
@@ -144,7 +169,6 @@
 
       // 격자선 생성
       for (let i = 0; i < BOARD_SIZE; i++) {
-        // 가로선
         const hLine = document.createElement('div');
         hLine.className = 'absolute grid-line';
         hLine.style.left = `${CELL_SIZE / 2}px`;
@@ -153,7 +177,6 @@
         hLine.style.height = '1px';
         boardEl.appendChild(hLine);
 
-        // 세로선
         const vLine = document.createElement('div');
         vLine.className = 'absolute grid-line';
         vLine.style.top = `${CELL_SIZE / 2}px`;
@@ -186,7 +209,6 @@
           cell.dataset.row = r;
           cell.dataset.col = c;
 
-          // 착수 클릭 리스너
           cell.addEventListener('click', () => handleCellClick(r, c));
           boardEl.appendChild(cell);
         }
@@ -195,14 +217,12 @@
 
     // 클릭 처리 핸들러
     function handleCellClick(r, c) {
-      if (gameOver || boardState[r][c] !== 0) return;
+      if (gameOver || isReviewMode || boardState[r][c] !== 0) return;
       if (isVsAi && currentPlayer === 2) return;
 
-      // 흑돌 렌주룰 금수 검사 (3-3, 4-4, 장목)
       if (currentPlayer === 1) {
         const forbiddenReason = checkForbiddenMove(r, c, 1);
         if (forbiddenReason) {
-          // 중요: 게임을 끝내거나 돌을 지우지 않고 알림만 노출
           showToast(`⚠️ ${forbiddenReason} 자리입니다! 다른 자리에 두세요.`);
           return;
         }
@@ -210,7 +230,6 @@
 
       executeMove(r, c);
 
-      // AI 차례 처리
       if (!gameOver && isVsAi && currentPlayer === 2) {
         setTimeout(playAiMove, 300);
       }
@@ -221,33 +240,33 @@
       boardState[r][c] = currentPlayer;
       moveHistory.push({ r, c, player: currentPlayer });
 
-      renderStones();
+      renderStones(moveHistory.length - 1);
 
-      // 승리 검사
       if (checkWin(r, c, currentPlayer)) {
         gameOver = true;
         showWinner(currentPlayer);
         return;
       }
 
-      // 무승부 검사
       if (moveHistory.length === BOARD_SIZE * BOARD_SIZE) {
         gameOver = true;
         showToast("무승부입니다!");
+        showWinner(0); // 무승부 모달 표시용
         return;
       }
 
-      // 차례 전환
       currentPlayer = currentPlayer === 1 ? 2 : 1;
       updateUI();
     }
 
-    // 돌 렌더링
-    function renderStones() {
-      // 기존 돌 그래픽 제거
+    // 돌 렌더링 (currentIndex까지만 돌을 표시하여 복기 기능 지원)
+    function renderStones(highlightIdx = -1) {
       document.querySelectorAll('.rendered-stone').forEach(el => el.remove());
 
-      moveHistory.forEach(({ r, c, player }, idx) => {
+      const targetMoves = isReviewMode ? moveHistory.slice(0, reviewStep) : moveHistory;
+      const activeHighlightIdx = isReviewMode ? reviewStep - 1 : highlightIdx;
+
+      targetMoves.forEach(({ r, c, player }, idx) => {
         const stone = document.createElement('div');
         stone.className = `rendered-stone absolute rounded-full transition-transform duration-100 ${
           player === 1 ? 'stone-black' : 'stone-white'
@@ -258,8 +277,8 @@
         stone.style.top = `${r * CELL_SIZE + 2}px`;
         stone.style.pointerEvents = 'none';
 
-        // 마지막 착수 위치 빨간 점 표시
-        if (idx === moveHistory.length - 1) {
+        // 마지막 착수(또는 복기 현재 단계) 위치 빨간 점 표시
+        if (idx === activeHighlightIdx) {
           const marker = document.createElement('div');
           marker.className = 'w-2 h-2 rounded-full bg-red-500 mx-auto my-auto shadow-sm';
           marker.style.marginTop = `${(CELL_SIZE - 4) / 2 - 4}px`;
@@ -268,6 +287,10 @@
 
         boardEl.appendChild(stone);
       });
+
+      if (isReviewMode) {
+        reviewStepIndicator.innerText = `${reviewStep} / ${moveHistory.length} 수`;
+      }
     }
 
     // 상태 UI 갱신
@@ -277,45 +300,34 @@
       moveCount.innerText = `${moveHistory.length} 수 진행`;
     }
 
-    // 승리 판정 함수 (정확히 5목 체크, 백은 6목 이상도 승리)
+    // 승리 판정 함수
     function checkWin(r, c, player) {
       const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
       for (let [dr, dc] of dirs) {
         let count = 1;
-        // 정방향
         let nr = r + dr, nc = c + dc;
         while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
-          count++;
-          nr += dr;
-          nc += dc;
+          count++; nr += dr; nc += dc;
         }
-        // 역방향
         nr = r - dr; nc = c - dc;
         while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
-          count++;
-          nr -= dr;
-          nc -= dc;
+          count++; nr -= dr; nc -= dc;
         }
 
-        if (player === 1 && count === 5) return true; // 흑은 정확히 5개
-        if (player === 2 && count >= 5) return true; // 백은 5개 이상 모두 승리
+        if (player === 1 && count === 5) return true;
+        if (player === 2 && count >= 5) return true;
       }
       return false;
     }
 
-    /* ----------------------------------------------------
-       렌주룰 금수(Forbidden Moves) 검사 알고리즘
-    ---------------------------------------------------- */
+    // 렌주룰 금수 검사
     function checkForbiddenMove(r, c, player) {
-      // 가상 착수
       boardState[r][c] = player;
-
       let reason = null;
       const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
       let openThreeCount = 0;
       let fourCount = 0;
 
-      // 1. 장목(6목 이상) 판정
       for (let [dr, dc] of dirs) {
         let len = 1;
         let nr = r + dr, nc = c + dc;
@@ -326,18 +338,10 @@
         while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
           len++; nr -= dr; nc -= dc;
         }
-        if (len > 5) {
-          boardState[r][c] = 0;
-          return "장목 (6목 이상 금지)";
-        }
-        if (len === 5) {
-          // 정확히 5목이면 즉시 승리 가능 수이므로 3-3, 4-4 검사 제외
-          boardState[r][c] = 0;
-          return null;
-        }
+        if (len > 5) { boardState[r][c] = 0; return "장목 (6목 이상 금지)"; }
+        if (len === 5) { boardState[r][c] = 0; return null; }
       }
 
-      // 2. 4와 열린 3 카운트
       for (let [dr, dc] of dirs) {
         const line = getLinePattern(r, c, dr, dc, player);
         if (isFourPattern(line)) fourCount++;
@@ -347,46 +351,30 @@
       if (fourCount >= 2) reason = "4-4 (사사 금수)";
       else if (openThreeCount >= 2) reason = "3-3 (삼삼 금수)";
 
-      // 원상복구
       boardState[r][c] = 0;
       return reason;
     }
 
-    // 특정 방향의 일직선 패턴 추출 (-4 ~ +4)
     function getLinePattern(r, c, dr, dc, player) {
       const line = [];
       for (let i = -4; i <= 4; i++) {
         const nr = r + dr * i;
         const nc = c + dc * i;
-        if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) {
-          line.push(3); // 바둑판 외곽 벽
-        } else {
-          line.push(boardState[nr][nc]);
-        }
+        if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) line.push(3);
+        else line.push(boardState[nr][nc]);
       }
       return line.map(v => v === player ? '1' : (v === 0 ? '0' : '2')).join('');
     }
 
-    // 4 패턴 검사
     function isFourPattern(str) {
-      const fourPatterns = [
-        "011110", "211110", "011112",
-        "10111", "11011", "11101"
-      ];
-      return fourPatterns.some(pat => str.includes(pat));
+      return ["011110", "211110", "011112", "10111", "11011", "11101"].some(pat => str.includes(pat));
     }
 
-    // 열린 3 패턴 검사
     function isOpenThreePattern(str) {
-      const threePatterns = [
-        "01110", "010110", "011010"
-      ];
-      return threePatterns.some(pat => str.includes(pat));
+      return ["01110", "010110", "011010"].some(pat => str.includes(pat));
     }
 
-    /* ----------------------------------------------------
-       심플 스마트 휴리스틱 AI
-    ---------------------------------------------------- */
+    // AI 휴리스틱
     function playAiMove() {
       let bestScore = -Infinity;
       let bestMove = null;
@@ -395,54 +383,37 @@
         for (let c = 0; c < BOARD_SIZE; c++) {
           if (boardState[r][c] !== 0) continue;
 
-          // 인접한 돌이 있는 주변만 탐색
           let hasNeighbor = false;
           for (let dr = -2; dr <= 2; dr++) {
             for (let dc = -2; dc <= 2; dc++) {
               let nr = r + dr, nc = c + dc;
               if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] !== 0) {
-                hasNeighbor = true;
-                break;
+                hasNeighbor = true; break;
               }
             }
             if (hasNeighbor) break;
           }
-
           if (!hasNeighbor && moveHistory.length > 0) continue;
 
-          const attackScore = evaluateSpot(r, c, 2);
-          const defenseScore = evaluateSpot(r, c, 1);
-          const totalScore = attackScore * 1.2 + defenseScore;
-
-          if (totalScore > bestScore) {
-            bestScore = totalScore;
-            bestMove = { r, c };
-          }
+          const totalScore = evaluateSpot(r, c, 2) * 1.2 + evaluateSpot(r, c, 1);
+          if (totalScore > bestScore) { bestScore = totalScore; bestMove = { r, c }; }
         }
       }
 
-      if (bestMove) {
-        executeMove(bestMove.r, bestMove.c);
-      }
+      if (bestMove) executeMove(bestMove.r, bestMove.c);
     }
 
     function evaluateSpot(r, c, player) {
       let score = 0;
       const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
       for (let [dr, dc] of dirs) {
-        let count = 1;
-        let block = 0;
-
+        let count = 1, block = 0;
         let nr = r + dr, nc = c + dc;
-        while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
-          count++; nr += dr; nc += dc;
-        }
+        while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) { count++; nr += dr; nc += dc; }
         if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE || boardState[nr][nc] !== 0) block++;
 
         nr = r - dr; nc = c - dc;
-        while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
-          count++; nr -= dr; nc -= dc;
-        }
+        while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) { count++; nr -= dr; nc -= dc; }
         if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE || boardState[nr][nc] !== 0) block++;
 
         if (count >= 5) score += 100000;
@@ -457,12 +428,48 @@
 
     // 결과 모달 창 표시
     function showWinner(player) {
-      modalWinnerBadge.className = `w-14 h-14 mx-auto rounded-full mb-4 ${
-        player === 1 ? 'stone-black' : 'stone-white'
-      }`;
-      modalWinnerTitle.innerText = `${player === 1 ? '흑돌' : '백돌'} 승리!`;
-      modalWinnerDesc.innerText = `${player === 1 ? '흑돌' : '백돌'}이 5목을 완성했습니다.`;
+      if (player === 0) {
+        modalWinnerBadge.className = `w-14 h-14 mx-auto rounded-full mb-4 bg-slate-600`;
+        modalWinnerTitle.innerText = `무승부`;
+        modalWinnerDesc.innerText = `승패가 나지 않았습니다.`;
+      } else {
+        modalWinnerBadge.className = `w-14 h-14 mx-auto rounded-full mb-4 ${player === 1 ? 'stone-black' : 'stone-white'}`;
+        modalWinnerTitle.innerText = `${player === 1 ? '흑돌' : '백돌'} 승리!`;
+        modalWinnerDesc.innerText = `${player === 1 ? '흑돌' : '백돌'}이 5목을 완성했습니다.`;
+      }
       winnerModal.classList.remove('hidden');
+    }
+
+    // 복기 모드 진입
+    function startReviewMode() {
+      winnerModal.classList.add('hidden');
+      isReviewMode = true;
+      reviewStep = moveHistory.length; // 기본적으로 게임 끝난 최종 상태부터 시작
+      reviewPanel.classList.remove('hidden');
+      renderStones();
+    }
+
+    // 복기 모드 종료
+    function exitReviewMode() {
+      isReviewMode = false;
+      reviewPanel.classList.add('hidden');
+      renderStones();
+    }
+
+    // 복기 이전 수
+    function reviewPrevStep() {
+      if (reviewStep > 0) {
+        reviewStep--;
+        renderStones();
+      }
+    }
+
+    // 복기 다음 수
+    function reviewNextStep() {
+      if (reviewStep < moveHistory.length) {
+        reviewStep++;
+        renderStones();
+      }
     }
 
     // 게임 리셋 함수
@@ -471,7 +478,9 @@
       moveHistory = [];
       currentPlayer = 1;
       gameOver = false;
+      isReviewMode = false;
       winnerModal.classList.add('hidden');
+      reviewPanel.classList.add('hidden');
       initBoardUI();
       renderStones();
       updateUI();
@@ -479,7 +488,7 @@
 
     // 무르기 핸들러
     function undoMove() {
-      if (gameOver || moveHistory.length === 0) return;
+      if (gameOver || isReviewMode || moveHistory.length === 0) return;
 
       const undoCount = (isVsAi && moveHistory.length >= 2) ? 2 : 1;
       for (let i = 0; i < undoCount; i++) {
@@ -489,14 +498,18 @@
           currentPlayer = last.player;
         }
       }
-      renderStones();
+      renderStones(moveHistory.length - 1);
       updateUI();
     }
 
     // 이벤트 리스너 바인딩
     document.getElementById('btn-reset').addEventListener('click', resetGame);
     document.getElementById('btn-modal-restart').addEventListener('click', resetGame);
+    document.getElementById('btn-modal-review').addEventListener('click', startReviewMode);
     document.getElementById('btn-undo').addEventListener('click', undoMove);
+    document.getElementById('btn-review-prev').addEventListener('click', reviewPrevStep);
+    document.getElementById('btn-review-next').addEventListener('click', reviewNextStep);
+    document.getElementById('btn-exit-review').addEventListener('click', exitReviewMode);
 
     const btnPvp = document.getElementById('btn-mode-pvp');
     const btnAi = document.getElementById('btn-mode-ai');
