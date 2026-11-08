@@ -1,0 +1,2763 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>포켓몬스터 골드 - 수학 RPG (완전판)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
+<style>
+  :root {
+    --gbc-bg: #10121a;
+    --gbc-case: #202430;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0; padding: 0;
+    user-select: none; -webkit-user-select: none;
+    font-family: 'Galmuri9', monospace;
+    image-rendering: pixelated;
+  }
+  body {
+    background: var(--gbc-bg);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  #gbc-wrapper {
+    position: relative;
+    width: 100vw;
+    max-width: 480px;
+    height: 100vh;
+    max-height: 840px;
+    background: var(--gbc-case);
+    border: 4px solid #090a10;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    overflow: hidden;
+  }
+
+  #header-hud {
+    height: 38px;
+    background: #141622;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    border-bottom: 2px solid #0a0b12;
+    font-size: 11px;
+    color: #f7d51d;
+    text-shadow: 1px 1px 0 #000;
+    z-index: 30;
+  }
+  .hud-btn {
+    background: #2b3044;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid #f7d51d;
+    cursor: pointer;
+  }
+  .fever-badge {
+    background: #e63946;
+    color: #fff;
+    padding: 2px 5px;
+    border-radius: 3px;
+    animation: feverPulse 0.5s infinite alternate;
+    display: none;
+  }
+  @keyframes feverPulse { from { opacity: 0.6; } to { opacity: 1; transform: scale(1.05); } }
+
+  #canvas-container {
+    position: relative;
+    flex: 1;
+    background: #000;
+    overflow: hidden;
+  }
+  #game-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  /* 인카운터 화면 플래시 연출 */
+  #encounter-flash {
+    position: absolute; inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 80;
+    transition: opacity 0.08s;
+  }
+  .flash-active {
+    animation: encounterAnim 0.7s steps(2, start) forwards !important;
+  }
+  @keyframes encounterAnim {
+    0% { opacity: 0; background: #000; }
+    20% { opacity: 1; background: #fff; }
+    40% { opacity: 0; background: #000; }
+    60% { opacity: 1; background: #fff; }
+    80% { opacity: 1; background: #000; }
+    100% { opacity: 0; }
+  }
+
+  /* 배틀 오버레이 */
+  #battle-overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    justify-content: space-between; z-index: 60; padding: 12px;
+  }
+  .battle-top-arena {
+    flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+  }
+  .enemy-hud {
+    align-self: flex-start; width: 220px; padding: 8px 12px;
+    background: #fffdf5; border: 3px solid #222; border-radius: 4px; box-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+  }
+  .enemy-hud .hud-name { font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; color: #111; }
+  .hp-wrap { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .hp-tag { font-size: 10px; background: #ffb703; color: #000; padding: 1px 3px; border-radius: 2px; font-weight: bold; }
+  .hp-bar-outer { flex: 1; height: 10px; background: #444; border: 2px solid #222; border-radius: 4px; overflow: hidden; }
+  .hp-bar-inner { height: 100%; width: 100%; background: #2a9d8f; transition: width 0.3s ease; }
+
+  .enemy-stage {
+    flex: 1; display: flex; justify-content: center; align-items: center; position: relative;
+    margin-top: -8px; /* 살짝 위로 올려 중앙 밸런스 유지 */
+  }
+  .enemy-img {
+    height: 143px; /* 110px * 1.3 = 143px */
+    image-rendering: pixelated;
+    filter: drop-shadow(0 8px 6px rgba(0,0,0,0.45));
+    animation: idleBounce 0.8s infinite alternate ease-in-out;
+  }
+  @keyframes idleBounce { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+  .hit-shake { animation: hitShake 0.4s ease-in-out !important; filter: brightness(2) drop-shadow(0 0 10px red) !important; }
+  @keyframes hitShake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-10px, 0); }
+    40% { transform: translate(10px, 0); }
+    60% { transform: translate(-6px, 0); }
+    80% { transform: translate(6px, 0); }
+  }
+
+  /* 몬스터볼 포획 애니메이션 */
+  #pokeball-actor {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    display: none;
+    z-index: 75;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.4)); /* 날아갈 때 그림자 입체감 */
+  }
+  .ball-throw {
+    animation: ballThrow 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+  @keyframes ballThrow {
+    0% { transform: translate(-100px, 120px) scale(0.4) rotate(0deg); opacity: 1; }
+    50% { transform: translate(0px, -40px) scale(1.2) rotate(360deg); }
+    100% { transform: translate(0px, 0px) scale(1) rotate(720deg); opacity: 1; }
+  }
+  .ball-shake {
+    animation: ballShake 0.5s ease-in-out 3 forwards;
+  }
+  @keyframes ballShake {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-25deg); }
+    75% { transform: rotate(25deg); }
+  }
+
+  /* 일체형 배틀 문제 & 도망치기 패널 */
+  #battle-panel {
+    background: #fffdf5; border: 4px solid #222; outline: 2px solid #fff;
+    padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    border-radius: 4px; box-shadow: 0 4px 0 #000; position: relative; margin-bottom: 6px;
+  }
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  }
+  .dialog-text {
+    font-size: 11px; line-height: 1.45; color: #111; flex: 1;
+  }
+  .panel-btns {
+    display: flex; gap: 4px;
+  }
+  .mini-btn {
+    color: #fff; border: 2px solid #111; padding: 3px 6px;
+    font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 10px;
+  }
+  .btn-escape { background: #457b9d; }
+  .btn-chance { background: #e76f51; }
+
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .action-btn {
+    background: #ffffff; border: 2px solid #333; border-radius: 4px;
+    padding: 8px 4px; font-size: 11px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 3px #555; transition: 0.1s; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .action-btn:active { transform: translateY(2px); box-shadow: 0 1px #555; }
+  .action-btn.disabled { background: #e9ecef; color: #aaa; border-color: #ccc; box-shadow: none; cursor: not-allowed; }
+
+  /* 맵 이름 알림 배너 */
+  #map-title-banner {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(14, 18, 28, 0.92); border: 2px solid #ffd166; color: #ffd166;
+    padding: 5px 14px; font-size: 12px; font-weight: bold; border-radius: 20px;
+    display: none; z-index: 40; box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+  }
+
+  /* 도감 모달 */
+  #dex-modal {
+    display: none; position: absolute; inset: 0; background: rgba(10,12,18,0.96);
+    z-index: 90; padding: 14px; flex-direction: column;
+  }
+  .dex-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid #ffd166; padding-bottom: 6px; margin-bottom: 10px;
+  }
+  .dex-grid {
+    flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    align-content: start; /* 🌟 카드가 아래로 비정상적으로 늘어나는 빈 여백 버그 해결 */
+    padding: 4px 2px;
+  }
+  .dex-card {
+    background: #fffdf5; color: #111; border: 2px solid #222; border-radius: 6px;
+    padding: 8px 6px; display: flex; flex-direction: column; gap: 6px;
+    align-self: start; /* 🌟 내용 높이에 맞게 딱 맞춤 */
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  }
+  .evolve-btn {
+    background: #2a9d8f; color: #fff; border: 1px solid #111; padding: 2px 4px;
+    font-size: 9px; cursor: pointer; border-radius: 2px; align-self: flex-end;
+  }
+
+  /* 로그인 모달 */
+  #login-modal {
+    position: absolute; inset: 0; background: rgba(10, 12, 18, 0.95);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 100; padding: 20px;
+  }
+  .login-card {
+    width: 100%; max-width: 320px; background: #ffffff; color: #111;
+    border: 4px solid #222; border-radius: 6px; padding: 18px; text-align: center;
+  }
+  .retro-input {
+    width: 100%; padding: 8px; margin: 6px 0; background: #f1faee;
+    border: 2px solid #1d3557; font-size: 13px; outline: none;
+  }
+  .retro-btn {
+    width: 100%; padding: 10px; margin-top: 6px; background: #e63946;
+    color: white; font-size: 14px; border: 2px solid #780000; cursor: pointer;
+  }
+
+  /* 반응형 컨트롤러 */
+  #controller-pad {
+    height: 160px; background: #141622; padding: 8px 24px;
+    display: none; justify-content: space-between; align-items: center;
+    border-top: 3px solid #0a0b12; z-index: 25;
+  }
+  @media (hover: none) and (pointer: coarse) {
+    #controller-pad { display: flex; }
+  }
+  .d-pad { position: relative; width: 110px; height: 110px; }
+  .d-btn {
+    position: absolute; width: 36px; height: 36px;
+    background: #2b3044; border: 2px solid #0f1118; color: #8e99b7;
+    display: flex; justify-content: center; align-items: center; cursor: pointer;
+  }
+  .d-btn:active { background: #e63946; color: white; }
+  .d-up { top: 0; left: 37px; } .d-down { bottom: 0; left: 37px; }
+  .d-left { top: 37px; left: 0; } .d-right { top: 37px; right: 0; }
+  .d-center { top: 37px; left: 37px; width: 36px; height: 36px; background: #2b3044; border: none; }
+  .ab-pad { display: flex; gap: 12px; transform: rotate(-10deg); }
+  .round-btn {
+    width: 46px; height: 46px; border-radius: 50%; background: #d90429;
+    border: 2px solid #111; color: white; font-weight: bold; cursor: pointer;
+  }
+  .btn-b { background: #457b9d; }
+
+  #toast-msg {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.85); color: #ffb703; padding: 6px 12px;
+    border: 2px solid #fff; border-radius: 4px; font-size: 11px; white-space: nowrap; display: none; z-index: 120;
+  }
+
+  /* 🌟 공격 이펙트 오버레이 */
+  #attack-fx-canvas {
+    position: absolute; inset: 0; pointer-events: none; z-index: 70;
+  }
+
+  /* 🌟 신규 도감 등록 축하 모달 & 폭죽 */
+  #capture-modal {
+    position: absolute; inset: 0; background: rgba(5, 7, 12, 0.94);
+    display: none; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 130; padding: 20px;
+  }
+  .capture-card {
+    width: 100%; max-width: 320px; background: #fffdf5; border: 4px solid #f7d51d;
+    box-shadow: 0 0 25px rgba(247, 213, 29, 0.6), inset 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 8px; padding: 18px 14px; display: flex; flex-direction: column;
+    align-items: center; text-align: center; position: relative; animation: popIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+  @keyframes popIn { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .capture-badge-stamp {
+    position: absolute; top: 10px; right: 10px; background: #e63946; color: #fff;
+    font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;
+    transform: rotate(12deg); border: 1px dashed #fff;
+  }
+  .capture-mon-img {
+    width: 96px; height: 96px; image-rendering: pixelated; margin: 10px 0;
+    filter: drop-shadow(0 6px 6px rgba(0,0,0,0.3)); animation: idleBounce 0.6s infinite alternate;
+  }
+  .capture-title { font-size: 14px; font-weight: bold; color: #111; margin-bottom: 2px; }
+  .capture-sub { font-size: 11px; color: #457b9d; font-weight: bold; margin-bottom: 10px; }
+  .capture-desc-box {
+    background: #f1faee; border: 2px solid #a8dadc; border-radius: 4px; padding: 8px;
+    font-size: 11px; color: #1d3557; line-height: 1.4; width: 100%; margin-bottom: 12px;
+  }
+  .btn-confirm-dex {
+    background: #2a9d8f; color: #fff; border: 2px solid #111; padding: 8px 18px;
+    font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer;
+    box-shadow: 0 3px #1b4942;
+  }
+  .btn-confirm-dex:active { transform: translateY(2px); box-shadow: 0 1px #1b4942; }
+
+  /* 🌟 도감 필터 칩 바 */
+  .dex-filter-bar {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;
+  }
+  .dex-chip {
+    background: #1e2230; color: #a8b2d1; border: 1px solid #3d4560; font-size: 10px;
+    padding: 3px 6px; border-radius: 12px; cursor: pointer; transition: 0.15s;
+  }
+  .dex-chip.active {
+    background: #f7d51d; color: #111; font-weight: bold; border-color: #f7d51d;
+  }
+/* 🌟 전체화면 피카츄 로딩 오버레이 */
+  #loading-overlay {
+    position: absolute; inset: 0; background: rgba(14, 18, 28, 0.96);
+    display: none; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 150; gap: 14px; text-align: center;
+  }
+  .loading-img {
+    width: 96px; height: 96px; image-rendering: pixelated;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.6));
+    animation: bounce 0.6s infinite alternate ease-in-out;
+  }
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+  }
+  .loading-text {
+    font-size: 13px; color: #ffd166; text-shadow: 1px 1px 0 #000;
+    animation: blinkText 1s infinite alternate;
+  }
+  @keyframes blinkText {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+  }
+  .loading-sub {
+    font-size: 10px; color: #8e99b7;
+  }
+/* 🌟 NPC 레트로 대화창 및 퀴즈 모달 */
+  #npc-dialog-modal {
+    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45);
+    display: none; flex-direction: column; justify-content: flex-end;
+    z-index: 120; padding: 12px; pointer-events: auto;
+  }
+  .npc-box {
+    background: #fffdf5; border: 4px solid #222; outline: 2px solid #fff;
+    border-radius: 6px; padding: 12px; display: flex; flex-direction: column;
+    gap: 8px; box-shadow: 0 4px 0 #000;
+  }
+  .npc-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px dashed #ddd; padding-bottom: 4px;
+  }
+  .npc-name { font-size: 13px; font-weight: bold; color: #d90429; }
+  .npc-type-tag { font-size: 9px; background: #e9ecef; border: 1px solid #aaa; padding: 1px 4px; border-radius: 3px; color: #555; }
+  .npc-dialog-body { font-size: 11px; line-height: 1.5; color: #111; min-height: 38px; }
+  .npc-quiz-area {
+    display: none; flex-direction: column; gap: 6px; background: #f1faee;
+    padding: 8px; border: 2px solid #a8dadc; border-radius: 4px;
+  }
+  .npc-quiz-text { font-size: 11px; color: #1d3557; font-weight: bold; }
+  .npc-input-row { display: flex; gap: 6px; }
+  .npc-input {
+    flex: 1; padding: 6px; font-size: 12px; border: 2px solid #1d3557;
+    outline: none; background: #fff; text-align: center; font-weight: bold;
+  }
+  .npc-btn-submit {
+    background: #e63946; color: #fff; border: 2px solid #111;
+    font-size: 11px; font-weight: bold; padding: 0 12px; cursor: pointer; border-radius: 4px;
+  }
+  .npc-btn-close {
+    align-self: flex-end; background: #457b9d; color: #fff; border: 2px solid #111;
+    padding: 4px 10px; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 4px;
+  }
+/* 🌟 [5단계] 챔피언 전당등록 엔딩 모달 */
+  #champion-modal {
+    position: absolute; inset: 0; background: rgba(5, 7, 15, 0.96);
+    display: none; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 160; padding: 16px;
+  }
+  .champ-card {
+    width: 100%; max-width: 340px; background: #0f1423; border: 4px solid #ffd166;
+    box-shadow: 0 0 35px rgba(255, 209, 102, 0.6), inset 0 0 15px rgba(0,0,0,0.8);
+    border-radius: 8px; padding: 20px 16px; text-align: center; color: #fff;
+    animation: popIn 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+  .champ-badge-row {
+    display: flex; justify-content: center; gap: 10px; font-size: 26px;
+    margin: 14px 0; padding: 8px; background: rgba(255,255,255,0.06);
+    border-radius: 6px; border: 1px dashed #ffd166;
+  }
+  .champ-badge-icon {
+    filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
+    animation: idleBounce 0.6s infinite alternate;
+  }
+</style>
+</head>
+<body>
+
+<div id="gbc-wrapper">
+  <div id="header-hud">
+    <span id="player-title">🎒 TRAINER: -</span>
+    <span id="rank-badge" class="hud-btn" style="border-color:#48cae4; color:#48cae4;">🌱 비기너</span>
+    <span id="badge-display" style="font-size:12px; letter-spacing:2px; margin:0 4px;"></span> <!-- 🌟 체육관 공식 배지 목록 -->
+    <span id="fever-indicator" class="fever-badge">🔥 FEVER x2</span>
+    <span>🍬 <span id="candy-display">0</span></span>
+    <span class="hud-btn" onclick="toggleDex(true)">📖 도감: <span id="dex-display">0</span></span>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="encounter-flash"></div>
+    <div id="map-title-banner">연두마을</div>
+
+    <!-- 🌟 포켓몬 도감 모달 (필터 & 정렬 컨트롤러 완비) -->
+    <div id="dex-modal">
+      <div class="dex-header">
+        <div>
+          <span style="color:#ffd166; font-size:13px; font-weight:bold;">📖 트레이너 공식 도감</span>
+          <div id="dex-rank-info" style="font-size:10px; color:#48cae4; margin-top:2px;">현재 등급: 비기너 트레이너</div>
+        </div>
+        <button onclick="toggleDex(false)" style="background:#e63946; color:#fff; border:1px solid #111; padding:3px 8px; font-size:11px; cursor:pointer;">닫기(X)</button>
+      </div>
+
+      <!-- 🌟 수집 상태 및 지형 / 정렬 필터 바 -->
+      <div class="dex-filter-bar" style="border-bottom:1px dashed #3d4560; padding-bottom:6px; margin-bottom:6px;">
+        <!-- 수집 상태 필터 -->
+        <span style="font-size:10px; color:#ffd166; align-self:center; margin-right:2px;">수집:</span>
+        <button class="dex-chip active" data-status-filter="all" onclick="setDexFilter('status', 'all', this)">전체</button>
+        <button class="dex-chip" data-status-filter="caught" onclick="setDexFilter('status', 'caught', this)">✅ 수집완료</button>
+        <button class="dex-chip" data-status-filter="uncaught" onclick="setDexFilter('status', 'uncaught', this)">❓ 미발견</button>
+        <button class="dex-chip" onclick="toggleDexSort(this)" style="margin-left:auto; border-color:#ffd166; color:#ffd166;">No. ▲ 오름차순</button>
+      </div>
+
+      <div class="dex-filter-bar">
+        <!-- 지형 바이옴 필터 -->
+        <span style="font-size:10px; color:#a8dadc; align-self:center; margin-right:2px;">지형:</span>
+        <button class="dex-chip active" data-biome-filter="all" onclick="setDexFilter('biome', 'all', this)">전체</button>
+        <button class="dex-chip" data-biome-filter="grass" onclick="setDexFilter('biome', 'grass', this)">🌿 초원</button>
+        <button class="dex-chip" data-biome-filter="water" onclick="setDexFilter('biome', 'water', this)">💧 물/호수</button>
+        <button class="dex-chip" data-biome-filter="snow" onclick="setDexFilter('biome', 'snow', this)">❄️ 설원</button>
+        <button class="dex-chip" data-biome-filter="volcano" onclick="setDexFilter('biome', 'volcano', this)">🌋 화산</button>
+        <button class="dex-chip" data-biome-filter="sand" onclick="setDexFilter('biome', 'sand', this)">🏜️ 사막</button>
+      </div>
+
+      <div class="dex-grid" id="dex-list"></div>
+    </div>
+
+    <!-- 🌟 신규 도감 등록 축하 팡파레 모달 -->
+    <div id="capture-modal">
+      <div class="capture-card">
+        <div class="capture-badge-stamp">NEW REGISTERED</div>
+        <div style="font-size:10px; color:#e76f51; font-weight:bold;" id="cap-no">No.000</div>
+        <img class="capture-mon-img" id="cap-sprite" src="" alt="registered pokemon">
+        <div class="capture-title" id="cap-name">포켓몬</div>
+        <div class="capture-sub" id="cap-type">속성: 풀</div>
+        <div class="capture-desc-box" id="cap-desc">
+          수학 문제를 풀어 모험 도감에 성공적으로 연구 기록되었습니다!
+        </div>
+        <button class="btn-confirm-dex" onclick="closeCaptureModal()">모험 계속하기 (A)</button>
+      </div>
+      <canvas id="confetti-canvas" style="position:absolute; inset:0; pointer-events:none;"></canvas>
+    </div>
+<!-- 🌟 [5단계] 챔피언 전당등록 엔딩 모달 -->
+    <div id="champion-modal">
+      <div class="champ-card">
+        <div style="font-size:11px; color:#ffb703; font-weight:bold; letter-spacing:1px;">★ HALL OF FAME ★</div>
+        <h2 style="font-size:16px; color:#ffd166; margin:6px 0 2px;">수학 리그 챔피언 등극!</h2>
+        <p style="font-size:10px; color:#8ecae6;" id="champ-student-desc">10301 심향 트레이너</p>
+
+        <div class="champ-badge-row">
+          <span class="champ-badge-icon" title="블루배지">💧</span>
+          <span class="champ-badge-icon" title="아이스배지">❄️</span>
+          <span class="champ-badge-icon" title="진홍배지">🔥</span>
+          <span class="champ-badge-icon" title="그린배지">🏜️</span>
+        </div>
+
+        <div style="background:#1a2035; border:1px solid #3d4a6e; border-radius:4px; padding:10px; font-size:11px; line-height:1.5; color:#e0e6ed; margin-bottom:14px;">
+          "모든 대륙의 수학적 시련을 이겨내고 4대 배지를 모두 제패한 위대한 트레이너여! 그대의 이름은 포켓몬 수학 전당에 영원히 기록될 것이다!"<br>
+          <span style="font-size:10px; color:#ffd166; display:block; margin-top:4px;">- 포켓몬 연구소 오키드 박사 -</span>
+        </div>
+
+        <button class="btn-confirm-dex" onclick="closeChampionModal()" style="background:#e63946; border-color:#ffd166; width:100%;">
+          영광의 모험 이어가기 (A)
+        </button>
+      </div>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div id="login-modal">
+      <div class="login-card">
+        <h3 style="color:#e63946; margin-bottom:6px;">★ 포켓몬 수학 월드 ★</h3>
+        <p style="font-size:11px; color:#555; margin-bottom:10px;">포켓몬고 시스템</p>
+        <input type="text" id="input-std-id" class="retro-input" placeholder="학번 (예: 10301)" maxlength="10">
+        <input type="text" id="input-std-name" class="retro-input" placeholder="이름 (예: 심향)" maxlength="8">
+        <button class="retro-btn" onclick="startAdventure()">모험 출발 (START)</button>
+      </div>
+    </div>
+
+    <!-- 🌟 로딩 화면 오버레이 -->
+    <div id="loading-overlay">
+      <img class="loading-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/25.gif" alt="loading pokemon">
+      <div class="loading-text" id="loading-status">모험 기록을 불러오는 중...</div>
+      <div class="loading-sub">네트워크 상태에 따라 2~3초 정도 걸릴 수 있습니다</div>
+    </div>
+
+    <!-- 🌟 [복구] NPC 대화 및 퀴즈 상호작용 모달 -->
+    <div id="npc-dialog-modal">
+      <div class="npc-box">
+        <div class="npc-header">
+          <span class="npc-name" id="npc-talk-name">NPC 이름</span>
+          <span class="npc-type-tag" id="npc-talk-type">안내</span>
+        </div>
+        <div class="npc-dialog-body" id="npc-talk-dialog">대화 내용이 표시됩니다.</div>
+        
+        <!-- 퀴즈 영역 (type이 quiz일 때 활성화) -->
+        <div class="npc-quiz-area" id="npc-quiz-container">
+          <div class="npc-quiz-text" id="npc-quiz-question">문제 지문</div>
+          <div class="npc-input-row">
+            <input type="text" class="npc-input" id="npc-quiz-input" placeholder="정답 입력" autocomplete="off">
+            <button class="npc-btn-submit" onclick="submitNpcQuiz()">제출 (A)</button>
+          </div>
+        </div>
+
+        <button class="npc-btn-close" id="npc-close-btn" onclick="closeNpcDialog()">대화 종료 (B)</button>
+      </div>
+    </div>
+
+    <!-- 배틀 오버레이 -->
+    <div id="battle-overlay">
+      <div class="battle-top-arena">
+        <div class="enemy-hud">
+          <div class="hud-name">
+            <span id="b-enemy-name">포켓몬</span>
+            <span id="b-enemy-tier" style="color:#d90429;">★</span>
+          </div>
+          <div class="hp-wrap">
+            <span class="hp-tag">HP</span>
+            <div class="hp-bar-outer"><div class="hp-bar-inner" id="b-hp-bar"></div></div>
+          </div>
+        </div>
+
+        <div class="enemy-stage">
+          <img id="b-enemy-sprite" class="enemy-img" src="" alt="enemy">
+          <!-- 포켓볼 포획 스프라이트 (SVG Data URI) -->
+<img id="pokeball-actor" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" alt="ball">
+        </div>
+      </div>
+
+      <!-- 일체형 배틀 패널 -->
+      <div id="battle-panel">
+        <div class="panel-header">
+          <div class="dialog-text" id="b-dialog-text">배틀 개시!</div>
+          <div class="panel-btns">
+            <button class="mini-btn btn-chance" id="btn-5050" onclick="use5050Chance()">🍬 오답제거</button>
+            <button class="mini-btn btn-escape" onclick="handleBtnB()">🏃 도망</button>
+          </div>
+        </div>
+        <div style="border-bottom: 2px dashed #ddd; margin: 1px 0;"></div>
+        <div class="action-grid" id="b-action-grid"></div>
+      </div>
+    </div>
+
+    <div id="toast-msg"></div>
+  </div>
+
+  <div id="controller-pad">
+    <div class="d-pad">
+      <button class="d-btn d-up" data-dir="up">▲</button>
+      <button class="d-btn d-left" data-dir="left">◀</button>
+      <button class="d-btn d-center"></button>
+      <button class="d-btn d-right" data-dir="right">▶</button>
+      <button class="d-btn d-down" data-dir="down">▼</button>
+    </div>
+    <div class="ab-pad">
+      <button class="round-btn btn-b" onclick="handleBtnB()">B</button>
+      <button class="round-btn" onclick="handleBtnA()">A</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // =======================================================
+  // [1] GAS 엔드포인트 및 진화 체인 포켓몬 데이터베이스
+  // =======================================================
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwAXTbwsq8N1AxHBCVI2DfJQr1vQnJ3XhmnHLrgFtoEHChHWu58LJMN133lM2pNRgBb/exec";
+
+// =======================================================
+  // 🌟 [5단계] Web Audio API 8비트 레트로 사운드 엔진
+  // =======================================================
+  let audioCtx = null;
+  function getAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playRetroSound(type) {
+    try {
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const now = ctx.currentTime;
+
+      if (type === 'correct') {
+        // 정답 코인 획득음 (B5 -> E6)
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(987.77, now);
+        osc.frequency.setValueAtTime(1318.51, now + 0.08);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      } else if (type === 'wrong') {
+        // 오답 버저음
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.setValueAtTime(110, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'ball') {
+        // 몬스터볼 흔들림/찰칵음
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'fanfare') {
+        // 승리 팡파레 멜로디 (C5 - G5 - C6)
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'square';
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.12, now + i * 0.1);
+          g.gain.exponentialRampToValueAtTime(0.01, now + (i + 1) * 0.1 + 0.15);
+          o.start(now + i * 0.1);
+          o.stop(now + (i + 1) * 0.1 + 0.15);
+        });
+      }
+    } catch(e) {}
+  }
+
+  // 포켓몬 진화 트리 완비 (evolveTo: 진화 대상 ID, evolveCost: 필요 사탕)
+  let monsterPool = [];
+
+  // 하드코딩 제거: 구글 스프레드시트 Battles 탭에서 동적으로 로드
+  let battlePool = [];
+
+  // =======================================================
+  // [2] 16x16 GBC 픽셀 타일 및 스프라이트
+  // =======================================================
+  const TILE_SIZE = 16;
+  const SCALE = 2.5;
+  const DISPLAY_TILE = TILE_SIZE * SCALE; // 40px
+
+  const GBC_TILES = {};
+  function makeGbcTile(drawFn) {
+    const cvs = document.createElement('canvas');
+    cvs.width = TILE_SIZE; cvs.height = TILE_SIZE;
+    const c = cvs.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    drawFn(c);
+    return cvs;
+  }
+
+  // =======================================================
+  // 🌟 [정통 GBC 포켓몬 골드/실버 원작 스타일] 16x16 레트로 타일 세트
+  // =======================================================
+
+  // 1. 기본 필드 길 (스크린샷 고증: 연두색 바탕 + 사선 점 잔디 텍스처)
+  GBC_TILES['path'] = makeGbcTile(c => {
+    c.fillStyle = '#d8f878'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#98c840';
+    // 클래식 사선 도트 질감
+    c.fillRect(3, 2, 2, 1); c.fillRect(2, 3, 1, 2);
+    c.fillRect(11, 4, 2, 1); c.fillRect(10, 5, 1, 2);
+    c.fillRect(5, 10, 2, 1); c.fillRect(4, 11, 1, 2);
+    c.fillRect(13, 12, 2, 1); c.fillRect(12, 13, 1, 2);
+  });
+
+  // 2. 수풀 타일 (인카운터 풀숲 - 십자 뾰족 잎)
+  GBC_TILES['tall_grass'] = makeGbcTile(c => {
+    c.fillStyle = '#d8f878'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#084808'; // 진한 외곽
+    c.fillRect(1, 2, 3, 12); c.fillRect(6, 1, 4, 14); c.fillRect(12, 3, 3, 11);
+    c.fillStyle = '#389020'; // 중간 풀잎
+    c.fillRect(2, 3, 1, 10); c.fillRect(7, 2, 2, 12); c.fillRect(13, 4, 1, 9);
+    c.fillStyle = '#78c850'; // 잎끝 하이라이트
+    c.fillRect(2, 1, 1, 2); c.fillRect(7, 0, 2, 2); c.fillRect(13, 2, 1, 2);
+  });
+
+  // 3. 전나무 상단 (스크린샷 좌측 소나무 층상 구조)
+  GBC_TILES['tree_top'] = makeGbcTile(c => {
+    c.fillStyle = '#d8f878'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#083008'; // 최외곽 실루엣
+    c.fillRect(4, 2, 8, 4); c.fillRect(2, 6, 12, 5); c.fillRect(1, 11, 14, 5);
+    c.fillStyle = '#186818'; // 침엽수 베이스 녹색
+    c.fillRect(5, 3, 6, 3); c.fillRect(3, 7, 10, 4); c.fillRect(2, 12, 12, 4);
+    c.fillStyle = '#58b838'; // 햇빛 솔잎 하이라이트
+    c.fillRect(6, 3, 4, 1); c.fillRect(4, 7, 6, 1); c.fillRect(3, 12, 7, 1);
+  });
+
+  // 4. 전나무 하단 & 기둥
+  GBC_TILES['tree_bottom'] = makeGbcTile(c => {
+    c.fillStyle = '#d8f878'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#083008'; c.fillRect(1, 0, 14, 6);
+    c.fillStyle = '#186818'; c.fillRect(2, 0, 12, 5);
+    c.fillStyle = '#58b838'; c.fillRect(3, 0, 8, 1);
+    // 갈색 기둥
+    c.fillStyle = '#382008'; c.fillRect(6, 6, 4, 10);
+    c.fillStyle = '#784818'; c.fillRect(7, 6, 2, 10);
+  });
+
+  // 5. 절벽/산벽 (스크린샷 중앙 볼록볼록한 암벽 'T'/'W' 공용)
+  GBC_TILES['wall'] = makeGbcTile(c => {
+    c.fillStyle = '#b89050'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#483018'; // 그림자/홈
+    c.fillRect(0, 7, 16, 2); c.fillRect(0, 15, 16, 1);
+    c.fillRect(7, 0, 2, 8); c.fillRect(14, 8, 2, 8);
+    // 볼록한 림 하이라이트
+    c.fillStyle = '#f8f8a8';
+    c.fillRect(1, 1, 6, 2); c.fillRect(9, 1, 6, 2);
+    c.fillRect(1, 9, 6, 2); c.fillRect(9, 9, 5, 2);
+  });
+
+  // 6. 건물 지붕 (레트로 기와)
+  GBC_TILES['roof'] = makeGbcTile(c => {
+    c.fillStyle = '#c03028'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#681008'; c.fillRect(0, 5, 16, 2); c.fillRect(0, 11, 16, 2); c.fillRect(0, 15, 16, 1);
+    c.fillStyle = '#f87868'; c.fillRect(0, 1, 16, 1); c.fillRect(0, 7, 16, 1); c.fillRect(0, 13, 16, 1);
+  });
+
+  // 7. 출입문 (스크린샷 우측 아치형 동굴 입구 형태)
+  GBC_TILES['door'] = makeGbcTile(c => {
+    c.fillStyle = '#b89050'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#181818'; // 동굴 내부 암흑
+    c.fillRect(3, 3, 10, 13);
+    c.fillRect(4, 2, 8, 1);
+    c.fillStyle = '#483018'; // 아치형 테두리
+    c.fillRect(2, 3, 1, 13); c.fillRect(13, 3, 1, 13);
+    c.fillRect(3, 2, 1, 1); c.fillRect(12, 2, 1, 1);
+  });
+
+  // 8. 호수/물 (GBC 분노의 호수: 찰랑거리는 하얀 파도선)
+  GBC_TILES['water'] = makeGbcTile(c => {
+    c.fillStyle = '#2878d8'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#104898'; c.fillRect(0, 8, 16, 1); c.fillRect(0, 15, 16, 1);
+    c.fillStyle = '#f8f8f8'; // 반짝이는 물결
+    c.fillRect(2, 4, 4, 1); c.fillRect(10, 11, 4, 1);
+    c.fillRect(3, 5, 2, 1); c.fillRect(11, 12, 2, 1);
+  });
+
+  // 9. 화산 지형 (홍련섬 용암 바위 & 화염 기포)
+  GBC_TILES['lava_path'] = makeGbcTile(c => {
+    c.fillStyle = '#503830'; c.fillRect(0, 0, 16, 16); // 화산재 흙
+    c.fillStyle = '#281818'; c.fillRect(4, 5, 2, 2); c.fillRect(11, 11, 2, 2);
+    c.fillStyle = '#905848'; c.fillRect(5, 4, 1, 1); c.fillRect(12, 10, 1, 1);
+  });
+  GBC_TILES['lava_fire'] = makeGbcTile(c => {
+    c.fillStyle = '#d82810'; c.fillRect(0, 0, 16, 16); // 끓는 마그마
+    c.fillStyle = '#f88818'; c.fillRect(2, 3, 12, 10);
+    c.fillStyle = '#f8f840'; c.fillRect(5, 5, 6, 6); // 중심부 열기
+    c.fillStyle = '#ffffff'; c.fillRect(6, 6, 2, 2);
+  });
+
+  // 10. 설원 지형 (은빛산 눈길 & 빙벽)
+  GBC_TILES['snow_path'] = makeGbcTile(c => {
+    c.fillStyle = '#f0f8f8'; c.fillRect(0, 0, 16, 16); // 새하얀 눈
+    c.fillStyle = '#c0d8e8'; c.fillRect(3, 4, 2, 1); c.fillRect(10, 11, 2, 1);
+  });
+  GBC_TILES['snow_ice'] = makeGbcTile(c => {
+    c.fillStyle = '#78a8d0'; c.fillRect(0, 0, 16, 16); // 반사 빙판
+    c.fillStyle = '#b8d8f8'; c.fillRect(1, 1, 14, 2); c.fillRect(1, 3, 2, 12);
+    c.fillStyle = '#386890'; c.fillRect(1, 14, 14, 2); c.fillRect(13, 2, 2, 12);
+    c.fillStyle = '#ffffff'; c.fillRect(4, 4, 3, 3); // 얼음광
+  });
+
+  // 11. 사막 & 고대 유적 (알프의 유적 고증)
+  GBC_TILES['sand'] = makeGbcTile(c => {
+    c.fillStyle = '#e8d080'; c.fillRect(0, 0, 16, 16); // 모래
+    c.fillStyle = '#c0a050'; c.fillRect(3, 3, 1, 2); c.fillRect(11, 9, 1, 2);
+  });
+  GBC_TILES['pyramid'] = makeGbcTile(c => {
+    c.fillStyle = '#b09060'; c.fillRect(0, 0, 16, 16); // 유적 석조벽
+    c.fillStyle = '#483820'; c.fillRect(0, 7, 16, 1); c.fillRect(7, 0, 1, 8); c.fillRect(15, 8, 1, 8);
+    c.fillStyle = '#e8d8a0'; c.fillRect(1, 1, 5, 1); c.fillRect(9, 1, 5, 1);
+  });
+
+  // 12. 마을 포탈 (GBC 워프 패드)
+  GBC_TILES['portal'] = makeGbcTile(c => {
+    c.fillStyle = '#d8f878'; c.fillRect(0, 0, 16, 16);
+    c.fillStyle = '#181828'; c.fillRect(2, 2, 12, 12);
+    c.fillStyle = '#503880'; c.fillRect(4, 4, 8, 8);
+    c.fillStyle = '#a890e0'; c.fillRect(6, 6, 4, 4);
+    c.fillStyle = '#ffffff'; c.fillRect(7, 7, 2, 2);
+  });
+
+  // 🌿 1. 초원 전용 풀잎 오버레이
+  const GRASS_TUFT_OVERLAY = makeGbcTile(c => {
+    c.fillStyle = '#084808';
+    c.fillRect(2, 10, 2, 6); c.fillRect(7, 8, 2, 8); c.fillRect(12, 11, 2, 5);
+    c.fillStyle = '#78c850';
+    c.fillRect(3, 11, 1, 4); c.fillRect(8, 9, 1, 6);
+  });
+
+  // 🏜️ 2. 사막/유적 전용 모래 파묻힘 오버레이 (발이 모래에 잠김)
+  const SAND_TUFT_OVERLAY = makeGbcTile(c => {
+    c.fillStyle = '#c0a050'; // 진한 모래 그림자
+    c.fillRect(3, 13, 10, 3);
+    c.fillStyle = '#e8d080'; // 튀는 모래 알갱이
+    c.fillRect(2, 12, 2, 2); c.fillRect(12, 12, 2, 2);
+    c.fillRect(4, 14, 8, 2);
+  });
+
+  // ❄️ 3. 설원 전용 눈 파묻힘 오버레이
+  const SNOW_TUFT_OVERLAY = makeGbcTile(c => {
+    c.fillStyle = '#c0d8e8'; // 푸른 눈 그림자
+    c.fillRect(3, 13, 10, 3);
+    c.fillStyle = '#ffffff'; // 쌓인 눈
+    c.fillRect(4, 12, 8, 3); c.fillRect(2, 14, 2, 2); c.fillRect(12, 14, 2, 2);
+  });
+
+  // =======================================================
+  // 🌟 [100% 자체 완결] 정통 2세대 GBC 16x16 고품질 도트 엔진
+  // =======================================================
+  function createPixelCanvas(drawCallback) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 16; cvs.height = 16;
+    const c = cvs.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    drawCallback(c);
+    return cvs;
+  }
+
+  // 1. 주인공 (Ethan / 심향) 4방향 12프레임 정밀 도트
+  const PLAYER_SPRITES = {};
+  function buildEthanSprite(dir, frame) {
+    return createPixelCanvas(c => {
+      if (dir === 'down') {
+        // 모자 & 머리
+        c.fillStyle = '#d82818'; c.fillRect(4, 1, 8, 4); // 붉은 캡
+        c.fillStyle = '#181818'; c.fillRect(4, 4, 8, 1); // 챙/모자밴드
+        c.fillRect(3, 4, 1, 3); c.fillRect(12, 4, 1, 3); // 옆머리 흑발
+        // 얼굴 & 피부톤
+        c.fillStyle = '#f8b888'; c.fillRect(4, 5, 8, 4);
+        c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 2); c.fillRect(10, 6, 1, 2); // 눈
+        // 붉은 자켓 & 가방 끈
+        c.fillStyle = '#d82818'; c.fillRect(4, 9, 8, 4);
+        c.fillStyle = '#f8f8f8'; c.fillRect(7, 9, 2, 4); // 지퍼
+        c.fillStyle = '#f8d838'; c.fillRect(4, 9, 2, 2); c.fillRect(6, 11, 2, 2); // 노란 크로스백 끈
+        // 손
+        c.fillStyle = '#f8b888'; c.fillRect(3, 10, 1, 2); c.fillRect(12, 10, 1, 2);
+        // 바지 & 신발 걷기 프레임
+        c.fillStyle = '#202430'; c.fillRect(5, 13, 6, 1);
+        c.fillStyle = '#d82818';
+        if (frame === 0) {
+          c.fillRect(5, 14, 2, 2); c.fillRect(9, 14, 2, 2);
+          c.fillStyle = '#ffffff'; c.fillRect(5, 15, 2, 1); c.fillRect(9, 15, 2, 1);
+        } else if (frame === 1) {
+          c.fillRect(4, 13, 2, 3); c.fillRect(9, 14, 2, 2);
+          c.fillStyle = '#ffffff'; c.fillRect(4, 15, 2, 1); c.fillRect(9, 15, 2, 1);
+        } else {
+          c.fillRect(5, 14, 2, 2); c.fillRect(10, 13, 2, 3);
+          c.fillStyle = '#ffffff'; c.fillRect(5, 15, 2, 1); c.fillRect(10, 15, 2, 1);
+        }
+      } else if (dir === 'up') {
+        // 뒷모습 (뒤로 쓴 캡과 풍성한 흑발 뒷머리, 노란 배낭)
+        c.fillStyle = '#d82818'; c.fillRect(4, 1, 8, 3);
+        c.fillStyle = '#181818'; c.fillRect(3, 4, 10, 5); // 흑발 뒷머리
+        c.fillStyle = '#d82818'; c.fillRect(4, 9, 8, 4);
+        c.fillStyle = '#f8d838'; c.fillRect(5, 8, 6, 4); // 등에 멘 노란 배낭
+        c.fillStyle = '#a08010'; c.fillRect(6, 9, 4, 2); // 가방 음영
+        c.fillStyle = '#202430'; c.fillRect(5, 13, 6, 1);
+        c.fillStyle = '#d82818';
+        if (frame === 0) {
+          c.fillRect(5, 14, 2, 2); c.fillRect(9, 14, 2, 2);
+        } else if (frame === 1) {
+          c.fillRect(4, 13, 2, 3); c.fillRect(9, 14, 2, 2);
+        } else {
+          c.fillRect(5, 14, 2, 2); c.fillRect(10, 13, 2, 3);
+        }
+      } else if (dir === 'left' || dir === 'right') {
+        // 측면 모습
+        const isR = (dir === 'right');
+        c.save();
+        if (isR) { c.translate(16, 0); c.scale(-1, 1); }
+        c.fillStyle = '#d82818'; c.fillRect(5, 1, 7, 4);
+        c.fillStyle = '#181818'; c.fillRect(2, 3, 3, 2); // 모자 챙
+        c.fillRect(4, 4, 8, 1); c.fillRect(8, 4, 4, 3); // 뒷머리
+        c.fillStyle = '#f8b888'; c.fillRect(3, 5, 6, 4); // 얼굴 옆면
+        c.fillStyle = '#181818'; c.fillRect(4, 6, 1, 2); // 눈
+        c.fillStyle = '#d82818'; c.fillRect(4, 9, 7, 4); // 몸통
+        c.fillStyle = '#f8d838'; c.fillRect(6, 9, 2, 4); // 크로스백
+        c.fillStyle = '#202430'; c.fillRect(5, 13, 5, 1);
+        c.fillStyle = '#d82818';
+        if (frame === 0) {
+          c.fillRect(6, 14, 3, 2);
+        } else if (frame === 1) {
+          c.fillRect(4, 13, 3, 3); // 앞발
+        } else {
+          c.fillRect(8, 13, 3, 3); // 뒷발
+        }
+        c.fillStyle = '#ffffff'; c.fillRect(5, 15, 3, 1);
+        c.restore();
+      }
+    });
+  }
+
+  ['down', 'up', 'left', 'right'].forEach(d => {
+    PLAYER_SPRITES[`${d}_0`] = buildEthanSprite(d, 0);
+    PLAYER_SPRITES[`${d}_1`] = buildEthanSprite(d, 1);
+    PLAYER_SPRITES[`${d}_2`] = buildEthanSprite(d, 2);
+  });
+  const LOADED_PLAYER_SPRITES = PLAYER_SPRITES;
+
+  // 2. 다채로운 NPC 정밀 픽셀 스프라이트 세트
+  const BUILTIN_NPC_SPRITES = {};
+
+  // ① 오키드 박사 (prof_oak)
+  BUILTIN_NPC_SPRITES['prof_oak'] = createPixelCanvas(c => {
+    c.fillStyle = '#d0d0d8'; c.fillRect(4, 1, 8, 4); // 회색 머리
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 4, 8, 4); // 얼굴
+    c.fillStyle = '#181818'; c.fillRect(5, 5, 1, 1); c.fillRect(9, 5, 1, 1);
+    c.fillStyle = '#a82018'; c.fillRect(6, 8, 4, 4); // 붉은 셔츠
+    c.fillStyle = '#f8f8f8'; c.fillRect(3, 8, 3, 7); c.fillRect(10, 8, 3, 7); // 연구원 가운
+    c.fillStyle = '#503828'; c.fillRect(5, 12, 6, 4); // 갈색 바지
+  });
+
+  // ② 간호순 누나 (nurse)
+  BUILTIN_NPC_SPRITES['nurse'] = createPixelCanvas(c => {
+    c.fillStyle = '#f8a8b8'; c.fillRect(2, 2, 12, 6); // 분홍색 롤 머리
+    c.fillStyle = '#ffffff'; c.fillRect(5, 0, 6, 3); // 간호 모자
+    c.fillStyle = '#e63946'; c.fillRect(7, 1, 2, 1); // 적십자 마크
+    c.fillStyle = '#ffd8be'; c.fillRect(5, 4, 6, 4); // 얼굴
+    c.fillStyle = '#181818'; c.fillRect(6, 5, 1, 1); c.fillRect(9, 5, 1, 1);
+    c.fillStyle = '#f8a8b8'; c.fillRect(4, 8, 8, 5); // 분홍 유니폼
+    c.fillStyle = '#ffffff'; c.fillRect(6, 8, 4, 6); // 흰 에이프런
+    c.fillStyle = '#ffffff'; c.fillRect(5, 14, 6, 2); // 흰 구두
+  });
+
+  // ③ 전설의 트레이너 레드 (red)
+  BUILTIN_NPC_SPRITES['red'] = createPixelCanvas(c => {
+    c.fillStyle = '#d82818'; c.fillRect(4, 1, 8, 4); // 붉은 모자
+    c.fillStyle = '#ffffff'; c.fillRect(6, 2, 4, 2); // 모자 흰색 마크
+    c.fillStyle = '#181818'; c.fillRect(4, 4, 8, 1); c.fillRect(3, 4, 1, 3); c.fillRect(12, 4, 1, 3);
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 5, 8, 4);
+    c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 2); c.fillRect(10, 6, 1, 2);
+    c.fillStyle = '#204090'; c.fillRect(4, 9, 8, 4); // 블루/레드 배색 자켓
+    c.fillStyle = '#ffffff'; c.fillRect(6, 9, 4, 2);
+    c.fillStyle = '#304878'; c.fillRect(5, 13, 6, 2); // 청바지
+    c.fillStyle = '#d82818'; c.fillRect(5, 15, 2, 1); c.fillRect(9, 15, 2, 1); // 빨간 운동화
+  });
+
+  // ④ 로켓단 조무래기 (rocket_m)
+  BUILTIN_NPC_SPRITES['rocket_m'] = createPixelCanvas(c => {
+    c.fillStyle = '#202028'; c.fillRect(3, 1, 10, 4); // 검은 베레모
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 5, 8, 4);
+    c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 1); c.fillRect(10, 6, 1, 1);
+    c.fillStyle = '#202028'; c.fillRect(4, 9, 8, 5); // 검은 유니폼
+    c.fillStyle = '#e63946'; c.fillRect(7, 10, 2, 3); c.fillRect(8, 10, 2, 1); // 붉은 'R' 마크
+    c.fillStyle = '#303038'; c.fillRect(5, 14, 6, 2); // 검은 장화
+  });
+
+  // ⑤ 낚시꾼 (fisherman)
+  BUILTIN_NPC_SPRITES['fisherman'] = createPixelCanvas(c => {
+    c.fillStyle = '#e0a020'; c.fillRect(3, 1, 10, 4); // 노란 벙거지 모자
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 5, 8, 4);
+    c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 1); c.fillRect(10, 6, 1, 1);
+    c.fillStyle = '#2a6f97'; c.fillRect(4, 9, 8, 5); // 낚시 조끼
+    c.fillStyle = '#503828'; c.fillRect(5, 14, 6, 2); // 고무장화
+    c.fillStyle = '#a0a0a0'; c.fillRect(13, 3, 1, 12); // 옆에 든 낚싯대
+  });
+
+  // ⑥ 등산가 (hiker)
+  BUILTIN_NPC_SPRITES['hiker'] = createPixelCanvas(c => {
+    c.fillStyle = '#604020'; c.fillRect(4, 1, 8, 4); // 갈색 머리/수염
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 4, 8, 4);
+    c.fillStyle = '#181818'; c.fillRect(5, 5, 1, 1); c.fillRect(10, 5, 1, 1);
+    c.fillStyle = '#604020'; c.fillRect(5, 7, 6, 2); // 턱수염
+    c.fillStyle = '#d97706'; c.fillRect(4, 9, 8, 5); // 주황색 등산복
+    c.fillStyle = '#1e3a1e'; c.fillRect(2, 8, 2, 6); // 옆에 멘 배낭
+    c.fillStyle = '#3d2817'; c.fillRect(5, 14, 6, 2); // 등산화
+  });
+
+  // ⑦ 기본 여행자 소년 (default_npc)
+  BUILTIN_NPC_SPRITES['default_npc'] = createPixelCanvas(c => {
+    c.fillStyle = '#2b3044'; c.fillRect(4, 1, 8, 4);
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 4, 8, 4);
+    c.fillStyle = '#181818'; c.fillRect(5, 5, 1, 1); c.fillRect(10, 5, 1, 1);
+    c.fillStyle = '#457b9d'; c.fillRect(4, 8, 8, 5);
+    c.fillStyle = '#1d3557'; c.fillRect(5, 13, 6, 3);
+  });
+
+  // 💧 ⑧ [관장] 이슬이 (misty - 주황 사이드 포니테일 & 멜빵)
+  BUILTIN_NPC_SPRITES['misty'] = createPixelCanvas(c => {
+    c.fillStyle = '#e07020'; c.fillRect(1, 1, 4, 4); c.fillRect(4, 1, 9, 4); // 주황 머리
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 5, 8, 4); // 얼굴
+    c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 1); c.fillRect(10, 6, 1, 1); // 눈
+    c.fillStyle = '#f8d030'; c.fillRect(4, 9, 8, 4); // 노란 셔츠
+    c.fillStyle = '#c82818'; c.fillRect(5, 9, 1, 4); c.fillRect(10, 9, 1, 4); // 빨간 멜빵끈
+    c.fillStyle = '#283858'; c.fillRect(5, 13, 6, 2); // 청반바지
+    c.fillStyle = '#c82818'; c.fillRect(5, 15, 2, 1); c.fillRect(9, 15, 2, 1); // 신발
+  });
+
+  // ❄️ ⑨ [관장] 류옹 (pryce - 은발 백발 & 수염 & 겨울 파카)
+  BUILTIN_NPC_SPRITES['pryce'] = createPixelCanvas(c => {
+    c.fillStyle = '#d0d8e8'; c.fillRect(4, 1, 8, 4); // 백발
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 5, 8, 4); // 얼굴
+    c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 1); c.fillRect(10, 6, 1, 1);
+    c.fillStyle = '#f8f8f8'; c.fillRect(5, 7, 6, 2); // 흰 수염
+    c.fillStyle = '#3a506b'; c.fillRect(4, 9, 8, 5); // 짙은 청색 겨울 파카
+    c.fillStyle = '#ffffff'; c.fillRect(6, 9, 4, 5); // 파카 털 트림
+    c.fillStyle = '#1c2541'; c.fillRect(5, 14, 6, 2); // 바지/방한화
+  });
+
+  // 🔥 ⑩ [관장] 강연 (blaine - 선글라스 & 흰 콧수염 & 빨간 정장)
+  BUILTIN_NPC_SPRITES['blaine'] = createPixelCanvas(c => {
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 2, 8, 7); // 민머리/얼굴
+    c.fillStyle = '#181818'; c.fillRect(4, 4, 8, 2); // 검은 선글라스
+    c.fillStyle = '#f8f8f8'; c.fillRect(5, 7, 6, 2); // 짙은 흰 콧수염
+    c.fillStyle = '#c82818'; c.fillRect(3, 9, 10, 5); // 붉은색 관장 정장
+    c.fillStyle = '#f8f8f8'; c.fillRect(7, 9, 2, 4); // 흰 넥타이/셔츠
+    c.fillStyle = '#f8f8f8'; c.fillRect(5, 14, 6, 2); // 흰 바지/구두
+  });
+
+  // 🏜️ ⑪ [관장] 비주기 (giovanni - 올백 흑발 & 블랙 정장)
+  BUILTIN_NPC_SPRITES['giovanni'] = createPixelCanvas(c => {
+    c.fillStyle = '#181818'; c.fillRect(4, 1, 8, 4); // 올백 흑발
+    c.fillStyle = '#ffd8be'; c.fillRect(4, 5, 8, 4); // 얼굴
+    c.fillStyle = '#181818'; c.fillRect(5, 6, 1, 1); c.fillRect(10, 6, 1, 1);
+    c.fillStyle = '#202028'; c.fillRect(3, 9, 10, 5); // 블랙 수트
+    c.fillStyle = '#c82818'; c.fillRect(7, 10, 2, 2); // 붉은 넥타이
+    c.fillStyle = '#181818'; c.fillRect(5, 14, 6, 2); // 구두
+  });
+
+  // 🌟 외부 URL 및 내장 도트 스마트 캐시
+  const NPC_IMG_CACHE = {};
+  function getNpcImage(spriteKey) {
+    if (!spriteKey) spriteKey = 'default_npc';
+    const key = String(spriteKey).trim();
+
+    // 1. 이미 내장된 고품질 GBC 도트에 해당하는 키워드인 경우 즉시 반환
+    if (BUILTIN_NPC_SPRITES[key.toLowerCase()]) {
+      return BUILTIN_NPC_SPRITES[key.toLowerCase()];
+    }
+
+    // 2. 외부 URL을 시트에 적은 경우 (캐싱 및 로드 실패 시 default_npc 도트로 자동 방어)
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      if (NPC_IMG_CACHE[key]) return NPC_IMG_CACHE[key];
+
+      const extImg = new Image();
+      extImg.src = key;
+      NPC_IMG_CACHE[key] = extImg;
+      return extImg;
+    }
+
+    return BUILTIN_NPC_SPRITES['default_npc'];
+  }
+
+  // =======================================================
+  // [3] 월드 맵 및 이동 상태
+  // =======================================================
+  // 🌟 확장된 포켓몬 골드 스타일 맵 세트
+
+// 🌟 기본 포탈 데이터 (시트 미연동 시에도 즉시 작동하는 안전 기본값)
+  // 🌟 100% 구글 시트 Portals 탭 데이터로만 동작 (코드 내 하드코딩 완전 제거)
+  let portalPool = [];
+
+  // 🌟 맵 뼈대 및 기본 스폰 좌표 동기화
+  const GOLD_MAPS = {
+    "grass":   { name: "연두마을 (중앙 허브)", biome: "grass",   spawn: { x: 12, y: 9 },  grid: [] },
+    "water":   { name: "분노의 호수",         biome: "water",   spawn: { x: 12, y: 3 },  grid: [] },
+    "water2":  { name: "분노의 호수 심층",     biome: "water",   spawn: { x: 5,  y: 5 },  grid: [] },
+    "Cave":    { name: "어둠의 동굴",         biome: "cave",    spawn: { x: 12, y: 15 }, grid: [] }, // 🌟 cave 맵 등록
+    "snow":    { name: "은빛 설원",           biome: "snow",    spawn: { x: 12, y: 16 }, grid: [] },
+    "volcano": { name: "홍련 화산",           biome: "volcano", spawn: { x: 2,  y: 8 },   grid: [] },
+    "sand":    { name: "모래 사막",           biome: "sand",    spawn: { x: 23, y: 8 },  grid: [] }
+  };
+  let currentMapId = "grass";
+ let player = {
+    gridX: 4, gridY: 7,
+    realX: 4 * DISPLAY_TILE, realY: 7 * DISPLAY_TILE,
+    dir: 'down', isMoving: false, moveProgress: 0,
+    fromX: 4, fromY: 7, toX: 4, toY: 7, stepCycle: 0,
+    safeSteps: 0 // 🌟 전투 직후 안전 걸음 수 카운터
+  };
+
+  let currentUser = {
+    student_id: "", student_name: "",
+    captured_ids: [], candy_count: 0,
+    cleared_quests: [],
+    badges: [] // 🌟 획득한 체육관 배지 목록 (['water', 'snow', 'volcano', 'sand'])
+  };
+
+  // 피버 및 배틀 상태
+  let feverTimer = null;
+  let isFeverActive = false;
+  let comboCount = 0;
+  let lastEscapeTime = 0;
+  const ESCAPE_COOLDOWN = 60 * 1000;
+  let isAnswerLocked = false;
+
+  let battleState = {
+    active: false,
+    monster: null,
+    battleData: null,
+    phase: 0,
+    hp: 3,
+    currentOpts: []
+  };
+
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  // =======================================================
+  // 🌟 [추가] 18종 고화질 타일 텍스트(Base64) 데이터
+  // =======================================================
+  const TILE_B64 = {
+    'path': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAnUlEQVR4nO2X0Q2AIBBDD8NCrOKgrnIbsAp+mUhiFCkJ1fT9+UHTFO5MQy65GDHLbANPxPOHb25mZmlNr4Wuzo7Qo0+Q3mBoHZIjcrO+K+vV+0+Cs6BPkN5gnPX4W6FPcNiQIH+NOz36BOkNag+iVAZ982pNoIzQ+1aCjGhIUNRJUOgNqpOgaM2g0BtUJ0FRJ0GhN6g9iKJOgkJvcAcmVHEjtUHt+QAAAABJRU5ErkJggg==',
+    'tall_grass': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA4UlEQVR4nO2XsQ3CMBBFv1GKrEJJywiUbikZAY+RNWjdwQiUsA5dqBw5sSVHnEW+pXtV8pOcfn4u0p25j3YEMbutDZSYGXTOwzlffOif97WVICNmf8X0kwyDBYBZ3Ftr9Al28Yl/PwAAx3M/aeGtYi3cV6JGPfoE6Q12oRmBfPzh+Hn7JFqO2vX4E1zb8CVq1VnWo0/QXF59Ms3k+iPWltdKSOrRJ0hv0MQDa67R134KezglWo16bSXICH2CbRnUneQHdOSXQm9QdxIpOvJL0ZFfCr1B3Umk6Mgvhd4g/U7yBXRM1Dm3Gp7yAAAAAElFTkSuQmCC',
+    'tree': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABp0lEQVR4nO1YK3bDMBBc9xkElvYKZYHWEQpNCwtDAwMDQ3uE0rD2CCprmK9QahiWgnilUbOyrNh5b/OeBykT6zerWX2Kt5/FiTrUyxcu0v7wFeWQ35pf6sPGPmW3idxDb+sKUHyeaqfgVAqNrY8Kq1dQ/QALNIn9OLo/Hm1FRETP7wfHNaulKyPPSJmMw92a74t+iHy478okJc6QyI+8sZcfD1UNeeRac46QeV2I/cwmuQUCk0gmQE5a3Bh2KdxoPA5tTpvqFQxM0pDP+jxzE6QZnxJ4lqhQs/L12RCYRix1aoFqEmaTTImoSRi4iDF/uSUgcMhLu1NsJ5H61K9gVVVOQbT3GIWIvApDuf88Q72C6gcYhBjRJnIVIxWuoRzyyKlXsMQfOfbv45DPMYkE9QqqH2CZE9ZrclqOSRh3ddwKLu54yb4m6yOk+n3f4bd4mVevoPoBFrHXrdSbytAQ5oDbxAOKfgVjr1t8jMpRSNoVckzCys13kilRSu8pZ3QXb5I3c2lXwMXNwPpSHQT3v17vHadeweQTsGQcxFgT7Xa1K8+vW7fAH72kJSWogkf1AAAAAElFTkSuQmCC',
+    'water': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAkklEQVR4nO2XsQ6AIAxExfiFjKyO/pejv4iDAw4kRK7o1dxbSBgul5aWXNjWnCcDYrrOY7dQK3qzjdw46A2GnhaPamdN758VfBP6Csogin+DMZU1YMFTPf8V/BrtQZSldnl/xBb/LaJHX0F6gxoSlOqQ9KBMwooyCYrWDIoMovg3qEzSgN6g9iCKMgkKvUENCcoJ7bM0Mu+rAXIAAAAASUVORK5CYII=',
+    'sand': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA5UlEQVR4nO2XwQ2CUBBEB/Mb4UgLlqFH27AM2vCoZVCCHClFT59sZPKzZI2ZmH3HATbDfpbNdM9pfAHAPN1RmZcFADD0/aoNxzM+76ua1ZlW69ma3mcPEKcw98BWe9xGAMDpcl011k3e4a1W69ma7Fn5Dsob7OqQMPxH6Kc1EKyefAflDdIp3qtZ/duafAflDZbIMdgVxn7uez8VVk++g83/oMU7JF5ySH5FaV3MVedA3mBo1TEia42h38H2hvC/+d4N8TehSd5gproo8gYz1UXJ0BRF3mCGpijyBjPVRZE3mKkuyhtTRySUcnVIbAAAAABJRU5ErkJggg==',
+    'rock': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABLElEQVR4nO2YsQ2DMBBFjygLQZmSEdKyQjoYA7qsQJsRKFPCBqxCKqyL+MnZhkQfiV8hY9993geDSMZpnCRQxaUIXSIiIu2zDV5ziur0R52tCYhWVVVRzVAtiyo9QXqDMGIdBYozvaZRzSpZ1tK9UNz0BJN5m/lELZaWr4bH4I7ruhaRd5L0BA+Da0VvEG4z+sHQNzE6HyKzVr1cQ0+Q3qD5sYDiRFH5KObW2CdBTQhd9ZZvFysNeoL0BmHEXdd9XbTlPmj1oidIb9DcB60IQhRTa/8EkTSJPM+958aInuBhcK3oDbqHJMsyN9j3vaDxX8jqRU+Q3qCLuLyXbrC5Ne5YRzArNnarlvYwi55gYv0C1jRnIRI+QuQRNS16gvQGzYiRUOw+suJEoif4Au8QY6PPjLdDAAAAAElFTkSuQmCC',
+    'pyramid': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABiUlEQVR4nO1YMXKDMBAUGT6ikjYd/oK7pPQ3/Az8BJcpSecvpEzrkqfEhXPRAstJAk/mNOMthRiddm/vJFV91/64lbgOQ9b8xvvsNV6y//hn1KkTka3L952J8+k4n/fVL/7bwafje3ytxnv7DJoPMCqxyIJyvh3yFgnmCGnS9fcxJjWaqUwGMZnPJyWbE8HK0f5VjBPYYmyaZ9B8gCOJRQpW37ZAkp7VUpHaublxrsNQGIOyq9wyonWPJQhzsibDs5M8AiOJMWE1TCWNyckMoY0VdViox0eg3x2QpG92ocxPGcNEZ8m/dqzxBeSg+QDpYQHlFHx+dLMxluiCVEOwMURZDP7ZewdjxDDT3ePOsY8KthjHPIPmA6zaNlzcUzuJQKTQrpDOhRN6rnHK6CSxXTGkMIcdKtUQDOYZNB9gvaWpOzeXRzMEgqWJ1M4wv4Q7yZr+iDuczgmM4H/LhtAOu0WUGfMB1uNn2XVNndXDLddONKF5Biv2iB57otCOWxpYh4o9rJtn0HyAN76z66cq8/aLAAAAAElFTkSuQmCC',
+    'grass_path': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA0klEQVR4nO2XsQ3CQBAE99EHtEMbhN8CLbgMt0HqDEoghHbIngCMLHHw96xkbXATns+n9ert86bDdVvxouz2AIDpdoanZuG91ztv8/WKCHmpfn6qy/G+aHnWrD5vjZkn76C8wGwf1s/aMEzv2jgWAD2H//958g6mUy31V4P3hfDSO0/eQXmBidkka9TkHTQ3yRobwjtP3kF5gc3v4Azzy8TMk3cwtxpikzSQF0htEovIJEBkki7kBUYmYYlMwiIvMDIJS2QSFnmBkUlYIpOwyAt8AH9vM2R05o97AAAAAElFTkSuQmCC',
+    'cave_path': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA9UlEQVR4nO2XMRKCQAxF/zocwpaSI9haYscVOAZn8Qp0noXS1ltgFWcHs7hLHP3M5JVh8glJdklC3w4zFI7NBQDwmG6rthzEL/bN1ToUvekP0AdYAcB9GgEAp+76erAsRWwTxA8A6qZ7s4lebpuIr2gBO8hg6Nth/tWB2KJHn0H6ACvgO6XQ/La2SQx9BsO5bub4WK+xvAbiK0XYqpXSo88gfYDVp5Ks/S1yy6npaW2i6dFnMKTGLY3Sry/RStn2kUFLTy2xZFWDPoP0ASYPie8kmfjIb4U+QN9JrPjIb4U+QN9JrPjIb4U+QN9JrPhOYoV+5H8CHMXtz8CYiCYAAAAASUVORK5CYII=',
+    'deep_water': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA30lEQVR4nO2WsQ2DQAxFfVEWSEfLCMkYtHSskBGyBjPQ0TIG2SArZARSHXIiC8X+gIzk152Evr6/j9NPZdFOpKSpq69z1w9aib+1ThbRrh8gUxotk8E9SY/7a16xNZXfNa2p5T/BsminLS89otfUlf8E3RtM0ju45pokPY3WsRK83i5ERPQc3/MH1jSzFtezaLlP8MwPeVI+fZ5Qmn4JvoWsZ9Fyn6B7g+Izw1n6cbRPj0Xr+AlKuC+sexKNGsW9waj8KFH5UaJRo7g3GJUfJSo/SjRqFPcGo/KjROVH+QAp07HsNfDqEgAAAABJRU5ErkJggg==',
+    'stone_wall': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABIklEQVR4nO1XOxKCMBTcOBwCS48BJdfgCNJZamlLh0fINSzxFlB6jFjgg4xkIkNSbJFtYN6EnfflZVVRFAYA2hozxvcIADgdT5ts3XOxCWLxHVbMZFCDGQwA1OUSsu41AOB1K1cf2NE11RRxce9X52Lx0WeQ3kHVd9OQ5Gc9G6UUruaXMgBLKezSSdPH4qPPYCajjUftP/mF/VuQSF2/ilh89BmkdzDzNboN2QyXpffRVNNzLiv8g7OHjz+DrsaUqOx9akfqQ2w++gzSO6j0NTe/Rt/1yW7gf5shBh99BukdVHKjdqHdtq02T+QePvoMZvLi0hDANg1hn4vNR59BegeTaApF0iShoHcwiaZQJE0SCnoHk2gKRdIkoaB3MGmSUHwAxCP5CqX/WoMAAAAASUVORK5CYII=',
+    'roof': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABS0lEQVR4nO2YMQ7DIAxFfyoGOmbLmmOQtWPO2SP0Cr1G126MdGuHlogkGNNQNSDxJxBPYNkYIzdKqScylgCA6/G+tx2kBACMst/bDlKHvQ3gJOxAa7NabNvjbO5jvuGWbAwnLOi7h4PuZvPz9Yz+dIriALBsDCcmcAGNskcr32OtzcpLWzgAaOV33MFdsIuj7HF53MgNYjj3MMuF9qS4cpLEtfryuJFPTyznsilc9h7M/g7WEKfKayAXuq0cxwZDvIS4D8S/uJUH3fsQ0hYuxFLcyoNWbvgGdBQW/VXbypWdJO6bF+I4/TRJAP7d+idXK0kqV3aScKqVBLWSpHNlJ0mWlSTbJLHeshBXSThueShXSSiuVpJUlVNJBuO8dcZgQDc1hVzFcjP2wwEI7+nhGtuj9nWbYnqGFPerPRul1JNqheWg7JNk6rDmqhfN0864sW+muwAAAABJRU5ErkJggg==',
+    'door': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABlklEQVR4nO2Yr3LCQBDGf+30ASqDvEeIJBLbR4hEgkNSWWQdkZXXN4hFBskjnCRvUNmK/CFMElguoblh8plcbvZuv+x+uzvwlGynv+RYadCJBmD/HgAw/UgYEi8SI/WVXrUxc+8uds8SgkPCeYKiFJu5J7rsHnZWGryX3prgfIqdJ2itwf/SpYggXO+FhYO+7cQEh6rkcZJ0hfMEx0kyTpKhMU6Srna9ThJFCOkhe1n7LTY55hcu2hxQ+Bj0g2hQ2ioAgjiPXGxPCnySdeZXnOJbkbwdrM+WH0nPk+SSIwmS4id4fPLb7ySpCn/tQ3z6I+AawiBs9Ot8kThPsNdJomo73SDWIMg7f+0cdW21YlNU/qm4HiPFaRTCQmdPwMvXXnUPjUFDHrF9lJ0NAjmZ75/Xcm3I7hYR9Bb67Nm2V4U5GkCxnBkROTVRmGPdby3FRURcQWMEqyRvIdwWTVukUfgARZJpSYamRqMm9t3RHM05weXMsNKKz55kuJyZmvBvxRlBNVElSZu5MK2st7vuc2W7U+5r8A/QWcjB7VaoWQAAAABJRU5ErkJggg==',
+    'volcano_path': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABDUlEQVR4nO2XMQ6CMBiFH04egpHZRY9Bwsjm4B1cuIK38AYmLt4BF2dHV3a3OpiWCn/Sym/MI+k3kR/6eH1NoX/W5YXBgHa7BgBsjtdx7fYcPh6kXS3dtdW0eiHNxddv+zPZDjAAUDe1K8bOcn8+AQAOZTWq+ZqxK+GPtZr0CdIbzC5NbQCODSHBn2BXVgYYzHxCchJWU6NHnyC9QbfEIULfPIt/P0bPHyPpzTvBj1nmxbv2uPe1yLQkTavna0p69AnSG/zJJtEstT9+locFd9yakoKElIIG+gTpDYqbRPrJa3780kEk9nDCn2DqSZTQG0w9iZbUk2ihN5h6Ei2pJ9FCbzD1JFpST6KF3uALiJTUZQVdc2AAAAAASUVORK5CYII=',
+    'volcano_wall': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABYklEQVR4nO1XO24CMRB9RhZVBBIVRdLlABQ0yQGi3IKaImWkSElJQc8JKHIHxAGShoIT0KROJCKqNE6xO2Z211lQ7OIVfpU1sp/Gz+P5mMfewAHAU28AwWpyAADcLy/Osm0XP6gjFV+nwUwGO91vAADz/tgbp7PCtsJt48D8+8uvR+gW+0uOyr5EfPQK0jtoPi+vHQDsP9be+P5SPEUo+EcPXb++mb1V9gPHoE/FR6+g9d/96u5onfx9oJIWyqAPpo9EfPQK0jtodm7ngHCg6xwllaGSt1SA18/KU8fy0StoRTkdmHIrXU/1TdsQqrExfPQK0jtoXp+Hrm5sa5908J+qDCn46BWkd9BIRx2C/nVtOPdH/oePXkEri9AMgSUatlBjgEWTOBUfvYL0DuahKRZ5JokFvYN5aIqFlcDUKUBusMWJGaJMC7plSs1HryC9g8mHptR89ArmmSQW9A7mmSQWv3MuEnVrAQpaAAAAAElFTkSuQmCC',
+    'snow_tree': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABoUlEQVR4nO1YMVLDMBBcMS5CxzdIl9L+CiV0lPAMWjpaviI60vkddNA5RTixDmvfOB5mTjNsl7NlXXa1upPS7ftmwDdedp8AgLv9JU5jHOdY13WYQ855dryai2MXs18PgDQMQ2FwLUMKaxkOz2D4BBObJL9+AQCuclteYAlMLk/WKajxvAQsXpVJmpHlccy8nyDoXOYMH93b7PN/k/wFRibp73cAgO3zHqcx4Eei/qkMcSsBy2VgY7DsZk6ePz6DXEnsn/G/YrY8eNvQ9jHNjjcGeXx4BsMn2PCCBo6G4ErC8NqlnH8bgmW15cIxNRc/D89gatu2uMDsrbaGKSg21NbBca/WM8IzGD7Bhn+UqrGgJ1ByeZWCY+pd/mZ4BsMnOHKxkohxTj/oSah6xKokTtcPKAyqXd07k6gzxRKTyEpSU7sVPkHZD05JqBa5gieh925V/WBSt1vefcoShpbAvtvdbEosPIPhE5TXb3ZHAyyT0KsK3hiTtqqbhUYevEHnDMyz4h1RvY6bYfNXdSYJn6B7Rz06VpJ5DGtNpO55qjLJAXvuBo90kiZGAAAAAElFTkSuQmCC',
+    'snow_path': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAABQUlEQVR4nO2YMQ7CMAxFfxADXIWtK0dgLCMjHIFjcARWRtjgCIx04yqwhcnBSFbi0Eg1pW9CVrDc3/zGjlvfJh4A9tUDxKaZQhOTiK27YBl+L3CM5iFGqlUd4rz3Hng/OQBcD08AwHw1CTFShK/TxijffedDjNSUlOT/Na+g+QKd1iSzrQPw+Zq0ZqJYXS1CrH8m0SIZ4htiJuGYV9B8gaJJJHIN8X8maXNCtDlxUphX0HyB6u+gtNFPzQVAme8hIBvntxXkm5qUI9WAfOUGk3SBut3S0maekbCv4NnXHtBv/lInRIxhJinJmF4tPyFi8HW5w3yq3ZLymVcwmESCP6V2hiiNeQXNFxiaBantScWkdiv3dqvf7RZHMgldh0gzyTf5JMwraL7A7LuZlElySRmnPwqWPkmkfFw5wryC5gt8AdWE5V9oEOy1AAAAAElFTkSuQmCC',
+    'snow_grass': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA30lEQVR4nO2XMQ7CMAxFbdShHIVurFyFEW5Aj9EjsHIVRti4CmxhQKlME8kVjuiP5Delbmr9/jiSzSGEQMCslhag8SWw65m6ntWP/rmvLgcR4c2JxkvyGD5LaffSMXgHG/lwvK+JiGi3b8dY/CsZi/s0SuSDdxBeYBOLkShvf1xfL68klqN0PnwH5xa8Rqk803zwDvLh1ibdTK4+ZGz6TsOSD95BeIEsG9Zcoc89ivP2mcRK5KvLQUTgHaxLoM8kP+AtvxV4gT6TWPGW34q3/FbgBfpMYsVbfivwAuFnkjfXJLosT2DafgAAAABJRU5ErkJggg==',
+'grass_path': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAA0klEQVR4nO2XsQ3CQBAE99EHtEMbhN8CLbgMt0HqDEoghHbIngCMLHHw96xkbXATns+n9ert86bDdVvxouz2AIDpdoanZuG91ztv8/WKCHmpfn6qy/G+aHnWrD5vjZkn76C8wGwf1s/aMEzv2jgWAD2H//958g6mUy31V4P3hfDSO0/eQXmBidkka9TkHTQ3yRobwjtP3kF5gc3v4Azzy8TMk3cwtxpikzSQF0htEovIJEBkki7kBUYmYYlMwiIvMDIJS2QSFnmBkUlYIpOwyAt8AH9vM2R05o97AAAAAElFTkSuQmCC',
+'portal': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAOV0lEQVR4nIWYeZCcxXnGf939HXPsfUi7Wq20K3QgJFZCF5JwMGfiEAguXBREximgUhWcw7hCkaqQwuUiCRBIDMblsokdcyQxDkfhKkOqAgGMEFJ0rIVOtEja1S6rXUmrPWZndma+o7vzx8yOdpCS9D9T9fW8/T799vN2P+8rCoWCBbDWEoYhnucR2ohrB04y6gfcVdvB0/Wt/F8jR4H1gydIKYd8HFXNvdP4Ib81sZFDbZtxCUklPQCMhk1TJ9nXfBnGGKSUl1xbzALUWgOwOx/y6vQYScflifntAMRxjJSysoi2Fm0m8FQzAEEQ4Lou41Lyd6eHeFfOEAcloO+ldpIzSb5avIoX2rrZkqitAhBFEUqpSwK01iKNMWitEUJwQsDD4wM827GoAk5rjZQSIUTFUIUFmDxSioQxOI6DlJJW4NmORfg6j8JBAFPGMEILFrj3zABnramsY4ypAvd5GFTNGWMQ2WzWKqUQQvDLbIGv1HokUJUdAFXg5o7ZqCulLpr7qDiNpxXfGDvJXGuvGHKnX8cjnUuqTsVay9HxGX5ih/le8/KKX5HNZq3jOBc5CIuQPfB1RLqJ+iueQMkaADoHDyGNxQGUiSk4Lq4J2Tf6ME1b36/svnJEWnP5yLGqtZ38NKPJkInuG6o3bCxKw7dGP+OZjqWl6F4KnAZyvXcR4TDTuYqtg310D+5n6an91EQxCQHKWnAdUtYSKI9rO57hawPv8fm5H3Nm8p+xthRZKyVvdF5ZWVsAqfpW0qKUeJlDf0l5PygpMMS8b0KmZelUJICJwiqA0lqarn6FtnUvcfPEVqaES0orlLF8WL+fD2q3s8WZQhh4t2Y7aWsRseKwaOWOia2o4V8xmvsxJoiRjsNqJWgUMVo5WGA6Ckhh+Z2RgxCcZnrvNtAhURRhhOC5eV1sHjxIbENkjCFz6J7qEApL5MCK4U+wAqyF7fM7ca1AywKpmm8gbBGAW7LXEomYt7s6AMt0Am5K/w0q8skevK8SnV2LrkLFGo1FlKjLqRByAoTRWAGO45QSzgJaYQCx8Mhu29e1ukRIIdBas/rUEcwc3gtAW029cJk2BiHBlr/PztuLiAIfnPshSTtFw6ZfYIxh1aljKGJ2LlzBptE+QPCx+IwofYb5Ld9ElpMzMpaegV1okUYKI5BSlsJrDCsH+qrA3es3M+FG1Dk+WQwO4BnwTenXReDHFteAa6oBblrwAEWjOL//2wAc616JdXw2jxwGBEYKNoll1Lfci5yT664UFKVFCnD6li7CWotSiq7BPYRePfVzHL0cTtCBRx6NEHC0uweEKZ07YIRFG4MrHcJYcOXwoYptOlbc2PVtPhj5PlqPoLxOtA1BeBQjyzsLOrlzbBSJQzkdqoY0AsfoGlR2hreKMUmRImkuPFUmlmTEGIcWX02rkyp9jKcgnmbiyHcJQkBZpBRom6Oh5zl2tTez6vwY7dkQk0ySL/rc2voge4M8OHnGgzM0uvNoU+1sOTtMIV0kUUiU8PkXwNVISWQNIpfLWYVixecHq9A3xHAuPk//iutLPNOAU2Sq9358NFFTN3FDK8pUs2/CNFGbuIO1545SZ5Nox6EnCPhZ7nt4a39GLrJsHTlObEI+qN3HjdEaZFzD0YU9qPKNp7Vm9fBejE3h/MPkED/MZnk0dYqnC0sRxFgLD9Z1sW1eDwAzw68Qj7zJ91N3ENTcwC/lBhzpEGTsRclxi5jksfhV9jRt4C3ZyT9OjnLQ95mYqqVl+D3i5mupUQ5nXI9kYg3M0RbGWrIDr1Pb9TWKJsYHnBcnp+ht3YPRgif1UhwFn7Wtwvgl0ubHPsCe/g+ubvgjhNeAIYGMYx6r72JL8FPAI5IXYNYT0Rr+PgfM+3zF7ODWxX/K9YNHAYjO/Bw173pyVuPHinWZGpIzMSRLtpYQO/Y6csmdWCNAgjSuYl1uC2tmljPu5Xlt/lKMX8pswpDs0A9Y2/gw0m3BiAQICOsdNolDxK7immAFUrpI6SJwyak0x5K72BovwddJZFAtv0R5L64I6bSKjkTpPjWAsC4NVzxZ/mMpUyVAKoZ600TbjOTyRBIpJQUDud5H+LW/ipE60LJEkKISHG5YjAoOcVnhOt6pn0bIkHkNd9Peuo35jXfjhDmG4z62BpuJCs9XAVRzhEcuznFA+aU3W5ZFSW03rxNRrxsxAuQefy/WWFS+yLEla/CEwBrwZBahTvBozZ10Bpa0kLhGs3NeFxOFX/Bgvpsx1YsfjdNa9ydADYJahKijo+0BJnz4OL0LEfuYIEJ3b0TauALONTDjJenULs26BmUvqKaGfEjRNQhAbgo2EhcK3N/UCV7phhYSRsf+nfXzH0NYSGvBjDVs71iJLP4TXiy4z5lixo1ob74PIcRFkqu9+ZsYIVBWIH0XLUBatzI/6RnebFtCMYR3z3+rpFC+MJQ2SFMICepdgrkOLNT2/xpjgTAih0WnHRqcBDaq49rpjUTWIdamorYvNYQG1AXP+Z6f4OgSCVMB/OFgP9snnmai+zasV+ZqHOMrgyckEoH0Eh5CKf66dV5lobOZ5wlETFKDcEtidl+qA2MLJAbewQiFkhFCSC4l16CkCd30HyClxGhDKCWuUqwe68NISCtF0bE4js+C+fcgKEfXUfzx6QG01gRKIONLiOXGz97ilo7vkFXwSG07VoARMLX3fgTlosdSzjRzkX3pXY8Jcq/gG5cWEVBHkQhLQjhgoKgsxlgmOq/C0YmKrY400hgiNKGJL/EAAuubniaf1yQMPDk9duHI8CoXs2sSCAEj51/E2At60lqLEIbx/I9wHcvawjLebj5Ag/d1rh85gaV0dRgNl9s8y5ruwYgSjEjHXDHYS+RI3ku8j6SmBPBOr6UKYOiERAmXpxasRKtZ+Q5IhZKlW1UkvoyRM+x2F3Ju8qcU4n4KcT/FeJCzky/RaxbxRP5KdqeG0KaHWzJDaFHK4qIbsJIBXnB3MGNzSCmx1rJq6Aiuk2KdzHFz+Nt45HEAnmleyNv5Ka5L1JEqp7rUIQ+d+bQExpYjY11inZsTLbhjZpju6EvstP/JrCJRSnCTezub6qeR4gquHxtCWIijCMcxHPQ+Ij75Cc1bXgC3xL2OYztpbajjrZpPaP78XW5Xf8GgX9I5ACRCQ9ozUCZ9KoaXGg6xJ5rPU4VWtDEok5+d5vHiMG/W30Ym+R7Pe8d5IFyOtXMJfYSoENNqUggLxUhjXY/XnN3kxvvoWPMUuC7GGLYN99KYaqBYkKQTGXYkt3LEd3h1wZISQK01N3q1oMMKwCkvYD4BSbGFWtGPlJKarf9Cft/tAJw2hsUTY/Qv3Mbq/Os8b4b4cubGOTwBcBgyRWIsuyZ/hHGKCDtJ04Y3AA9jDNf0H+ZsKoEbapCaL529jfPpAmfaLkcU8zh2Vi6lXCinurDgaDAyjw1+RSZailACzxiCUPFp/ceszFxDm6jlttP9vNp2D3L6ZXpPP47FgBAIwBiJQmGkpuAXqVv/Bj4SjMEKzVCQZShtqblQr2P9DHerBHkBvnIRy4/tsfs7V1VftnqG1f2HEbKBog6QHoh0PUca28k5DnLv3axv/SvS2mHKC0mEtbzfNh/fpFED38UW+rFCYLWPUEWCZAtty5+j4J8lwXzCIMOG08cw1BHLajFRCPMcWr6RVGTIuwKncKnGTZgkcpOcTRZ4Vi3gidwZ7EwG1bSYlDVkY5ev5o/zX84KPO1iVJHrzg2ScfL0LXu0VF1YizUGqRRJYDIusP7sWTw9ShxpEtZBe9XgKMwwtHILxhgC12HDiU8Riz7dbfu6eqrx2SzLBvtI4CFEqWqT+ZgjS9eClMShZurwXdzc/OfMqBrEnDf2/xuetkQ6Zl/HGtafO1opDSWwu2s1deWboHtgB+1xMzJpFdNzZHEcx0yM/Zz/XtCJFRYMbG9cQTHhs+L0YYwCJ6mg8To+HP0BgU3OcQ6xNeg5jQBDC5F20IAp1hOoGOu5rB8rgTMKCinBgQWrKuAKgHQiPrpsCTITBawZKdUjs12u5OB24uxbSAlWwOapPhyhwUKx/LS1LP0zIpHgwJnHQUQIY1FK8FrDIpT00DZAAq4Z4+OW3/Bh4wG0N8He9tVVEd3f1sOpllVIaSs9nZ3ZKY61XYuSPnJg+Rrc2DIxE5aFo8T4nSRObOdYRw8NElwNTqwR1rK2/zAHwywAzVv/leKKW9iReZUuZ4Yilm2ZIXDgFf84VoJUgpEijAaCpFRsGj5Ku6tol9NsVZMkwmG0rW7D3VBTg3TL0q9QKNiDxLx7ZoyH2torB2OLI4jEQl6fOMffjo+QVwIhS4SZkZoX53dyk9+CMQZrBUKNMhkvYHzwCW4Xd2Fk6cVJWAhijXUVr3WtZFHRxXdnGM+8TM3xnTSs/Q74yy7JV601jjGGnsgwXl9HZIq4MgFIRGIhxhjWuD4ZGeNJr2KYNop/m5jkpuYWrLIIAZIFNDvQXP+7PJT0aI5K9lgoN6rosSEkXIxO0+hfjdOxloJJk/xfwFlrSxG01mK1ZsHIbzjVuZGEEFh7gRMxEVeM9uNGMbOvmRWa5HRAJu0y0L2uqsk51/aL3dnZ+Vm+zypxg2XxQC+fd28gjuPKnIRSLSAdhxOL1qHKZdfc7qmvEpzsWFEprDNGszO9i0xNA1I5rD01VOU8iqKKbc/JU9x8qrqBOet8bplw1fFPONG9oSzXLgCvNNG/OGb/OHcU4xyrT58gp+FA/R6m3XFunfw9VGxBuEx70wwv3IzWuuJAR3kKrk8NF7eJATZ/to9pJ0Vv2+WopEWZ6pbypYuJ8i61hr+fPEdclqm+StO7+DJaYsmOeCHrpm7EWoNEoWVMY5TmsqEDKK2ILcQWcFMkUWhKbbXK9whWHP+EXDrB4fYl+EmJJy7u9v8PvQ/YnNmxRcoAAAAASUVORK5CYII=',
+'stone_floor': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAgklEQVR4nO1RsQ2AMAxrKo4oY8/gFk7oCbxRTugrnIHH8AUMkaLQMLCwkcGqbMdyFdrqFEJIpR3rLBju00kRDO8GQ7CTwKD93F9my9BWp0e33bEMyR+0SR6zVpK3lcAYPNVZrZTHHJVVSte8BAa1JXV5vqGdKFQqTdEGe+m/wyd3uADZSL7FfFUamQAAAABJRU5ErkJggg==',
+    'cave_entrance': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAx0lEQVR4nI2RsRWDMAxEz34MQUqPIUrWYISko4SSlg5G0BqUZgyVzhgpRBReAsG/UCFL1r07R0RjA0kSbsHqtAQAh33PkVsGDVGSAGgZADjyWd/Fico7r30VbsEe9owNAEgSGuLaV467ci/jDJPn9ah+f4kk8SrmV8kXNlDoHnB9QTU7IsoRA2Bs0DI83j5cov5uOWTCkf1zbjhmbWgOhSTBnKVJ/fQWfg6fHKz1qOWwGo67EoBm96hlWsJhtXC3HNTZPzs28AIvUZniPwXvcAAAAABJRU5ErkJggg==',
+    'flower_garden': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAwUlEQVR4nIWRoRHDMAxFPzDICC0sNPQKhYHKCIaFWccdIWXNCIbpBg5sN0iZAnyn+uzoavBP4N+X9T780j2ZWuUQE6esG7mNXJ4hDjtC1C9d6eYQOcQ8wC+dHVFtsCNKt2zYyBlyPTCT6x+vnwLz6k7nYUD7tBuq7DwnTqbKFr3CSuh3vgF4T9Pl/lE3yJWSXVOqNDvyl8TNIULjrW2GxlvrR+Wt9WNWf8xb6wcab+0GU6aWvMkf9wON9x9KLW+tnx18/p5tCb8aJQAAAABJRU5ErkJggg==',
+    'pine_tree': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAABAElEQVR4nM1SIZKEQAxsqBNILF9YNzJ5AnIsciVfQCLX7hOwuOUJwe04voBF4vZEc6nZH1zEVCrpSXdPpnh9IgAAo+6DNfiLOS1MYmhH3W/PxLx0xGDNqDu+w6bT0Tadc1p+OJvtQ9dRJeepTW7PZNNZm9QAulQ69NC1NvH7MbRbHwDwPHQlshCRQ1ftqq0PXn08onugGCcsB2uIplBWmXD2pceEPov7u2LJtXnu6p3q0LUQEX8EZ6Bvvg/rfq10aE7CPXCQdpW/CoB/6OHaA76DbbLl3dqkeH0iV+ttMsxp4SpzSZcH+nPTAGJokX1YOiGgZI+8Wx/ciaPzvxRD+wtk0dcbAYX0SAAAAABJRU5ErkJggg==',
+    'snow_pine': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAABOElEQVR4nG1Sq5bCQAy904OgbiyfsLjK5BOQrURSh1wkElmLwyLB0U9IHeP6C1gcuKxINzucs/dUpMmd3LygvyAizbC5z+2zkNsFAAA9GhFhZnxCzm9mFhGz21TCEhjMvmntCpY7l51NmUQAmMKBH5CmrlYHfgA4Va9cMxCRs588mLfr6mvq88LMGDst9rLIRcw7GdvK2FEoClmrYXOfy/ntpBxtKo2dZwyqE3W5C67QowGwwsX9UabKC2Z2V/7ymvo2lV7hkwfzF3tZjJ0y8/KY/u1huQtRyJx/PeSF+vpExNj57+xUvVqUWCefHQAbHTPzcS4YvOCx00BEPn6HhZ88RPmIRqFw09o26uEotJfFChdbpZc0Kfup+j2q6k1ruyi7n69v+C0XNnLTHbeVb8OW4LMyQo/mB9eABtRs0EX1AAAAAElFTkSuQmCC',
+    'cave_rock': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAA70lEQVR4nH2SMZbDIAxEB78cIi2ljrApKUnnK3AEl9QucwRfgc4pUzpHUEnrY2wxG6LFL1HBA+mLGQu7PG14xa4rgKoFJryMAM5y3XU9y/Vk6arlUdVe8Sxpuc952kgDcCzvurKAQ3SlYdf1Ow0gxTzfLsy44AXAz7gcaasQvNCtY/bL9YzlPlNqCF4o0qGkyVEBQNVy6sw0LsXcVvrhOnyiq5Yj/Z6S9UrOy1i1WJquXIq5+wD2tH3X8zclS3yiAQQvaFMiF7ykmNu+yaaY/w3THlq/hd7Tz9PGV+O5o22SsGtvPN8unWMr6GXkH/4LKl/IJIEysCMAAAAASUVORK5CYII=',
+    'cave_wall': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAm0lEQVR4nO2RoRHEIBBFP1tFLJISchIblxYo4eTpyCuBFnBERoYSVsZSxomd2bkJ4E4eiv/4LH9Z4607LvbWzWsEAKByntxSUuhy83qeALb3Q+i3o8tJtbcOzWo5ASgpAJAAx8V61uVUUpC3tBl1dznNa5T+RMumch5xyNVbUI3ecqNCvqtyBhD3bcTpVmlyi5hG/D+HNvoP5vABw/GqpLfLBFUAAAAASUVORK5CYII=',
+  };
+  // 게임 시작 시 텍스트 코드를 실제 이미지(Image) 객체로 자동 변환하여 메모리에 적재
+  const LOADED_TILES = {};
+  Object.keys(TILE_B64).forEach(key => {
+    const img = new Image();
+    img.src = TILE_B64[key];
+    LOADED_TILES[key] = img;
+  });
+
+  // =======================================================
+  // 🌟 [추가] 시트 알파벳(key)과 타일 이미지(value) 연결
+  // 눈 덮인 나무(S)가 포함되어 있습니다!
+  // =======================================================
+  const TILE_CHAR_MAP = {
+    '.': 'path',         //길
+    'G': 'tall_grass',   //풀숲(몬스터)
+    'T': 'tree',         //활엽수
+    'S': 'snow_tree',    //눈덮인활엽수
+    'g': 'grass_path',   //잔디
+    'F': 'flower_garden', // 꽃바닥 (풀숲 인카운터)
+    'B': 'rock',   //회색 바위
+    'R': 'roof',         //빨간 지붕
+    'D': 'door',         //문
+    '~': 'water',        //개울
+
+    'W': 'stone_wall',   // 돌벽
+    'd': 'sand',         //모래
+    'p': 'pyramid',      //큰모래돌
+    'r': 'stone_floor',   // 돌바닥 (이동 가능)
+
+    'I': 'snow_path',    //눈길
+    's': 'snow_grass',   //눈 풀숲(몬스터)
+    'Y': 'pine_tree',     // 침엽수 (벽)
+    'Z': 'snow_pine',     // 눈덮인 침엽수 (벽)
+
+    'L': 'volcano_path',   //화산바닥
+    'v': 'volcano_wall',   //화산돌벽
+
+
+    'C': 'cave_path',    // 동굴 바닥
+    'w': 'deep_water',   //동굴 물/깊은 물
+    'O': 'cave_rock',     // 🌟 동굴 큰 바위 (통과 불가 벽)
+    'V': 'cave_wall',     // 🌟 동굴 암벽 (통과 불가 벽)
+
+
+
+    // 🌟 [포탈 매핑] 시트에 P 또는 1, 2, 3, 4를 적으면 방금 올리신 소용돌이 포탈이 출력됩니다!
+    'P': 'portal',    
+    '1': 'portal',
+    '2': 'portal',
+    '3': 'portal',
+    '4': 'portal',
+    'E': 'cave_entrance', // 동굴 출입구 (포탈)
+  };
+
+  // =======================================================
+  // 🌟 [교체] 새로운 맵 타일 렌더링 함수
+  // =======================================================
+  function drawMapTile(code, px, py) {
+    let tileKey = TILE_CHAR_MAP[code];
+    const mapIdLower = String(currentMapId || "").toLowerCase();
+
+    if (mapIdLower === 'cave' && (!tileKey || code === '.' || tileKey === 'path')) {
+      tileKey = 'cave_path';
+    } else if (!tileKey) {
+      // 그 외 맵의 기본 바닥 자동 교체
+      if (mapIdLower === 'snow') tileKey = 'snow_path';
+      else if (mapIdLower === 'volcano') tileKey = 'volcano_path';
+      else if (mapIdLower === 'sand') tileKey = 'sand';
+      else tileKey = 'path';
+    }
+
+    const img = LOADED_TILES[tileKey];
+
+    // 이미지가 성공적으로 로드된 상태면 캔버스에 그리기
+    if (img && img.complete) {
+      ctx.drawImage(img, px, py, DISPLAY_TILE, DISPLAY_TILE);
+    } else {
+      // 로딩되기 전 찰나의 순간에는 맵이 비어 보이지 않게 검은 배경 표시
+      ctx.fillStyle = '#10121a';
+      ctx.fillRect(px, py, DISPLAY_TILE, DISPLAY_TILE);
+    }
+
+    // 맵 타일에 미세한 테두리를 주어 도트 격자 느낌 살리기
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px, py, DISPLAY_TILE, DISPLAY_TILE);
+  }
+
+function isSolid(code) { return ['T', 't', 'R', 'W', '~', 'I', 'D', 'p', 'B', 'Y', 'Z', 'O', 'V', 'w'].includes(code); }
+  function isGrass(code) { return ['G', 's', 'v', 'd', 'L', 'F', 'C'].includes(code); }
+
+  // =======================================================
+  // [4] 메인 루프 & 걷기 물리
+  // =======================================================
+  let lastTime = performance.now();
+  const WALK_SPEED = 0.007;
+
+  function gameLoop(now) {
+    const dt = now - lastTime;
+    lastTime = now;
+
+    if (!battleState.active) {
+      updateMovement(dt);
+      renderScene();
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+// 🌟 플레이어가 이동할 때마다 브라우저 로컬 스토리지에 마지막 위치 실시간 저장
+  function scheduleSavePosition() {
+    if (!currentUser.student_id) return;
+    localStorage.setItem(`pkm_pos_${currentUser.student_id}`, JSON.stringify({
+      mapId: currentMapId,
+      x: player.gridX,
+      y: player.gridY
+    }));
+  }
+
+  function updateMovement(dt) {
+    if (player.isMoving) {
+      player.moveProgress += WALK_SPEED * dt;
+      if (player.moveProgress >= 1) {
+        player.isMoving = false;
+        player.moveProgress = 0;
+        player.gridX = player.toX;
+        player.gridY = player.toY;
+        player.realX = player.gridX * DISPLAY_TILE;
+        player.realY = player.gridY * DISPLAY_TILE;
+
+        scheduleSavePosition();
+
+        const map = GOLD_MAPS[currentMapId];
+        // 맵 데이터가 아직 없거나 비어있는 경우 방어
+        if (!map || !map.grid || !map.grid[player.gridY]) return;
+        const tile = map.grid[player.gridY][player.gridX];
+
+        // 🌟 [동적 포탈 판정] 맵 이름은 유연하게, 포탈 문자(P vs p)는 엄격히 구분!
+        const matchedPortal = portalPool.find(p => 
+          String(p.from_map).trim().toLowerCase() === String(currentMapId).trim().toLowerCase() && 
+          String(p.portal_id).trim() === String(tile) // 대소문자 엄격 비교 유지 (P ≠ p)
+        );
+        if (matchedPortal) {
+          warpWithSpin(matchedPortal.target_map, matchedPortal.to_x, matchedPortal.to_y, `🌀 ${matchedPortal.portal_name} 구역으로 워프했습니다!`);
+          return;
+        }
+
+        // 🌟 3. 풀숲 및 인카운터 판정 (확률 10% & 최소 2걸음 안전 보장)
+        if (player.safeSteps > 0) {
+          player.safeSteps--; // 안전 걸음 차감
+        } else if (isGrass(tile) && Math.random() < 0.10) {
+          player.safeSteps = 2; // 전투 직후 2걸음 동안 인카운터 발생 금지
+          triggerEncounterAnim(map.biome);
+          return;
+        }
+        // 🌟 한 칸 이동 완료 직후 누르고 있는 키 방향으로 다음 걸음 즉시 연결!
+        checkContinuousMove();
+      } else {
+        player.realX = (player.fromX + (player.toX - player.fromX) * player.moveProgress) * DISPLAY_TILE;
+        player.realY = (player.fromY + (player.toY - player.fromY) * player.moveProgress) * DISPLAY_TILE;
+      }
+    } else {
+      // 캐릭터가 멈춰 있을 때도 방향키가 눌려 있다면 즉시 이동
+      checkContinuousMove();
+    }
+  }
+
+  function checkContinuousMove() {
+    if (player.isMoving || battleState.active) return;
+    if (keysPressed.up) tryMove('up');
+    else if (keysPressed.down) tryMove('down');
+    else if (keysPressed.left) tryMove('left');
+    else if (keysPressed.right) tryMove('right');
+  }
+
+  function renderScene() {
+    const map = GOLD_MAPS[currentMapId];
+    // 🌟 시트 데이터 로딩 중 빈 grid 방어
+    if (!map || !map.grid || map.grid.length === 0) return;
+
+    const camX = canvas.width / 2 - player.realX - DISPLAY_TILE / 2;
+    const camY = canvas.height / 2 - player.realY - DISPLAY_TILE / 2;
+
+    ctx.fillStyle = '#080810';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.translate(Math.round(camX), Math.round(camY));
+
+    for (let r = 0; r < map.grid.length; r++) {
+      for (let c = 0; c < map.grid[0].length; c++) {
+        drawMapTile(map.grid[r][c], c * DISPLAY_TILE, r * DISPLAY_TILE);
+      }
+    }
+
+    let animFrame = 0;
+    if (player.isMoving) animFrame = player.stepCycle === 0 ? 1 : 2;
+    const spriteKey = `${player.dir}_${animFrame}`;
+    const pSprite = PLAYER_SPRITES[spriteKey] || PLAYER_SPRITES['down_0'];
+    ctx.drawImage(pSprite, Math.round(player.realX), Math.round(player.realY), DISPLAY_TILE, DISPLAY_TILE);
+
+    const currentTile = map.grid[player.gridY][player.gridX];
+    
+    // 🌟 밟고 있는 지형에 맞춰 알맞은 발밑 연출 표시
+    if (currentTile === 'G') {
+      // 일반 풀숲: 초록 풀잎 오버레이
+      ctx.drawImage(GRASS_TUFT_OVERLAY, Math.round(player.realX), Math.round(player.realY), DISPLAY_TILE, DISPLAY_TILE);
+    } else if (currentTile === 'd' || currentTile === 'p') {
+      // 사막/유적: 모래에 발이 푹 파묻히는 연출
+      ctx.drawImage(SAND_TUFT_OVERLAY, Math.round(player.realX), Math.round(player.realY), DISPLAY_TILE, DISPLAY_TILE);
+    } else if (currentTile === 's') {
+      // 설원: 눈 속에 발이 잠기는 연출
+      ctx.drawImage(SNOW_TUFT_OVERLAY, Math.round(player.realX), Math.round(player.realY), DISPLAY_TILE, DISPLAY_TILE);
+    }
+
+    // 🌟 [개선] 다채로운 NPC 렌더링 (호흡 바운스 애니메이션 및 캔버스/이미지 안전 렌더링)
+    const now = Date.now();
+    npcPool.forEach((npc, index) => {
+      if (npc.map_id === currentMapId) {
+        const spriteObj = getNpcImage(npc.sprite);
+        // 각 NPC마다 약간씩 엇박자로 들썩이는 레트로 모션
+        const bob = Math.sin((now / 350) + index) * 1.5;
+
+        // Canvas 도트 객체이거나 온전히 로드된 이미지인 경우 안전하게 출력
+        const isDrawable = (spriteObj instanceof HTMLCanvasElement) || 
+                           (spriteObj && spriteObj.complete && spriteObj.naturalWidth > 0);
+
+        if (isDrawable) {
+          ctx.drawImage(
+            spriteObj,
+            npc.x * DISPLAY_TILE,
+            Math.round((npc.y * DISPLAY_TILE) + bob),
+            DISPLAY_TILE,
+            DISPLAY_TILE
+          );
+        } else {
+          // 로딩 중이거나 예외 발생 시 내장 기본 캠퍼 도트 표시
+          ctx.drawImage(
+            BUILTIN_NPC_SPRITES['default_npc'],
+            npc.x * DISPLAY_TILE,
+            Math.round((npc.y * DISPLAY_TILE) + bob),
+            DISPLAY_TILE,
+            DISPLAY_TILE
+          );
+        }
+      }
+    });
+
+    ctx.restore();
+  }
+
+  function tryMove(dirName) {
+    if (player.isMoving || battleState.active || isWarping) return;
+    player.dir = dirName;
+    let dx = 0, dy = 0;
+    if (dirName === 'up') dy = -1;
+    else if (dirName === 'down') dy = 1;
+    else if (dirName === 'left') dx = -1;
+    else if (dirName === 'right') dx = 1;
+
+    const map = GOLD_MAPS[currentMapId];
+    const nx = player.gridX + dx;
+    const ny = player.gridY + dy;
+
+    if (nx >= 0 && nx < map.grid[0].length && ny >= 0 && ny < map.grid.length) {
+      // 🌟 이동하려는 좌표(nx, ny)에 NPC가 서 있는지 검사
+      const isNpcSolid = npcPool.some(npc => npc.map_id === currentMapId && npc.x === nx && npc.y === ny);
+
+      if (!isSolid(map.grid[ny][nx]) && !isNpcSolid) {
+        player.isMoving = true;
+        player.moveProgress = 0;
+        player.fromX = player.gridX; player.fromY = player.gridY;
+        player.toX = nx; player.toY = ny;
+        player.stepCycle = (player.stepCycle + 1) % 2;
+      }
+    }
+  }
+
+// 🌟 [추가] 포탈 진입 시 8비트 사운드와 함께 고속 회전하는 워프 애니메이션
+  let isWarping = false;
+  function warpWithSpin(targetMap, tx, ty, msg) {
+    if (isWarping) return;
+    isWarping = true;
+    player.isMoving = false;
+
+    playRetroSound('ball');
+
+    // 화면 소용돌이 수축 효과
+    canvas.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease';
+    canvas.style.transform = 'rotate(720deg) scale(0.2)';
+    canvas.style.opacity = '0.3';
+
+    // 캐릭터 제자리 4방향 고속 회전 연출
+    const dirs = ['down', 'left', 'up', 'right'];
+    let spinStep = 0;
+    const spinTimer = setInterval(() => {
+      player.dir = dirs[spinStep % 4];
+      spinStep++;
+      renderScene();
+    }, 45);
+
+    setTimeout(() => {
+      clearInterval(spinTimer);
+      switchMap(targetMap, tx, ty);
+
+      // 화면 연출 원상 복구
+      canvas.style.transition = 'none';
+      canvas.style.transform = 'none';
+      canvas.style.opacity = '1';
+      player.dir = 'down';
+      renderScene();
+
+      if (msg) showToast(msg);
+      saveGameData();
+      isWarping = false;
+    }, 620);
+  }
+
+  function switchMap(targetMapId, tx, ty) {
+    if (!GOLD_MAPS[targetMapId]) return;
+    currentMapId = targetMapId;
+    player.gridX = tx; player.gridY = ty;
+    player.fromX = tx; player.fromY = ty;
+    player.toX = tx; player.toY = ty;
+    player.realX = tx * DISPLAY_TILE; player.realY = ty * DISPLAY_TILE;
+    player.isMoving = false;
+
+    const banner = document.getElementById('map-title-banner');
+    banner.innerText = `🌀 ${GOLD_MAPS[targetMapId].name}`;
+    banner.style.display = 'block';
+    setTimeout(() => { banner.style.display = 'none'; }, 2000);
+  }
+
+  // =======================================================
+  // [5] 컷씬 애니메이션 & 배틀 엔진
+  // =======================================================
+  // 1) 인카운터 컷씬 (흑백 섬광 애니메이션)
+  function triggerEncounterAnim(biomeType) {
+    battleState.active = true;
+    const flash = document.getElementById('encounter-flash');
+    flash.classList.add('flash-active');
+
+    setTimeout(() => {
+      flash.classList.remove('flash-active');
+      startEncounter(biomeType);
+    }, 700);
+  }
+
+  function startEncounter(biomeType) {
+    // 🌟 1. 티어 확률 현실화 (일반: 85%, 희귀: 12%, 전설: 3% / 골든 피버 시 전설 15%, 희귀 40%)
+    const rand = Math.random() * 100;
+    let targetTier = 'normal';
+    if (isFeverActive) {
+      if (rand >= 85) targetTier = 'legendary';
+      else if (rand >= 45) targetTier = 'rare';
+    } else {
+      if (rand >= 97) targetTier = 'legendary';      // 3% 확률로 전설 출현
+      else if (rand >= 85) targetTier = 'rare';       // 12% 확률로 희귀 출현
+      // 나머지 85%는 기본 'normal'
+    }
+
+    // 🌟 2. 맵 필터링 (currentMapId 우선, 없으면 biome 속성)
+    let mapFiltered = monsterPool.filter(m => 
+      String(m.map_id || "").toLowerCase() === String(currentMapId).toLowerCase()
+    );
+    if (mapFiltered.length === 0) {
+      mapFiltered = monsterPool.filter(m => String(m.type || "").toLowerCase() === String(biomeType).toLowerCase());
+    }
+    if (mapFiltered.length === 0) mapFiltered = monsterPool;
+
+    // 🌟 3. 추첨된 티어(targetTier)에 일치하는 몬스터 추출
+    let candidates = mapFiltered.filter(m => String(m.tier || "").toLowerCase() === targetTier);
+    
+    // 만약 해당 티어 몬스터가 맵에 없다면 'normal' 몬스터를 대체 출현 (전설이 막 튀어나오는 것 방지)
+    if (candidates.length === 0) {
+      candidates = mapFiltered.filter(m => String(m.tier || "").toLowerCase() === 'normal');
+    }
+    if (candidates.length === 0) candidates = mapFiltered;
+
+    // 🌟 4. 시트에 적힌 weight(가중치) 비례 누적 룰렛 추첨
+    const totalWeight = candidates.reduce((sum, m) => sum + (Math.max(1, Number(m.weight) || 10)), 0);
+    let randomWeight = Math.random() * totalWeight;
+    let chosenMonster = candidates[0];
+
+    for (let i = 0; i < candidates.length; i++) {
+      const monWeight = Math.max(1, Number(candidates[i].weight) || 10);
+      if (randomWeight < monWeight) {
+        chosenMonster = candidates[i];
+        break;
+      }
+      randomWeight -= monWeight;
+    }
+
+    // 🌟 zone 일치 여부 검사 (zone 또는 zone_tag 필드 모두 지원)
+    let matchedBattles = battlePool.filter(b => {
+      const z = String(b.zone || b.zone_tag || "").toLowerCase().trim();
+      return z === String(biomeType).toLowerCase().trim();
+    });
+    if (matchedBattles.length === 0) matchedBattles = battlePool;
+
+    let chosenBattle = null;
+    if (matchedBattles.length > 0) {
+      // 🌟 1. 해당 zone의 문제 세트 중 1개 행 무작위 선택
+      let selectedRow = matchedBattles[Math.floor(Math.random() * matchedBattles.length)];
+      let phases = [];
+
+      // 🌟 2. 다양한 헤더 명칭(phase1_desc vs p1_desc 등)을 완벽히 찾아오는 헬퍼
+      function getField(obj, ...keys) {
+        for (let k of keys) {
+          if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== "") {
+            return obj[k];
+          }
+        }
+        return "";
+      }
+
+      // 🌟 3. 단계별 데이터(지문, 보기, 정답, 힌트) 1:1 정밀 정규화 함수
+      function buildPhase(rawDesc, rawOpts, rawAns, rawHint) {
+        let desc = String(rawDesc || "수학 문제를 계산하여 포켓몬을 제압하라!").trim();
+        let opts = ["1", "2", "3"];
+        let ans = 0;
+        let hint = String(rawHint || "차근차근 계산해보자!").trim();
+
+        // 보기 목록 분리 (쉼표 또는 슬래시 구분 지원)
+        if (Array.isArray(rawOpts)) {
+          let joined = rawOpts.map(v => String(v || "").trim()).filter(v => v !== "").join(", ");
+          if (joined.includes(',') || joined.includes('/')) {
+            let sep = joined.includes(',') ? ',' : '/';
+            opts = joined.split(sep).map(s => s.trim()).filter(s => s !== "");
+          } else if (rawOpts.length >= 2) {
+            opts = rawOpts.map(s => String(s).trim());
+          }
+        } else if (typeof rawOpts === 'string' && rawOpts.trim() !== "") {
+          let str = rawOpts.trim();
+          if (str.includes(',') || str.includes('/')) {
+            let sep = str.includes(',') ? ',' : '/';
+            opts = str.split(sep).map(s => s.trim()).filter(s => s !== "");
+          } else {
+            opts = [str, "오답", "오답"];
+          }
+        }
+
+        // 정답 인덱스 처리 (0, 1, 2)
+        if (rawAns !== undefined && rawAns !== null && !isNaN(Number(rawAns))) {
+          ans = Number(rawAns);
+          if (ans < 0 || ans > 2) ans = 0;
+        }
+
+        // 보기 개수 3개 유지 보정
+        while (opts.length < 3) opts.push(`보기 ${opts.length + 1}`);
+        if (opts.length > 3) opts = opts.slice(0, 3);
+
+        return { desc, opts, ans, hint };
+      }
+
+      // 🌟 4. phase1, phase2, phase3 데이터를 정확한 키 이름으로 1:1 매칭 추출
+      const p1 = buildPhase(
+        getField(selectedRow, 'phase1_desc', 'p1_desc'),
+        getField(selectedRow, 'p1_opts', 'phase1_opts'),
+        getField(selectedRow, 'p1_ans', 'phase1_ans'),
+        getField(selectedRow, 'p1_hint', 'phase1_hint')
+      );
+
+      const p2 = buildPhase(
+        getField(selectedRow, 'phase2_desc', 'p2_desc') || p1.desc,
+        getField(selectedRow, 'p2_opts', 'phase2_opts') || p1.opts,
+        getField(selectedRow, 'p2_ans', 'phase2_ans') || p1.ans,
+        getField(selectedRow, 'p2_hint', 'phase2_hint') || p1.hint
+      );
+
+      const p3 = buildPhase(
+        getField(selectedRow, 'phase3_desc', 'p3_desc') || p1.desc,
+        getField(selectedRow, 'p3_opts', 'phase3_opts') || p1.opts,
+        getField(selectedRow, 'p3_ans', 'phase3_ans') || p1.ans,
+        getField(selectedRow, 'p3_hint', 'phase3_hint') || p1.hint
+      );
+
+      phases.push(p1, p2, p3);
+
+      chosenBattle = {
+        id: selectedRow.battle_id || selectedRow.id || ("BTL_" + Date.now()),
+        zone: biomeType,
+        phases: phases
+      };
+    } else {
+      // 시트 문제 로딩 지연 시 임시 대체 퀴즈
+      chosenBattle = {
+        id: "DEF", zone: biomeType,
+        phases: [
+          { desc: "야생 포켓몬 출현! [ 12 + 15 ]를 계산하라!", opts: ["25", "27", "30"], ans: 1, hint: "일의 자리부터 차근차근 더해보자!" },
+          { desc: "포켓몬의 반격! [ 45 ÷ 5 ]를 계산하라!", opts: ["8", "9", "10"], ans: 1, hint: "구구단 5단을 떠올려봐!" },
+          { desc: "결정타! [ 7 × 8 ]을 맞춰 포획하라!", opts: ["54", "56", "58"], ans: 1, hint: "구구단 7단을 계산해보자!" }
+        ]
+      };
+    }
+
+    battleState.active = true;
+    battleState.monster = chosenMonster;
+    battleState.battleData = chosenBattle;
+    battleState.phase = 0;
+    battleState.hp = 3;
+
+    const overlay = document.getElementById('battle-overlay');
+    if (biomeType === 'grass') overlay.style.background = 'linear-gradient(180deg, #b7e4c7 0%, #74c69d 60%, #40916c 100%)';
+    else if (biomeType === 'water') overlay.style.background = 'linear-gradient(180deg, #caf0f8 0%, #90e0ef 60%, #0077b6 100%)';
+    else if (biomeType === 'snow') overlay.style.background = 'linear-gradient(180deg, #f0f9ff 0%, #bae6fd 60%, #38bdf8 100%)';
+    else if (biomeType === 'volcano') overlay.style.background = 'linear-gradient(180deg, #ffccd5 0%, #c9184a 60%, #590d22 100%)';
+
+    overlay.style.display = 'flex';
+    document.getElementById('pokeball-actor').style.display = 'none';
+    const enemyImg = document.getElementById('b-enemy-sprite');
+    enemyImg.style.display = 'block';
+    // 🌟 이미지 링크가 깨졌을 때 도감 번호(id) 기반 공식 이미지로 자동 복구
+    enemyImg.onerror = () => {
+      enemyImg.onerror = null;
+      enemyImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${chosenMonster.id}.png`;
+    };
+    enemyImg.src = chosenMonster.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${chosenMonster.id}.png`;
+    enemyImg.style.opacity = '1';
+
+    document.getElementById('b-enemy-name').innerText = chosenMonster.name;
+    document.getElementById('b-enemy-tier').innerText = targetTier === 'legendary' ? '★전설★' : (targetTier === 'rare' ? '★희귀' : '');
+    updateBattleHpBar(3);
+
+    renderBattlePhase();
+  }
+
+  function updateBattleHpBar(hp) {
+    const bar = document.getElementById('b-hp-bar');
+    bar.style.width = (hp / 3 * 100) + '%';
+    if (hp === 3) bar.style.background = '#2a9d8f';
+    else if (hp === 2) bar.style.background = '#e9c46a';
+    else if (hp === 1) bar.style.background = '#e76f51';
+  }
+
+  // 3초 광클 방지 및 무작위 셔플 렌더
+  function renderBattlePhase() {
+    const phaseData = battleState.battleData.phases[battleState.phase];
+    document.getElementById('b-dialog-text').innerText = `[${battleState.phase + 1}/3단계] ${phaseData.desc} ⏳(3초간 생각하세요!)`;
+
+    const grid = document.getElementById('b-action-grid');
+    grid.innerHTML = '';
+    isAnswerLocked = true;
+
+    let pairedOpts = phaseData.opts.map((optText, idx) => ({
+      text: optText,
+      isCorrect: (idx === phaseData.ans)
+    }));
+
+    for (let i = pairedOpts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pairedOpts[i], pairedOpts[j]] = [pairedOpts[j], pairedOpts[i]];
+    }
+    battleState.currentOpts = pairedOpts;
+
+    pairedOpts.forEach((opt) => {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn disabled';
+      btn.innerText = `🔒 ${opt.text}`;
+      btn.onclick = () => {
+        if (isAnswerLocked) {
+          showToast("⏳ 문제를 꼼꼼히 읽고 차분히 풀어주세요!");
+          return;
+        }
+        handlePlayerAction(opt.isCorrect, btn, phaseData.hint);
+      };
+      grid.appendChild(btn);
+    });
+
+    setTimeout(() => {
+      if (battleState.active) {
+        isAnswerLocked = false;
+        document.getElementById('b-dialog-text').innerText = `[${battleState.phase + 1}/3단계] ${phaseData.desc}`;
+        const buttons = grid.querySelectorAll('.action-btn');
+        buttons.forEach((b, idx) => {
+          b.classList.remove('disabled');
+          b.innerText = `▶ ${pairedOpts[idx].text}`;
+        });
+      }
+    }, 3000);
+  }
+
+  // 🌟 5종 랜덤 공격 이펙트 정의 (10만볼트, 불대문자, 하이드로펌프, 제비반환, 매지컬샤인)
+  const ATTACK_SKILLS = [
+    { name: "⚡ 10만볼트!", type: "thunder" },
+    { name: "🔥 불대문자!", type: "fire" },
+    { name: "💧 하이드로펌프!", type: "water" },
+    { name: "⚔️ 제비반환!", type: "slash" },
+    { name: "✨ 매지컬샤인!", type: "star" }
+  ];
+
+  function playRandomAttackFx() {
+    const skill = ATTACK_SKILLS[Math.floor(Math.random() * ATTACK_SKILLS.length)];
+    const arena = document.querySelector('.enemy-stage');
+    
+    const fxElem = document.createElement('div');
+    fxElem.style.position = 'absolute';
+    fxElem.style.inset = '0';
+    fxElem.style.display = 'flex';
+    fxElem.style.justifyContent = 'center';
+    fxElem.style.alignItems = 'center';
+    fxElem.style.zIndex = '85';
+    fxElem.style.pointerEvents = 'none';
+
+    if (skill.type === 'thunder') {
+      fxElem.innerHTML = `<div style="font-size:52px; animation: hitShake 0.3s; filter:drop-shadow(0 0 10px #ffe600);">⚡⚡⚡</div>`;
+    } else if (skill.type === 'fire') {
+      fxElem.innerHTML = `<div style="font-size:56px; animation: popIn 0.35s; filter:drop-shadow(0 0 14px red);">💥🔥💥</div>`;
+    } else if (skill.type === 'water') {
+      fxElem.innerHTML = `<div style="font-size:54px; animation: hitShake 0.4s; filter:drop-shadow(0 0 10px cyan);">🌊💦🌊</div>`;
+    } else if (skill.type === 'slash') {
+      fxElem.innerHTML = `<div style="font-size:60px; transform:rotate(-25deg); animation: popIn 0.25s; filter:drop-shadow(0 0 8px #fff);">⚔️</div>`;
+    } else {
+      fxElem.innerHTML = `<div style="font-size:50px; animation: popIn 0.4s; filter:drop-shadow(0 0 15px pink);">⭐✨🌟</div>`;
+    }
+
+    arena.appendChild(fxElem);
+    showToast(`효과가 굉장했다!`);
+    setTimeout(() => fxElem.remove(), 550);
+  }
+
+  // 2) 정답/오답 선택 처리 (광클 및 연타 꼼수 원천 차단)
+  function handlePlayerAction(isCorrect, btnElem, hintText) {
+    // 🌟 [핵심 1] 이미 잠겨있다면 추가 클릭 즉시 무시
+    if (isAnswerLocked) return;
+    isAnswerLocked = true; // 단 1회 클릭 즉시 모든 버튼 입력 잠금
+
+    // 🌟 [핵심 2] 화면의 모든 보기 버튼을 즉시 시각적으로 비활성화
+    const allBtns = document.querySelectorAll('#b-action-grid .action-btn');
+    allBtns.forEach(b => b.classList.add('disabled'));
+
+    const enemyImg = document.getElementById('b-enemy-sprite');
+
+    if (isCorrect) {
+      comboCount++;
+      if (comboCount >= 3 && !isFeverActive) activateFever();
+
+      playRetroSound('correct');
+      playRandomAttackFx();
+      btnElem.style.background = '#d8f8a8'; // 정답 선택 시 연초록 강조
+      enemyImg.classList.add('hit-shake');
+      setTimeout(() => enemyImg.classList.remove('hit-shake'), 400);
+
+      battleState.phase++;
+      battleState.hp--;
+      updateBattleHpBar(battleState.hp);
+
+      // 공격 이펙트가 끝난 뒤 다음 단계로 자연스럽게 이동
+      setTimeout(() => {
+        if (battleState.hp <= 0) {
+          triggerCaptureSequence();
+        } else {
+          renderBattlePhase();
+        }
+      }, 500);
+    } else {
+      comboCount = 0;
+      playRetroSound('wrong');
+      btnElem.style.background = '#ffccd5'; // 오답 버튼 붉은색 표시
+      btnElem.style.borderColor = '#e63946';
+      document.getElementById('b-dialog-text').innerText = `❌ 오답! 💡 힌트: ${hintText}`;
+
+      // 🌟 [핵심 3] 1.4초 동안은 다른 어떤 버튼도 못 누르고 힌트만 봐야 함
+      setTimeout(() => {
+        if (battleState.active) {
+          renderBattlePhase(); // 1.4초 뒤 문제를 재정렬하고 다시 3초 생각 타이머 작동
+        }
+      }, 1400);
+    }
+  }
+
+  // 3) 포획 성공 시 도감 등록 모달 팝업
+  function triggerCaptureSequence() {
+    isAnswerLocked = true;
+    document.getElementById('b-dialog-text').innerText = `가라! 몬스터볼 투척!`;
+    const ball = document.getElementById('pokeball-actor');
+    const enemyImg = document.getElementById('b-enemy-sprite');
+
+    ball.style.display = 'block';
+    ball.className = 'ball-throw';
+
+    setTimeout(() => {
+      enemyImg.style.transition = 'all 0.3s ease';
+      enemyImg.style.transform = 'scale(0.1)';
+      enemyImg.style.opacity = '0';
+    }, 600);
+
+    setTimeout(() => {
+      ball.className = 'ball-shake';
+      playRetroSound('ball'); // 🌟 [추가] 몬스터볼 흔들림 찰칵음 재생
+      document.getElementById('b-dialog-text').innerText = `찰칵... 찰칵...`;
+    }, 900);
+
+    setTimeout(() => {
+      let gainCandy = battleState.monster.tier === 'legendary' ? 3 : 1;
+      if (isFeverActive) gainCandy *= 2;
+
+      // 🌟 보스전 승리 판정
+      if (battleState.isBoss) {
+        const gym = battleState.gymData;
+        if (!currentUser.badges.includes(gym.badgeId)) {
+          currentUser.badges.push(gym.badgeId);
+        }
+        currentUser.candy_count += 5; // 보스 격파 보너스 사탕 5개!
+
+        // 도망 버튼 원상 복구
+        const escapeBtn = document.querySelector('.btn-escape');
+        if (escapeBtn) { escapeBtn.style.opacity = '1'; escapeBtn.innerText = "🏃 도망"; }
+
+        updateHud();
+        saveGameData();
+
+        document.getElementById('battle-overlay').style.display = 'none';
+        battleState.active = false;
+        battleState.isBoss = false;
+        isAnswerLocked = false;
+        enemyImg.style.transform = 'none';
+
+        playRetroSound('fanfare'); // 🌟 [추가] 승리 팡파레 멜로디 연주
+
+        // 🌟 [추가] 4대 배지(물, 눈, 화산, 사막)를 모두 수집했는지 확인
+        const ALL_BADGES = ['water', 'snow', 'volcano', 'sand'];
+        const hasAll = ALL_BADGES.every(b => currentUser.badges.includes(b));
+
+        if (hasAll) {
+          triggerChampionEnding(); // 👑 전당등록 챔피언 엔딩 컷씬 실행!
+        } else {
+          // 4대 배지 미완성 시에는 해당 체육관 배지 획득 모달만 출력
+          openCaptureModal({
+            id: 999,
+            name: `${gym.name} 격파! [${gym.badgeName}]`,
+            sprite: gym.bossMon.sprite,
+            type: gym.badgeId
+          });
+          showToast(`🏆 축하합니다! ${gym.name}을 꺾고 [${gym.badgeName}]를 획득했습니다!`);
+        }
+        return;
+      }
+
+      // 일반 야생 포켓몬 포획 처리
+      currentUser.candy_count += gainCandy;
+      if (!currentUser.captured_ids.includes(battleState.monster.id)) {
+        currentUser.captured_ids.push(battleState.monster.id);
+      }
+      updateHud();
+      saveGameData();
+
+      document.getElementById('battle-overlay').style.display = 'none';
+      battleState.active = false;
+      isAnswerLocked = false;
+      enemyImg.style.transform = 'none';
+
+      openCaptureModal(battleState.monster);
+    }, 2400);
+  }
+
+  // 🌟 폭죽(Confetti) 애니메이션 및 등록 모달 오픈
+  function openCaptureModal(mon) {
+    document.getElementById('cap-no').innerText = `No.${String(mon.id).padStart(3, '0')}`;
+    
+    // 🌟 [추가] 링크가 깨지거나 비어있을 때 도감 번호(id)로 자동 복원
+    const capImg = document.getElementById('cap-sprite');
+    capImg.onerror = () => {
+      capImg.onerror = null;
+      capImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.id}.png`;
+    };
+    capImg.src = mon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.id}.png`;
+
+    document.getElementById('cap-name').innerText = mon.name;
+    document.getElementById('cap-type').innerText = `속성: ${mon.type.toUpperCase()}`;
+    document.getElementById('cap-desc').innerText = `[${mon.name}]을 트레이너 공식 도감에 등록하였습니다!`;
+
+    const modal = document.getElementById('capture-modal');
+    modal.style.display = 'flex';
+    runConfettiFireworks();
+  }
+
+  function closeCaptureModal() {
+    document.getElementById('capture-modal').style.display = 'none';
+    showToast("🎉 포켓몬 도감 등록 완료! 모험을 이어가세요.");
+  }
+
+  // 🌟 [추가] 전당등록 챔피언 엔딩 모달 제어 함수
+  function triggerChampionEnding() {
+    document.getElementById('champ-student-desc').innerText = 
+      `${currentUser.student_id} ${currentUser.student_name} 트레이너`;
+    document.getElementById('champion-modal').style.display = 'flex';
+    runConfettiFireworks(); // 황금 폭죽 발사!
+  }
+
+  function closeChampionModal() {
+    document.getElementById('champion-modal').style.display = 'none';
+    showToast("👑 전당등록 완료! 당신은 진정한 포켓몬 수학 챔피언입니다!");
+  }
+
+  // 캔버스 폭죽 렌더러
+  function runConfettiFireworks() {
+    const cvs = document.getElementById('confetti-canvas');
+    cvs.width = cvs.parentElement.clientWidth;
+    cvs.height = cvs.parentElement.clientHeight;
+    const c = cvs.getContext('2d');
+    const colors = ['#f72585', '#7209b7', '#3a0ca3', '#4361ee', '#4cc9f0', '#ffd166', '#fff'];
+    const particles = [];
+
+    for (let i = 0; i < 75; i++) {
+      particles.push({
+        x: cvs.width / 2, y: cvs.height / 2 + 30,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 0.8) * 12,
+        size: Math.random() * 5 + 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        gravity: 0.25, alpha: 1
+      });
+    }
+
+    let frame = 0;
+    function renderConfetti() {
+      if (frame > 65) return;
+      c.clearRect(0, 0, cvs.width, cvs.height);
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.alpha -= 0.015;
+        c.fillStyle = p.color;
+        c.globalAlpha = Math.max(0, p.alpha);
+        c.fillRect(p.x, p.y, p.size, p.size);
+      });
+      c.globalAlpha = 1;
+      frame++;
+      requestAnimationFrame(renderConfetti);
+    }
+    renderConfetti();
+  }
+
+  // 사탕 버프: 50:50 찬스 (오답 보기 1개 즉시 소멸)
+  function use5050Chance() {
+    if (isAnswerLocked || !battleState.active) return;
+    if (currentUser.candy_count < 1) {
+      showToast("🍬 사탕이 부족합니다! (1개 필요)");
+      return;
+    }
+    const grid = document.getElementById('b-action-grid');
+    const wrongBtns = [];
+    battleState.currentOpts.forEach((opt, idx) => {
+      if (!opt.isCorrect) wrongBtns.push(grid.children[idx]);
+    });
+
+    const activeWrongBtns = wrongBtns.filter(b => !b.classList.contains('disabled'));
+    if (activeWrongBtns.length > 0) {
+      currentUser.candy_count -= 1;
+      updateHud();
+      saveGameData();
+      const target = activeWrongBtns[0];
+      target.classList.add('disabled');
+      target.innerText = "❌ 소멸";
+      target.onclick = null;
+      showToast("🍬 오답제거 찬스 발동! 오답 1개 제거 완료!");
+    }
+  }
+
+  // 골든 피버 모드 (20초 지속)
+  function activateFever() {
+    isFeverActive = true;
+    document.getElementById('fever-indicator').style.display = 'inline-block';
+    showToast("🔥 [골든 피버 발동!] 20초간 희귀 출현 및 사탕 획득 2배!");
+
+    if (feverTimer) clearTimeout(feverTimer);
+    feverTimer = setTimeout(() => {
+      isFeverActive = false;
+      document.getElementById('fever-indicator').style.display = 'none';
+      comboCount = 0;
+      showToast("💨 골든 피버 종료!");
+    }, 20000);
+  }
+
+  // 1분 쿨타임 도망치기
+  function handleBtnB() {
+    if (!battleState.active) return;
+    const now = Date.now();
+    const elapsed = now - lastEscapeTime;
+
+    if (elapsed < ESCAPE_COOLDOWN) {
+      const remainSec = Math.ceil((ESCAPE_COOLDOWN - elapsed) / 1000);
+      showToast(`⏳ 아직 도망칠 수 없습니다! (${remainSec}초 남음)`);
+      return;
+    }
+    lastEscapeTime = now;
+    document.getElementById('battle-overlay').style.display = 'none';
+    battleState.active = false;
+    comboCount = 0;
+    showToast("🏃 안전하게 도망쳤습니다! (쿨타임 1분)");
+  }
+
+  // 🌟 A버튼 클릭 시 사방(상/하/좌/우) 인접 NPC 감지 및 관장 배틀 연동
+  function handleBtnA() {
+    if (battleState.active) return;
+
+    // 🌟 1. 대화창이 이미 열려 있을 때 A버튼 처리
+    if (activeNpc) {
+      if (activeNpc.type === 'quiz') {
+        submitNpcQuiz();
+        return;
+      }
+      if (activeNpc.type === 'gym') {
+        const gym = GYM_LEADERS[activeNpc.map_id || currentMapId];
+        const isCleared = gym && currentUser.badges.includes(gym.badgeId);
+        const myCatches = gym ? monsterPool.filter(m => currentUser.captured_ids.includes(m.id) && m.type === gym.badgeId) : [];
+
+        // 배지 미보유 & 수집 조건 충족 시 관장 결전 즉시 개시
+        if (gym && !isCleared && myCatches.length >= gym.reqCount) {
+          launchGymBattle();
+        } else {
+          closeNpcDialog();
+        }
+        return;
+      }
+    }
+
+    // 🌟 2. 사방(상/하/좌/우) 어디든 붙어 있는 NPC 탐색 (문 'D' 타일 검사 완전 삭제)
+    const dirs = [
+      { d: 'up', dx: 0, dy: -1 },
+      { d: 'down', dx: 0, dy: 1 },
+      { d: 'left', dx: -1, dy: 0 },
+      { d: 'right', dx: 1, dy: 0 }
+    ];
+
+    let targetNpc = null;
+    let faceDir = player.dir;
+
+    for (let dirInfo of dirs) {
+      const tx = player.gridX + dirInfo.dx;
+      const ty = player.gridY + dirInfo.dy;
+      const found = npcPool.find(npc => npc.map_id === currentMapId && Number(npc.x) === tx && Number(npc.y) === ty);
+      if (found) {
+        targetNpc = found;
+        faceDir = dirInfo.d; // NPC를 바라보도록 방향 설정
+        break;
+      }
+    }
+
+    if (targetNpc) {
+      player.dir = faceDir; // 플레이어 시선을 NPC 쪽으로 자동 회전
+      renderScene();
+      openNpcDialog(targetNpc);
+    }
+  }
+// =======================================================
+  // 🌟 4대 체육관 관장 및 보스 배틀 엔진
+  // =======================================================
+  const GYM_LEADERS = {
+    'water': {
+      name: "관장 이슬이",
+      badgeId: "water",
+      badgeName: "💧 블루배지",
+      bossMon: { name: "아쿠스타 (관장 에이스)", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/121.png", tier: "boss" },
+      reqCount: 2,
+      desc: "수학적 유연성과 물의 정교함을 시험하겠다!"
+    },
+    'snow': {
+      name: "관장 류옹",
+      badgeId: "snow",
+      badgeName: "❄️ 아이스배지",
+      bossMon: { name: "메꾸리 (관장 에이스)", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/221.png", tier: "boss" },
+      reqCount: 2,
+      desc: "매서운 얼음 앞에서도 흔들리지 않는 냉철한 계산력을 보여다오!"
+    },
+    'volcano': {
+      name: "관장 강연",
+      badgeId: "volcano",
+      badgeName: "🔥 진홍배지",
+      bossMon: { name: "마그마번 (관장 에이스)", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/467.png", tier: "boss" },
+      reqCount: 2,
+      desc: "뜨거운 수리적 열정 없이는 화산 체육관을 통과할 수 없다!"
+    },
+    'sand': {
+      name: "관장 비주기",
+      badgeId: "sand",
+      badgeName: "🏜️ 그린배지",
+      bossMon: { name: "니드킹 (관장 에이스)", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/34.png", tier: "boss" },
+      reqCount: 2,
+      desc: "고대 유적의 비밀을 풀 실력을 갖췄는지 시험해보마!"
+    }
+  };
+
+  // 체육관 관장 도전 자격 심사
+  function challengeGymLeader(mapId) {
+    const gym = GYM_LEADERS[mapId];
+    if (!gym) {
+      showToast("이곳은 아직 관장이 부재중인 체육관입니다.");
+      return;
+    }
+
+    // 이미 배지를 땄는지 검사
+    if (currentUser.badges.includes(gym.badgeId)) {
+      showToast(`🏆 이미 ${gym.badgeName}를 획득한 체육관입니다!`);
+      return;
+    }
+
+    // 해당 속성 포켓몬 수집 마릿수 검사
+    const myCatches = monsterPool.filter(m => currentUser.captured_ids.includes(m.id) && m.type === mapId);
+    if (myCatches.length < gym.reqCount) {
+      showToast(`⛔ 입장 불가! [${mapId.toUpperCase()}] 속성 포켓몬을 ${gym.reqCount}마리 이상 수집해야 합니다! (현재 ${myCatches.length}마리)`);
+      return;
+    }
+
+    // 관장전 발동
+    startGymBossBattle(gym);
+  }
+
+  // 보스 배틀 개시
+  function startGymBossBattle(gym) {
+    battleState.active = true;
+    battleState.isBoss = true;
+    battleState.gymData = gym;
+    battleState.monster = gym.bossMon;
+
+    let matchedBattles = battlePool.filter(b => b.zone === gym.badgeId);
+    if (matchedBattles.length === 0) matchedBattles = battlePool;
+    battleState.battleData = matchedBattles.length > 0 ? matchedBattles[Math.floor(Math.random() * matchedBattles.length)] : {
+      id: "BOSS", zone: gym.badgeId,
+      phases: [
+        { desc: `[보스전] ${gym.name}: 1단계 난제를 풀어라!`, opts: ["12", "14", "16"], ans: 1, hint: "차분하게 풀어보자!" },
+        { desc: `[보스전] ${gym.name}: 2단계 반격을 계산하라!`, opts: ["25", "30", "35"], ans: 1, hint: "5의 배수야!" },
+        { desc: `[보스전] ${gym.name}: 최종 일격을 계산하라!`, opts: ["100", "120", "150"], ans: 0, hint: "10의 제곱!" }
+      ]
+    };
+    battleState.phase = 0;
+    battleState.hp = 3;
+
+    const overlay = document.getElementById('battle-overlay');
+    overlay.style.background = 'linear-gradient(180deg, #1b263b 0%, #415a77 60%, #0d1b2a 100%)';
+    overlay.style.display = 'flex';
+
+    document.getElementById('b-enemy-sprite').src = gym.bossMon.sprite;
+    document.getElementById('b-enemy-name').innerText = `👑 ${gym.name}의 ${gym.bossMon.name}`;
+    document.getElementById('b-enemy-tier').innerText = "★BOSS★";
+    updateBattleHpBar(3);
+
+    // 보스전 중에는 도망 버튼 비활성화
+    const escapeBtn = document.querySelector('.btn-escape');
+    if (escapeBtn) {
+      escapeBtn.style.opacity = '0.3';
+      escapeBtn.innerText = "🔒 결전";
+    }
+
+    renderBattlePhase();
+    showToast(`⚔️ [체육관 보스전 발동!] ${gym.name}과의 공식 승부가 시작됩니다!`);
+  }
+  // 🌟 NPC 대화창 열기 (관장 필드 대화 & 공식 결전 연동)
+  function openNpcDialog(npc) {
+    activeNpc = npc;
+    const isCleared = currentUser.cleared_quests.includes(npc.id);
+
+    const quizBox = document.getElementById('npc-quiz-container');
+    const input = document.getElementById('npc-quiz-input');
+    const dialogBody = document.getElementById('npc-talk-dialog');
+    const nameElem = document.getElementById('npc-talk-name');
+    const typeElem = document.getElementById('npc-talk-type');
+    const closeBtn = document.getElementById('npc-close-btn');
+
+    nameElem.innerText = npc.name;
+
+    // 🌟 [핵심] 체육관 관장 NPC 전용 처리 (type: 'gym')
+    if (npc.type === 'gym') {
+      typeElem.innerText = "👑 체육관 관장";
+      const gym = GYM_LEADERS[npc.map_id || currentMapId];
+
+      if (!gym) {
+        dialogBody.innerText = "이곳은 현재 비어있는 체육관이다.";
+        quizBox.style.display = 'none';
+        closeBtn.innerText = "대화 종료 (B)";
+      } else if (currentUser.badges.includes(gym.badgeId)) {
+        // 이미 승리한 경우
+        dialogBody.innerText = `이미 나를 꺾고 [${gym.badgeName}]를 쟁취했구나!\n포켓몬 수학 리그 챔피언을 향해 계속 정진하렴!`;
+        quizBox.style.display = 'none';
+        closeBtn.innerText = "대화 종료 (B)";
+      } else {
+        const myCatches = monsterPool.filter(m => currentUser.captured_ids.includes(m.id) && m.type === gym.badgeId);
+        if (myCatches.length < gym.reqCount) {
+          // 속성 포켓몬 부족
+          dialogBody.innerText = `나에게 도전하려면 [${gym.badgeId.toUpperCase()}] 속성 포켓몬을 ${gym.reqCount}마리 이상 수집해야 한다!\n\n(현재 수집한 포켓몬: ${myCatches.length} / ${gym.reqCount}마리)`;
+          quizBox.style.display = 'none';
+          closeBtn.innerText = "수련하고 오겠습니다 (B)";
+        } else {
+          // 조건 충족! 결전 준비 완료
+          dialogBody.innerText = `${npc.dialog || gym.desc}\n\n⚔️ 준비가 끝났다면 나와 공식 체육관 승부를 겨루겠는가?`;
+          quizBox.style.display = 'flex';
+          document.getElementById('npc-quiz-question').innerText = `🏆 에이스 포켓몬: ${gym.bossMon.name}`;
+          input.style.display = 'none'; // 주관식 입력칸 숨김
+          const submitBtn = quizBox.querySelector('.npc-btn-submit');
+          if (submitBtn) {
+            submitBtn.innerText = "⚔️ 승부 시작 (A)";
+            submitBtn.onclick = launchGymBattle;
+          }
+          closeBtn.innerText = "준비하기 (B)";
+        }
+      }
+      document.getElementById('npc-dialog-modal').style.display = 'flex';
+      return;
+    }
+
+    // 🌟 일반 퀴즈 / 안내 NPC 복원
+    input.style.display = 'block';
+    const submitBtn = quizBox.querySelector('.npc-btn-submit');
+    if (submitBtn) {
+      submitBtn.innerText = "제출 (A)";
+      submitBtn.onclick = submitNpcQuiz;
+    }
+    closeBtn.innerText = "대화 종료 (B)";
+
+    if (isCleared) {
+      typeElem.innerText = "✅ 완료";
+      dialogBody.innerText = npc.cleared_dialog || "네 계산력은 정말 훌륭했어! 통로가 열렸으니 계속 전진하렴!";
+      quizBox.style.display = 'none';
+    } else if (npc.type === 'quiz') {
+      typeElem.innerText = "퀴즈 NPC";
+      dialogBody.innerText = npc.dialog;
+      quizBox.style.display = 'flex';
+      document.getElementById('npc-quiz-question').innerText = `Q. ${npc.quiz_q}`;
+      input.value = '';
+      setTimeout(() => input.focus(), 100);
+    } else {
+      typeElem.innerText = "안내";
+      dialogBody.innerText = npc.dialog;
+      quizBox.style.display = 'none';
+    }
+
+    document.getElementById('npc-dialog-modal').style.display = 'flex';
+  }
+
+  // 🌟 관장 대화창에서 보스전으로 즉시 전환
+  function launchGymBattle() {
+    if (!activeNpc) return;
+    const gym = GYM_LEADERS[activeNpc.map_id || currentMapId];
+    closeNpcDialog();
+    if (gym) startGymBossBattle(gym);
+  }
+
+  // 🌟 NPC 대화창 닫기
+  function closeNpcDialog() {
+    document.getElementById('npc-dialog-modal').style.display = 'none';
+    activeNpc = null;
+  }
+
+  // 🌟 NPC 퀴즈 정답 제출 및 타일 언락 & 보상 처리
+  function submitNpcQuiz() {
+    if (!activeNpc || activeNpc.type !== 'quiz') return;
+    const input = document.getElementById('npc-quiz-input');
+    const userAns = input.value.trim().toLowerCase();
+    const correctAns = String(activeNpc.quiz_a).trim().toLowerCase();
+
+    if (!userAns) {
+      showToast("정답을 입력해주세요!");
+      return;
+    }
+
+    if (userAns === correctAns) {
+      showToast("🎉 정답입니다! 훌륭하군요!");
+
+      // 1. 퀘스트 완료 목록에 추가
+      if (!currentUser.cleared_quests.includes(activeNpc.id)) {
+        currentUser.cleared_quests.push(activeNpc.id);
+      }
+
+      // 2. 보상 처리 (사탕 지급)
+      if (activeNpc.reward_type === 'candy') {
+        const rewardCount = Number(activeNpc.reward_val) || 1;
+        currentUser.candy_count += rewardCount;
+        updateHud();
+        showToast(`🍬 보상으로 사탕 ${rewardCount}개를 획득했습니다!`);
+      }
+
+      // 3. 보상 처리 (막힌 타일 길로 개방 - unlock)
+      if (activeNpc.reward_type === 'unlock' && activeNpc.reward_val) {
+        unlockMapTile(activeNpc.map_id, activeNpc.reward_val);
+      }
+
+      // 4. 구글 시트로 최종 진행 상황 저장
+      saveGameData();
+      closeNpcDialog();
+    } else {
+      showToast("❌ 오답입니다! 다시 한 번 생각해보세요.");
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  // 🌟 지정 좌표의 장애물 타일을 길('.')로 치환하여 길을 여는 함수
+  function unlockMapTile(mapId, coordStr) {
+    const parts = coordStr.split(',').map(s => Number(s.trim()));
+    if (parts.length !== 2) return;
+    const [ux, uy] = parts;
+
+    const targetMap = GOLD_MAPS[mapId];
+    if (targetMap && targetMap.grid && targetMap.grid[uy]) {
+      let rowChars = targetMap.grid[uy].split('');
+      rowChars[ux] = '.'; // 장애물 ➔ 걸을 수 있는 길
+      targetMap.grid[uy] = rowChars.join('');
+      renderScene();
+      showToast(`🔓 막혀 있던 비밀 통로가 열렸습니다!`);
+    }
+  }
+
+  // 🌟 재접속 시 이미 푼 언락 퀘스트를 맵에 일괄 적용
+  function applyClearedUnlocks() {
+    if (!currentUser.cleared_quests || currentUser.cleared_quests.length === 0) return;
+    currentUser.cleared_quests.forEach(qId => {
+      const npc = npcPool.find(n => n.id === qId);
+      if (npc && npc.reward_type === 'unlock' && npc.reward_val) {
+        unlockMapTile(npc.map_id, npc.reward_val);
+      }
+    });
+  }
+
+  // =======================================================
+  // [6] 도감 열람, 진화 시스템 및 트레이너 랭크
+  // =======================================================
+  function getTrainerRank() {
+    const total = currentUser.captured_ids.length;
+    if (total >= 300) return { title: "👑 포켓몬 마스터", color: "#ffd166", desc: "모든 대륙을 제패한 전설!" };
+    if (total >= 100) return { title: "⚡ 베테랑 트레이너", color: "#f72585", desc: "탁월한 계산력의 실력자!" }; 
+    if (total >= 50) return { title: "⚔️ 엘리트 트레이너", color: "#7209b7", desc: "수학 모험의 숙련자!" };
+    if (total >= 10) return { title: "🌟 루키 트레이너", color: "#4cc9f0", desc: "성장 중인 유망주!" };
+    return { title: "🌱 비기너 트레이너", color: "#a8dadc", desc: "첫 발을 내딛은 신입!" };
+  }
+
+  // 🌟 도감 수집 상태, 지형, 정렬 상태 관리
+  let currentDexStatusFilter = 'all'; // all | caught | uncaught
+  let currentDexBiomeFilter = 'all';  // all | grass | water | snow | volcano | sand
+  let isDexSortAsc = true;
+
+  function toggleDex(open) {
+    const modal = document.getElementById('dex-modal');
+    modal.style.display = open ? 'flex' : 'none';
+    if (open) renderDexList();
+  }
+
+  function setDexFilter(type, value, btnElem) {
+    if (type === 'status') {
+      currentDexStatusFilter = value;
+      document.querySelectorAll('[data-status-filter]').forEach(b => b.classList.remove('active'));
+      btnElem.classList.add('active');
+    } else if (type === 'biome') {
+      currentDexBiomeFilter = value;
+      document.querySelectorAll('[data-biome-filter]').forEach(b => b.classList.remove('active'));
+      btnElem.classList.add('active');
+    }
+    renderDexList();
+  }
+
+  function toggleDexSort(btnElem) {
+    isDexSortAsc = !isDexSortAsc;
+    btnElem.innerText = isDexSortAsc ? "No. ▲ 오름차순" : "No. ▼ 내림차순";
+    renderDexList();
+  }
+
+  function renderDexList() {
+    const list = document.getElementById('dex-list');
+    list.innerHTML = '';
+    const rank = getTrainerRank();
+    document.getElementById('dex-rank-info').innerText = `현재 등급: ${rank.title} (${rank.desc}) / 보유: ${currentUser.captured_ids.length}마리`;
+
+    // 1. 수집 상태 필터링 (수집완료 / 미발견)
+    let filtered = monsterPool.filter(mon => {
+      const isCaught = currentUser.captured_ids.includes(mon.id);
+      if (currentDexStatusFilter === 'caught') return isCaught;
+      if (currentDexStatusFilter === 'uncaught') return !isCaught;
+      return true;
+    });
+
+    // 2. 지형 바이옴 필터링
+    if (currentDexBiomeFilter !== 'all') {
+      filtered = filtered.filter(m => String(m.type).toLowerCase() === currentDexBiomeFilter);
+    }
+
+    // 3. 도감 번호 정렬
+    filtered.sort((a, b) => isDexSortAsc ? (Number(a.id) - Number(b.id)) : (Number(b.id) - Number(a.id)));
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="grid-column:span 2; text-align:center; color:#888; padding:30px 0; font-size:11px;">조건에 일치하는 포켓몬이 없습니다.</div>`;
+      return;
+    }
+
+    filtered.forEach(mon => {
+      const isCaught = currentUser.captured_ids.includes(mon.id);
+      const card = document.createElement('div');
+      card.className = 'dex-card';
+      card.style.opacity = isCaught ? '1' : '0.45';
+
+      let evolveHtml = '';
+      if (isCaught && mon.evolveTo) {
+        const nextMon = monsterPool.find(m => m.id === mon.evolveTo);
+        if (nextMon) {
+          evolveHtml = `<button class="evolve-btn" onclick="evolvePokemon(${mon.id}, ${nextMon.id}, ${mon.evolveCost})">✨ 진화 (${nextMon.name}: 🍬${mon.evolveCost})</button>`;
+        }
+      }
+
+      card.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px;">
+          <!-- 🌟 36px에서 2배 확대한 72px 도트 이미지 -->
+          <div style="width:72px; height:72px; display:flex; align-items:center; justify-content:center; background:#f0f4f8; border-radius:6px; border:1px solid #d0d7de;">
+            <img src="${mon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.id}.png`}" 
+                 onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.id}.png';"
+                 style="width:72px; height:72px; image-rendering:pixelated; ${isCaught ? '' : 'filter:brightness(0);'}">
+          </div>
+          <div style="width:100%;">
+            <div style="font-size:9px; color:#666;">No.${String(mon.id).padStart(3, '0')}</div>
+            <div style="font-size:12px; font-weight:bold; color:#111;">${isCaught ? mon.name : '???'}</div>
+            <div style="font-size:9px; font-weight:bold; color:${isCaught ? '#2a9d8f' : '#888'}; margin-top:1px;">
+              ${isCaught ? '✅ 등록됨' : '❓ 미발견'} · ${mon.type.toUpperCase()}
+            </div>
+          </div>
+        </div>
+        ${evolveHtml ? `<div style="display:flex; justify-content:center; margin-top:2px;">${evolveHtml}</div>` : ''}
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  // 포켓몬 진화 실행 로직
+  function evolvePokemon(fromId, toId, cost) {
+    if (currentUser.candy_count < cost) {
+      showToast(`🍬 진화 사탕이 부족합니다! (${cost}개 필요)`);
+      return;
+    }
+    const nextMon = monsterPool.find(m => m.id === toId);
+    currentUser.candy_count -= cost;
+    if (!currentUser.captured_ids.includes(toId)) {
+      currentUser.captured_ids.push(toId);
+    }
+    updateHud();
+    renderDexList();
+    saveGameData();
+    showToast(`축하합니다! 포켓몬이 [${nextMon.name}]으로 진화했습니다! ✨`);
+  }
+
+  // =======================================================
+  // [7] 시트 연동 및 시스템 HUD
+  // =======================================================
+function startAdventure() {
+    const id = document.getElementById('input-std-id').value.trim();
+    const name = document.getElementById('input-std-name').value.trim();
+    if (!id || !name) {
+      alert("학번과 이름을 입력해주세요!");
+      return;
+    }
+    currentUser.student_id = id;
+    currentUser.student_name = name;
+
+    // 🌟 1. 로그인 창 닫기
+    document.getElementById('login-modal').style.display = 'none';
+    
+    // 🌟 2. 피카츄 로딩 화면 즉시 띄우기
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingStatus = document.getElementById('loading-status');
+    if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    if (loadingStatus) loadingStatus.innerText = `🎮 ${name} 님의 모험 기록을 불러오는 중...`;
+
+    // ... (이후 시트 데이터 fetch 및 로딩 완료 후 loadingOverlay.style.display = 'none' 처리)
+    // 1. 유저 데이터 동기화 요청 (POST)
+    const userPromise = fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: "login", student_id: id, student_name: name })
+    }).then(r => r.json());
+
+    // 2. 맵 지형 및 몬스터/배틀 데이터 로드 (GET)
+    const worldPromise = fetch(GAS_URL).then(r => r.json());
+
+    // 🌟 타임아웃 없이 구글 시트 데이터가 100% 넘어올 때까지 대기
+    Promise.all([userPromise, worldPromise])
+      .then(([userData, worldData]) => {
+        
+        // (1) 월드 데이터가 왔다면 덮어쓰기
+      if (worldData) {
+        if (worldData.monsters && worldData.monsters.length > 0) monsterPool = worldData.monsters;
+        
+        // 🌟 시트의 문제 은행 데이터를 원본 그대로 저장
+        if (worldData.battles && worldData.battles.length > 0) {
+          battlePool = worldData.battles;
+        }
+
+        if (worldData.maps) {
+            Object.keys(worldData.maps).forEach(mapKey => {
+              if (GOLD_MAPS[mapKey] && worldData.maps[mapKey] && worldData.maps[mapKey].length > 0) {
+                GOLD_MAPS[mapKey].grid = worldData.maps[mapKey];
+              }
+            });
+          }
+          
+          // 🌟 [추가] 시트의 NPCs 탭 데이터 수신
+          if (worldData.npcs && worldData.npcs.length > 0) {
+            npcPool = worldData.npcs;
+          }
+          // 🌟 시트 Portals 데이터 저장
+          if (worldData.portals && worldData.portals.length > 0) {
+            portalPool = worldData.portals;
+          }
+        }
+
+        // 🚨 맵 데이터 수신 실패 시 에러 처리 (검은 화면 방지)
+        if (!GOLD_MAPS["grass"].grid || GOLD_MAPS["grass"].grid.length === 0) {
+          throw new Error("Map 데이터를 찾을 수 없습니다.");
+        }
+
+        loadingStatus.innerText = "✨ 데이터 수신 완료! 필드로 진입합니다!";
+
+        // (2) 유저 저장 데이터 복원
+        let targetMap = "grass";
+        let targetX = 12, targetY = 9;
+
+        if (userData && userData.status === "success" && userData.user) {
+          currentUser.captured_ids = userData.user.captured_ids || [];
+          currentUser.candy_count = userData.user.candy_count || 0;
+          currentUser.cleared_quests = userData.user.cleared_quests || [];
+          currentUser.badges = userData.user.badges || []; // 🌟 시트에서 배지 목록 복원
+          
+          if (userData.user.last_map) {
+            targetMap = userData.user.last_map;
+            targetX = Number(userData.user.last_x) || 12;
+            targetY = Number(userData.user.last_y) || 9;
+          }
+
+          // 🌟 이미 깬 언락 퀘스트가 있다면 맵의 막힌 타일들을 길('.')로 즉시 개방
+          applyClearedUnlocks();
+        }
+
+        const localSaved = localStorage.getItem(`pkm_pos_${currentUser.student_id}`);
+        if (localSaved) {
+          try {
+            const pos = JSON.parse(localSaved);
+            if (pos.mapId) targetMap = pos.mapId;
+            if (pos.x !== undefined) targetX = pos.x;
+            if (pos.y !== undefined) targetY = pos.y;
+          } catch(e) {}
+        }
+
+        currentMapId = (targetMap in GOLD_MAPS) ? targetMap : "grass";
+        const map = GOLD_MAPS[currentMapId];
+
+        // 좌표가 맵 밖이거나 타일이 없는 곳이면 스폰 포인트로 안전 이동
+        if (!map.grid[targetY] || targetX >= map.grid[0].length || isSolid(map.grid[targetY][targetX])) {
+          targetX = map.spawn ? map.spawn.x : 12;
+          targetY = map.spawn ? map.spawn.y : 9;
+        }
+
+        player.gridX = targetX; player.gridY = targetY;
+        player.fromX = targetX; player.fromY = targetY;
+        player.toX = targetX; player.toY = targetY;
+        player.realX = targetX * DISPLAY_TILE; player.realY = targetY * DISPLAY_TILE;
+
+        updateHud();
+        renderScene();
+
+        setTimeout(() => {
+          loadingOverlay.style.display = 'none';
+          const banner = document.getElementById('map-title-banner');
+          banner.innerText = `📍 ${GOLD_MAPS[currentMapId].name}`;
+          banner.style.display = 'block';
+          setTimeout(() => { banner.style.display = 'none'; }, 2000);
+        }, 800);
+      })
+      .catch(err => {
+        console.error("동기화 실패:", err);
+        // 에러 발생 시 로딩 창을 유지하고 문구를 바꿈
+        loadingStatus.innerText = `⚠️ 맵 로딩 실패! (${err.message})\n인터넷 연결이나 시트 공유 설정을 확인 후 새로고침하세요.`;
+        loadingStatus.style.color = "#ff4d4d";
+      });
+  }
+  function saveGameData() {
+    if (!currentUser.student_id) return;
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: "save",
+        student_id: currentUser.student_id,
+        captured_ids: currentUser.captured_ids,
+        candy_count: currentUser.candy_count,
+        cleared_quests: currentUser.cleared_quests,
+        badges: currentUser.badges, // 🌟 [추가] 획득한 배지 목록 시트에 영구 저장!
+
+        last_map: currentMapId,
+        last_x: player.gridX,
+        last_y: player.gridY
+      })
+    }).catch(e => console.error("서버 저장 실패:", e));
+  }
+
+  function updateHud() {
+    document.getElementById('player-title').innerText = `🎒 ${currentUser.student_name || '-'}`;
+    document.getElementById('candy-display').innerText = currentUser.candy_count;
+    document.getElementById('dex-display').innerText = currentUser.captured_ids.length;
+
+    // 🌟 상단 HUD에 획득한 배지 이모지 나열 (💧, ❄️, 🔥, 🏜️)
+    const badgeElem = document.getElementById('badge-display');
+    if (badgeElem) {
+      const badgeIcons = { water: "💧", snow: "❄️", volcano: "🔥", sand: "🏜️" };
+      badgeElem.innerHTML = (currentUser.badges || []).map(b => badgeIcons[b] || "🏅").join(" ");
+    }
+
+    const rank = getTrainerRank();
+    const badge = document.getElementById('rank-badge');
+    badge.innerText = rank.title;
+    badge.style.borderColor = rank.color;
+    badge.style.color = rank.color;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast-msg');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 2200);
+  }
+
+  // =======================================================
+  // [8] 입력 바인딩 (연속 이동 완벽 지원)
+  // =======================================================
+  const keysPressed = { up: false, down: false, left: false, right: false };
+
+  window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    let isDirKey = false;
+    if (key === 'arrowup' || key === 'w') { keysPressed.up = true; isDirKey = true; }
+    if (key === 'arrowdown' || key === 's') { keysPressed.down = true; isDirKey = true; }
+    if (key === 'arrowleft' || key === 'a') { keysPressed.left = true; isDirKey = true; }
+    if (key === 'arrowright' || key === 'd') { keysPressed.right = true; isDirKey = true; }
+
+    // 방향키를 누른 즉시 첫 걸음 시작
+    if (isDirKey) checkContinuousMove();
+
+    if (e.key === 'x' || e.key === 'X') handleBtnB();
+    if (e.key === 'z' || e.key === 'Z' || e.key === ' ') handleBtnA(); // Z키 또는 스페이스바로 A버튼(대화하기) 실행
+    if (e.key === 'c' || e.key === 'C') {
+      const modal = document.getElementById('dex-modal');
+      if (!battleState.active) toggleDex(modal.style.display === 'none');
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'arrowup' || key === 'w') keysPressed.up = false;
+    if (key === 'arrowdown' || key === 's') keysPressed.down = false;
+    if (key === 'arrowleft' || key === 'a') keysPressed.left = false;
+    if (key === 'arrowright' || key === 'd') keysPressed.right = false;
+  });
+
+  // 모바일 가상 패드 터치 유지 지원
+  let activeTouchDir = null;
+  document.querySelectorAll('.d-btn').forEach(btn => {
+    const dir = btn.dataset.dir;
+    if (!dir) return;
+
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      activeTouchDir = dir;
+      keysPressed[dir] = true;
+      checkContinuousMove();
+    });
+    btn.addEventListener('pointerup', () => {
+      if (activeTouchDir) keysPressed[activeTouchDir] = false;
+      activeTouchDir = null;
+    });
+    btn.addEventListener('pointerleave', () => {
+      if (activeTouchDir) keysPressed[activeTouchDir] = false;
+      activeTouchDir = null;
+    });
+  });
+
+  function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  resizeCanvas();
+  requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
