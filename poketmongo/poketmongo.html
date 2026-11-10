@@ -1608,43 +1608,35 @@
 
 function isSolid(code) { 
   const clean = String(code || '').normalize('NFKC').trim();
-  return ['T', 't', 'R', 'W', '~', 'D', 'p', 'B', 'Y', 'Z', 'O', 'V', 'w', 'v', 'S'].includes(clean); 
+  // 대소문자 및 전각 문자(ｖ)까지 안전하게 벽으로 차단
+  return ['T', 't', 'R', 'W', '~', 'D', 'p', 'B', 'Y', 'Z', 'O', 'V', 'w', 'v', 'S', 'ｖ'].includes(clean); 
 }
 
-// 🌟 [완전 시트 연동] Maps 탭의 encounter_mode 설정에 따라 100% 동작
+// 🌟 [시트 100% 연동] Maps 시트의 encounter_tiles 설정값으로만 인카운터 판정
 function isEncounterTile(code, mapId) {
   const clean = String(code || '').normalize('NFKC').trim();
-  const currentMap = GOLD_MAPS[mapId || currentMapId];
+  const targetMapKey = String(mapId || currentMapId || '').trim();
+  const currentMap = GOLD_MAPS[targetMapKey] || GOLD_MAPS[targetMapKey.toLowerCase()] || GOLD_MAPS[currentMapId];
 
-  // 1. 벽, 장애물, 포탈, 용암 타일은 배틀 불가
+  // 1. 벽, 장애물, 포탈(P, 1~4, E), 밟으면 튕기는 용암(l, ｌ)은 무조건 배틀 불가
   if (isSolid(clean)) return false;
-  if (['P', 'p', '1', '2', '3', '4', 'E', 'l'].includes(clean)) return false;
+  if (['P', 'p', '1', '2', '3', '4', 'E', 'l', 'ｌ'].includes(clean)) return false;
 
-  // 2. 시트의 encounter_mode 읽기 (기본값: all)
-  const mode = String(currentMap ? (currentMap.encounter_mode || 'all') : 'all').toLowerCase().trim();
+  // 2. Maps 시트에서 encounter_tiles 설정 읽기 (하위 호환으로 encounter_mode도 지원)
+  const rawSetting = currentMap ? (currentMap.encounter_tiles || currentMap.encounter_mode || '') : '';
+  const setting = String(rawSetting).trim();
 
-  // ① none 모드: 완전 안전 구역 (배틀 없음)
-  if (mode === 'none') return false;
+  // ① 설정값이 없거나 'none'인 경우: 완전 안전 구역 (배틀 없음)
+  if (!setting || setting.toLowerCase() === 'none') return false;
 
-  // ② path_only 모드: 오직 수풀(G, s) 및 꽃길(F), 모래(d)에서만 출현
-  if (mode === 'path_only') {
-    return ['G', 's', 'F', 'd'].includes(clean);
-  }
+  // ② 'all' 또는 '*': 벽/포탈/용암을 제외한 모든 걸을 수 있는 바닥에서 출현
+  if (setting.toLowerCase() === 'all' || setting === '*' || setting.toLowerCase() === 'danger') return true;
 
-  // ③ danger 모드: 험지(화산 등). 안전한 보도블록 없이 밟을 수 있는 모든 바닥에서 출현
-  if (mode === 'danger') {
-    return true;
-  }
-
-  // ④ all 모드 (기본 야생 맵):
-  //    일반 길('.', 'g', 'i', 'r')에서는 안전 보장, 야생 타일(수풀, 꽃길, 모래, 동굴바닥 등)에서만 출현
-  const SAFE_TILES = ['.', 'g', 'i', 'r'];
-  if (SAFE_TILES.includes(clean)) {
-    return false;
-  }
-
-  return ['G', 's', 'd', 'C', 'L', 'F'].includes(clean);
+  // ③ 지정된 타일 문자 목록 판정 (콤마나 공백으로 분리된 문자열 비교: 예: "G, s, F" 또는 "." 또는 "., F")
+  const tokens = setting.split(/[,/|\s]+/).map(t => t.trim()).filter(Boolean);
+  return tokens.includes(clean);
 }
+
 
   // =======================================================
   // [4] 메인 루프 & 걷기 물리
