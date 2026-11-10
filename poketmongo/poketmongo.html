@@ -30,9 +30,11 @@
   #gbc-wrapper {
     position: relative;
     width: 100vw;
-    max-width: 100%; /* 480px 제한 해제하여 아이패드 가로폭 전체 활용 */
+    max-width: 100%;
+    /* 🌟 도구줄(주소창/하단바)에 가려지지 않도록 100dvh 적용 */
     height: 100vh;
-    max-height: 100%; /* 840px 제한 해제하여 아이패드 높이 전체 활용 */
+    height: 100dvh;
+    max-height: 100dvh;
     background: var(--gbc-case);
     border: none;
     border-radius: 0;
@@ -41,6 +43,7 @@
     box-shadow: none;
     overflow: hidden;
   }
+
 
   #header-hud {
     height: 38px;
@@ -277,15 +280,26 @@
     color: white; font-size: 14px; border: 2px solid #780000; cursor: pointer;
   }
 
-  /* 반응형 컨트롤러 */
+  /* 🌟 반응형 컨트롤러 (삼성 브라우저 및 하단 도구줄 가림 완벽 대응) */
   #controller-pad {
-    height: 160px; background: #141622; padding: 8px 24px;
-    display: none; justify-content: space-between; align-items: center;
-    border-top: 3px solid #0a0b12; z-index: 25;
+    height: auto;
+    min-height: 135px;
+    background: #141622;
+    padding: 8px 24px;
+    /* 🌟 하단 도구줄/제스처 바에 버튼이 가려지지 않도록 안전 마진 확보 */
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    display: none; 
+    justify-content: space-between; 
+    align-items: center;
+    border-top: 3px solid #0a0b12; 
+    z-index: 25;
+    flex-shrink: 0;
   }
-  @media (hover: none) and (pointer: coarse) {
+  /* 🌟 태블릿/모바일 너비(1024px 이하) 또는 터치 기기일 때 무조건 표시 */
+  @media (max-width: 1024px), (hover: none), (pointer: coarse) {
     #controller-pad { display: flex; }
   }
+
   .d-pad { position: relative; width: 110px; height: 110px; }
   .d-btn {
     position: absolute; width: 36px; height: 36px;
@@ -635,6 +649,8 @@
     <span id="badge-display" style="font-size:12px; letter-spacing:2px; margin:0 4px;"></span>
     <span class="hud-btn" style="border-color:#ffd166; color:#ffd166; cursor:pointer;" onclick="openLeaderboardModal()">🏆 전당</span>
     <span class="hud-btn" style="border-color:#a8dadc; color:#a8dadc; cursor:pointer;" onclick="openBagModal(false)">🎒 가방</span>
+    <!-- 🌟 조작키 강제 ON/OFF 토글 버튼 추가 -->
+    <span class="hud-btn" style="border-color:#9d4edd; color:#e0aaff; cursor:pointer;" onclick="toggleControllerPad()">🕹️ 패드</span>
 
     <!-- 🌟 실시간 버프 타이머 뱃지 3종 (활성화 시에만 초 단위로 표시) -->
     <span id="honey-indicator" class="buff-badge honey-badge">🍯 꿀 60s</span>
@@ -4059,14 +4075,39 @@ function startAdventure() {
     });
   });
 
+  // 🌟 [추가] 조작키 ON/OFF 수동 토글 함수
+  function toggleControllerPad() {
+    const pad = document.getElementById('controller-pad');
+    if (!pad) return;
+    const isHidden = window.getComputedStyle(pad).display === 'none';
+    pad.style.display = isHidden ? 'flex' : 'none';
+    resizeCanvas(); // 화면 크기 재계산
+    showToast(isHidden ? "🕹️ 조작키를 표시합니다." : "🕹️ 조작키를 숨겼습니다.");
+  }
+
+  // 🌟 [추가] 삼성 브라우저 및 모바일 환경 자동 감지하여 조작키 강제 활성화
+  function checkMobileController() {
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|SamsungBrowser/i.test(navigator.userAgent);
+    const isSmallScreen = window.innerWidth <= 1024;
+
+    const pad = document.getElementById('controller-pad');
+    if (pad && (isTouch || isMobileUA || isSmallScreen)) {
+      pad.style.display = 'flex';
+    }
+  }
+  window.addEventListener('DOMContentLoaded', checkMobileController);
+
   function resizeCanvas() {
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
   }
   window.addEventListener('resize', resizeCanvas);
 
+  checkMobileController();
   resizeCanvas();
   requestAnimationFrame(gameLoop);
+
 
 // =======================================================
   // 🌟 상점 & 인벤토리 시스템 엔진
