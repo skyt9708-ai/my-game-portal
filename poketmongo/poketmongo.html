@@ -3703,20 +3703,25 @@ function startAdventure() {
           battlePool = worldData.battles;
         }
 
-        // 🌟 1. 시트의 Maps 탭 메타 정보를 읽어 GOLD_MAPS 동적 갱신 및 신규 맵 자동 등록
+                // 🌟 1. 시트의 Maps 탭 메타 정보를 읽어 GOLD_MAPS 동적 갱신 및 신규 맵 자동 등록
         if (worldData.mapMeta && worldData.mapMeta.length > 0) {
           worldData.mapMeta.forEach(m => {
             const key = String(m.map_id).trim();
-            if (!GOLD_MAPS[key]) {
-              GOLD_MAPS[key] = { grid: [] };
-            }
-            GOLD_MAPS[key].name = m.name;
-            GOLD_MAPS[key].biome = m.biome || 'grass';
-            GOLD_MAPS[key].default_floor = m.default_floor || 'path';
-            GOLD_MAPS[key].encounter_mode = m.encounter_mode || 'all';
-            GOLD_MAPS[key].spawn = { x: Number(m.spawn_x) || 12, y: Number(m.spawn_y) || 9 };
+            const lowerKey = key.toLowerCase();
+            const encSetting = m.encounter_tiles || m.encounter_chars || m.encounter_mode || '';
+
+            // 대소문자 차이로 맵 정보를 찾지 못하는 문제를 방지하기 위해 원본 키와 소문자 키 모두 등록
+            [key, lowerKey].forEach(k => {
+              if (!GOLD_MAPS[k]) GOLD_MAPS[k] = { grid: [] };
+              GOLD_MAPS[k].name = m.name;
+              GOLD_MAPS[k].biome = m.biome || 'grass';
+              GOLD_MAPS[k].default_floor = m.default_floor || 'path';
+              GOLD_MAPS[k].encounter_tiles = encSetting; // 🌟 신규 열 바인딩
+              GOLD_MAPS[k].spawn = { x: Number(m.spawn_x) || 12, y: Number(m.spawn_y) || 9 };
+            });
           });
         }
+
 
         // 🌟 2. 맵 그리드 데이터 동기화
         if (worldData.maps) {
