@@ -2650,40 +2650,77 @@ function isEncounterTile(code, mapId) {
     }, 20000);
   }
 
-  // 1분 쿨타임 도망치기 (관장 보스전은 도망 불가)
+    // 🌟 [개편] B버튼 스마트 통합 핸들러 (배틀 도망 / 대화 종료 / 모달 닫기)
   function handleBtnB() {
-    if (!battleState.active) return;
-    if (battleState.isBoss) {
-      playRetroSound('wrong');
-      showToast("⛔ 체육관 관장과의 공식 승부에서는 도망칠 수 없습니다!");
-      return;
-    }
-    const now = Date.now();
-    const elapsed = now - lastEscapeTime;
+    // 1. 배틀 중인 경우: 도망치기 처리
+    if (battleState.active) {
+      if (battleState.isBoss) {
+        playRetroSound('wrong');
+        showToast("⛔ 체육관 관장과의 공식 승부에서는 도망칠 수 없습니다!");
+        return;
+      }
+      const now = Date.now();
+      const elapsed = now - lastEscapeTime;
 
-    if (elapsed < ESCAPE_COOLDOWN) {
-      const remainSec = Math.ceil((ESCAPE_COOLDOWN - elapsed) / 1000);
-      showToast(`⏳ 아직 도망칠 수 없습니다! (${remainSec}초 남음)`);
+      if (elapsed < ESCAPE_COOLDOWN) {
+        const remainSec = Math.ceil((ESCAPE_COOLDOWN - elapsed) / 1000);
+        showToast(`⏳ 아직 도망칠 수 없습니다! (${remainSec}초 남음)`);
+        return;
+      }
+      lastEscapeTime = now;
+      document.getElementById('battle-overlay').style.display = 'none';
+      battleState.active = false;
+      battleState.isBoss = false;
+      comboCount = 0;
+      showToast("🏃 안전하게 도망쳤습니다! (쿨타임 1분)");
       return;
     }
-    lastEscapeTime = now;
-    document.getElementById('battle-overlay').style.display = 'none';
-    battleState.active = false;
-    battleState.isBoss = false; // 🌟 도망 시에도 보스 상태 확실히 초기화
-    comboCount = 0;
-    showToast("🏃 안전하게 도망쳤습니다! (쿨타임 1분)");
+
+    // 2. 🌟 [핵심] NPC 대화창이 열려 있는 경우: 대화 종료
+    const npcModal = document.getElementById('npc-dialog-modal');
+    if (activeNpc || (npcModal && npcModal.style.display === 'flex')) {
+      closeNpcDialog();
+      return;
+    }
+
+    // 3. 🌟 열려 있는 각종 모달 창 B버튼으로 닫기 지원
+    const isVisible = (id) => {
+      const el = document.getElementById(id);
+      return el && el.style.display !== 'none' && el.style.display !== '';
+    };
+
+    if (isVisible('rank-modal')) { closeRankModal(); return; }
+    if (isVisible('dex-modal')) { toggleDex(false); return; }
+    if (isVisible('leaderboard-modal')) { closeLeaderboardModal(); return; }
+    if (isVisible('shop-modal')) { closeShopModal(); return; }
+    if (isVisible('bag-modal')) { closeBagModal(); return; }
+    if (isVisible('intro-guide-modal')) { closeIntroGuide(); return; }
+    if (isVisible('capture-modal')) { closeCaptureModal(); return; }
+    if (isVisible('champion-modal')) { closeChampionModal(); return; }
   }
 
-  // 🌟 A버튼 클릭 시 사방(상/하/좌/우) 인접 NPC 감지 및 관장 배틀 연동
+  // 🌟 [개편] A버튼 스마트 통합 핸들러 (대화 시작 / 퀴즈 제출 / 확인 및 다음 / NPC 상호작용)
   function handleBtnA() {
     if (battleState.active) return;
 
-    // 🌟 1. 대화창이 이미 열려 있을 때 A버튼 처리
+    const isVisible = (id) => {
+      const el = document.getElementById(id);
+      return el && el.style.display !== 'none' && el.style.display !== '';
+    };
+
+    // 1. 🌟 축하/안내 모달이 열려 있을 때 A버튼으로 확인/진행
+    if (isVisible('capture-modal')) { closeCaptureModal(); return; }
+    if (isVisible('champion-modal')) { closeChampionModal(); return; }
+    if (isVisible('intro-guide-modal')) { nextIntroStep(); return; }
+
+    // 2. 🌟 대화창이 이미 열려 있을 때 A버튼 처리
     if (activeNpc) {
+      // 퀴즈 NPC인 경우 정답 제출
       if (activeNpc.type === 'quiz') {
         submitNpcQuiz();
         return;
       }
+      // 체육관 관장인 경우 승부 시작 또는 대화 종료
       if (activeNpc.type === 'gym') {
         const gym = resolveGymData(activeNpc);
         const isCleared = gym && currentUser.badges.includes(gym.badgeId);
@@ -2696,9 +2733,12 @@ function isEncounterTile(code, mapId) {
         }
         return;
       }
+      // 🌟 [추가] 일반 안내(guide), 보물상자(item/chest), 클리어 완료 대화는 A버튼으로도 닫기
+      closeNpcDialog();
+      return;
     }
 
-    // 🌟 2. 사방(상/하/좌/우) 어디든 붙어 있는 NPC 탐색 (문 'D' 타일 검사 완전 삭제)
+    // 3. 필드 상태: 사방(상/하/좌/우) 인접 NPC 탐색 및 대화 시작
     const dirs = [
       { d: 'up', dx: 0, dy: -1 },
       { d: 'down', dx: 0, dy: 1 },
@@ -2715,17 +2755,19 @@ function isEncounterTile(code, mapId) {
       const found = npcPool.find(npc => npc.map_id === currentMapId && Number(npc.x) === tx && Number(npc.y) === ty);
       if (found) {
         targetNpc = found;
-        faceDir = dirInfo.d; // NPC를 바라보도록 방향 설정
+        faceDir = dirInfo.d;
         break;
       }
     }
 
     if (targetNpc) {
-      player.dir = faceDir; // 플레이어 시선을 NPC 쪽으로 자동 회전
+      player.dir = faceDir;
       renderScene();
       openNpcDialog(targetNpc);
     }
   }
+
+    
 // =======================================================
   // 🌟 4대 체육관 관장 및 보스 배틀 엔진
   // =======================================================
@@ -3984,6 +4026,18 @@ function startAdventure() {
     btn.addEventListener('pointerleave', () => {
       if (activeTouchDir) keysPressed[activeTouchDir] = false;
       activeTouchDir = null;
+    });
+  });
+
+  // 🌟 [추가] 모바일 가상 A/B 버튼 딜레이 없는 즉각 터치 반응 지원
+  document.querySelectorAll('.ab-pad .round-btn').forEach(btn => {
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); // 모바일 300ms 클릭 딜레이 및 중복 트리거 방지
+      if (btn.classList.contains('btn-b')) {
+        handleBtnB();
+      } else {
+        handleBtnA();
+      }
     });
   });
 
