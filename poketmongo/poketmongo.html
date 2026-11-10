@@ -2136,11 +2136,14 @@ function isEncounterTile(code, mapId) {
     battleState.phase = 0;
     wildWrongStreak = 0; // 🌟 [추가] 새 배틀 시작 시 연속 오답 스택을 0으로 초기화
 
-    // 🌟 이미 잡은 포켓몬은 무조건 1문제(HP=1), 미발견 포켓몬은 희귀/전설에 따라 차등(일반 1, 희귀 2, 전설 3)
+        // 🌟 [수정] 실제 선택된 몬스터의 티어를 기준으로 판정 (targetTier 버그 해결)
+    const realTier = String(chosenMonster.tier || 'normal').toLowerCase().trim();
+
+    // 🌟 이미 잡은 포켓몬은 1문제(HP=1), 미등록 포켓몬은 실제 티어에 따라 차등(전설 3, 희귀 2, 일반 1)
     let setHp = 1;
     if (!isAlreadyCaught) {
-      if (targetTier === 'legendary') setHp = 3;
-      else if (targetTier === 'rare') setHp = 2;
+      if (realTier === 'legendary') setHp = 3;
+      else if (realTier === 'rare') setHp = 2;
       else setHp = 1;
     }
     battleState.maxHp = setHp;
@@ -2174,15 +2177,30 @@ function isEncounterTile(code, mapId) {
     };
     enemyImg.src = chosenMonster.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${chosenMonster.id || 25}.png`;
 
+        // 🌟 [수정] 실제 선택된 몬스터의 티어를 기준으로 판정 (targetTier 버그 해결)
+    const realTier = String(chosenMonster.tier || 'normal').toLowerCase().trim();
+
     // 🌟 이미 도감에 등록된 포켓몬은 이름 옆에 녹색 체크 표시 추가
     const namePrefix = isAlreadyCaught ? '✅ ' : '❓ ';
     document.getElementById('b-enemy-name').innerText = `${namePrefix}${chosenMonster.name}`;
 
+    // 🌟 [수정] 실제 몬스터 티어에 맞춰 라벨 및 텍스트 색상 정확하게 반영
+    const tierElem = document.getElementById('b-enemy-tier');
     let tierLabel = '';
-    if (isAlreadyCaught) tierLabel = '[등록됨]';
-    else if (targetTier === 'legendary') tierLabel = '★전설★';
-    else if (targetTier === 'rare') tierLabel = '★희귀';
-    document.getElementById('b-enemy-tier').innerText = tierLabel;
+    if (isAlreadyCaught) {
+      tierLabel = '[등록됨]';
+      tierElem.style.color = '#2a9d8f'; // 청록색
+    } else if (realTier === 'legendary') {
+      tierLabel = '★전설★';
+      tierElem.style.color = '#d90429'; // 강렬한 빨간색
+    } else if (realTier === 'rare') {
+      tierLabel = '★희귀';
+      tierElem.style.color = '#3a86ff'; // 파란색
+    } else {
+      tierLabel = '일반';
+      tierElem.style.color = '#6c757d'; // 회색
+    }
+    tierElem.innerText = tierLabel;
 
     updateBattleHpBar(battleState.hp);
     renderBattlePhase();
