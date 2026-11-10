@@ -1606,36 +1606,45 @@
     ctx.strokeRect(px, py, DISPLAY_TILE, DISPLAY_TILE);
   }
 
-function isSolid(code) { 
+
+  function isSolid(code) { 
   const clean = String(code || '').normalize('NFKC').trim();
-  // 대소문자 및 전각 문자(ｖ)까지 안전하게 벽으로 차단
+  // 대소문자 및 전각 문자(ｖ)까지 벽/장애물로 확실히 차단
   return ['T', 't', 'R', 'W', '~', 'D', 'p', 'B', 'Y', 'Z', 'O', 'V', 'w', 'v', 'S', 'ｖ'].includes(clean); 
 }
 
-// 🌟 [시트 100% 연동] Maps 시트의 encounter_tiles 설정값으로만 인카운터 판정
+// 🌟 [개편] Maps 시트의 safe_tiles(안전 타일) 기반 인카운터 판정기
 function isEncounterTile(code, mapId) {
   const clean = String(code || '').normalize('NFKC').trim();
   const targetMapKey = String(mapId || currentMapId || '').trim();
   const currentMap = GOLD_MAPS[targetMapKey] || GOLD_MAPS[targetMapKey.toLowerCase()] || GOLD_MAPS[currentMapId];
 
-  // 1. 벽, 장애물, 포탈(P, 1~4, E), 밟으면 튕기는 용암(l, ｌ)은 무조건 배틀 불가
+  // 1. 벽, 장애물, 포탈(P, 1~4, E), 밟으면 튕기는 용암(l, ｌ)은 배틀 불가
   if (isSolid(clean)) return false;
   if (['P', 'p', '1', '2', '3', '4', 'E', 'l', 'ｌ'].includes(clean)) return false;
 
-  // 2. Maps 시트에서 encounter_tiles 설정 읽기 (하위 호환으로 encounter_mode도 지원)
-  const rawSetting = currentMap ? (currentMap.encounter_tiles || currentMap.encounter_mode || '') : '';
-  const setting = String(rawSetting).trim();
+  // 2. Maps 시트에서 safe_tiles(몬스터가 나오지 않는 타일 목록) 읽기
+  const rawSafe = currentMap ? (currentMap.safe_tiles || currentMap.safe_chars || currentMap.안전타일 || '') : '';
+  const safeSetting = String(rawSafe).trim();
 
-  // ① 설정값이 없거나 'none'인 경우: 완전 안전 구역 (배틀 없음)
-  if (!setting || setting.toLowerCase() === 'none') return false;
+  // ① safe_tiles가 'all'인 경우: 맵 전체가 완전 안전 구역 (배틀 없음)
+  if (safeSetting.toLowerCase() === 'all') return false;
 
-  // ② 'all' 또는 '*': 벽/포탈/용암을 제외한 모든 걸을 수 있는 바닥에서 출현
-  if (setting.toLowerCase() === 'all' || setting === '*' || setting.toLowerCase() === 'danger') return true;
+  // ② safe_tiles가 비어있거나 'none'인 경우: 안전 타일이 없으므로 모든 이동 가능 바닥에서 배틀 발생 (Cave, Volcano 등)
+  if (!safeSetting || safeSetting.toLowerCase() === 'none') return true;
 
-  // ③ 지정된 타일 문자 목록 판정 (콤마나 공백으로 분리된 문자열 비교: 예: "G, s, F" 또는 "." 또는 "., F")
-  const tokens = setting.split(/[,/|\s]+/).map(t => t.trim()).filter(Boolean);
-  return tokens.includes(clean);
+  // ③ 쉼표(,), 슬래시(/), 공백 등으로 구분된 안전 타일 목록 파싱
+  const safeTokens = safeSetting.split(/[,/|\s]+/).map(t => t.trim()).filter(Boolean);
+
+  // 밟고 있는 타일이 안전 타일 목록에 들어있다면 배틀 차단
+  if (safeTokens.includes(clean)) {
+    return false;
+  }
+
+  // 안전 타일 목록에 없으면 몬스터 출현!
+  return true;
 }
+
 
 
   // =======================================================
