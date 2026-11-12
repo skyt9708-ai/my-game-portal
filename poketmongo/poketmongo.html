@@ -18,12 +18,15 @@
     image-rendering: pixelated;
   }
   body {
+    position: fixed;
+    inset: 0;
     background: var(--gbc-bg);
     color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 
@@ -50,20 +53,30 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 12px;
+    gap: 3px;
+    padding: 0 6px;
     border-bottom: 2px solid #0a0b12;
-    font-size: 11px;
+    font-size: 10px;
     color: #f7d51d;
     text-shadow: 1px 1px 0 #000;
     z-index: 30;
+    overflow-x: auto;
+    white-space: nowrap;
   }
   .hud-btn {
     background: #2b3044;
-    padding: 2px 7px;
+    padding: 2px 5px;
     border-radius: 4px;
     border: 1px solid #f7d51d;
     cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
+  #player-title, #badge-display, #hud-candy-box {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
   /* 🌟 [개편] 실시간 아이템 버프 타이머 뱃지 (초 단위 카운트다운) */
   .buff-badge {
     padding: 2px 6px;
@@ -96,9 +109,11 @@
   #canvas-container {
     position: relative;
     flex: 1;
+    min-height: 0;
     background: #000;
     overflow: hidden;
   }
+
   #game-canvas {
     width: 100%;
     height: 100%;
@@ -217,19 +232,36 @@
     box-shadow: 1px 1px 0 rgba(0,0,0,0.15);
   }
 
-  /* 🌟 [핵심] 교과서 스타일 정밀 루트(근호) 렌더러 */
+  /* 🌟 [핵심] 교과서 스타일 정밀 루트(근호) 렌더러 (세로 분수 높이 자동 대응) */
   .sqrt-wrap {
-    display: inline-flex; align-items: baseline; vertical-align: baseline;
-    margin: 0 1.5px; font-family: 'Consolas', sans-serif;
+    display: inline-flex; align-items: stretch; vertical-align: middle;
+    margin: 0 2px; font-family: 'Consolas', sans-serif;
   }
   .sqrt-sym {
-    font-size: 1.15em; transform: scaleY(1.05); margin-right: -1.5px;
+    display: inline-flex; align-items: center;
+    font-size: 1.2em; margin-right: -1px;
     line-height: 1; user-select: none;
   }
   .sqrt-rad {
+    display: inline-flex; align-items: center;
     border-top: 1.8px solid currentColor; /* 근호 윗줄 */
-    padding: 0 2px 0 1px; margin-top: -1px;
+    padding: 1px 2px 0 2px;
     line-height: 1.1; font-size: 0.95em;
+  }
+
+  /* 🌟 픽셀 폰트 깨짐 없는 순환소수 점 렌더러 */
+  .rep-dot {
+    position: relative;
+    display: inline-block;
+  }
+  .rep-dot::before {
+    content: '•';
+    position: absolute;
+    top: -0.62em;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75em;
+    line-height: 1;
   }
 
   /* 🌟 [추가] 교과서 스타일 위아래 세로 분수 렌더러 */
@@ -399,11 +431,11 @@
   /* 🌟 반응형 컨트롤러 (삼성 브라우저 및 하단 도구줄 가림 완벽 대응) */
   #controller-pad {
     height: auto;
-    min-height: 135px;
+    min-height: 145px;
     background: #141622;
     padding: 8px 24px;
-    /* 🌟 하단 도구줄/제스처 바에 버튼이 가려지지 않도록 안전 마진 확보 */
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    /* 🌟 안드로이드 하단 바 및 아이폰 제스처 바 모두 가려지지 않도록 충분한 하단 여백 확보 */
+    padding-bottom: max(26px, calc(env(safe-area-inset-bottom) + 16px));
     display: none; 
     justify-content: space-between; 
     align-items: center;
@@ -411,6 +443,7 @@
     z-index: 25;
     flex-shrink: 0;
   }
+
   /* 🌟 태블릿/모바일 너비(1024px 이하) 또는 터치 기기일 때 무조건 표시 */
   @media (max-width: 1024px), (hover: none), (pointer: coarse) {
     #controller-pad { display: flex; }
@@ -1511,6 +1544,18 @@
           <!-- 몬스터볼 투척 연출 -->
           <img id="pokeball-actor" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" alt="ball" style="position:absolute; top:35%; left:35%;">
         </div>
+
+        <!-- 🌟 [추가] 배틀 아레나 위 반투명 손글씨 수학 연습장 오버레이 -->
+        <div id="scratchpad-wrap" style="display:none; position:absolute; inset:0; background:rgba(255,253,245,0.82); z-index:78; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 8px; background:#2b3044; color:#ffd166; font-size:10px;">
+            <span>✏️ 손글씨 연습장 (여기에 식을 적으며 계산하세요)</span>
+            <div style="display:flex; gap:6px;">
+              <button onclick="clearScratchpad()" style="background:#457b9d; color:#fff; border:none; padding:2px 7px; border-radius:3px; font-size:9px; cursor:pointer;">지우기</button>
+              <button onclick="toggleScratchpad(false)" style="background:#e63946; color:#fff; border:none; padding:2px 7px; border-radius:3px; font-size:9px; cursor:pointer;">닫기(X)</button>
+            </div>
+          </div>
+          <canvas id="scratchpad-canvas" style="flex:1; width:100%; height:100%; touch-action:none; cursor:crosshair;"></canvas>
+        </div>
       </div>
 
       <!-- 일체형 배틀 패널 -->
@@ -1518,6 +1563,7 @@
         <div class="panel-header">
           <div class="dialog-text" id="b-dialog-text">배틀 개시!</div>
           <div class="panel-btns">
+            <button class="mini-btn" style="background:#7209b7;" onclick="toggleScratchpad()">✏️ 연습장</button>
             <button class="mini-btn" style="background:#2a9d8f;" onclick="openBagModal(true)">🎒 가방</button>
             <button class="mini-btn btn-chance" id="btn-5050" onclick="use5050Chance()">🍬 오답제거</button>
             <button class="mini-btn btn-escape" onclick="handleBtnB()">🏃 도망</button>
@@ -2681,7 +2727,7 @@ function isEncounterTile(code, mapId) {
       const pool = p1List.length > 0 ? p1List : battlePool;
       qRow = parseSingleQuestionRow(pool[Math.floor(Math.random() * pool.length)]);
     }
-    if (!qRow) {s
+    if (!qRow) {
       qRow = { desc: "15 + 27 의 값은 얼마일까요?", opts: ["32", "42", "52"], ans: 1 };
     }
 
@@ -2770,9 +2816,9 @@ function isEncounterTile(code, mapId) {
       return p1.split('').map(ch => superscripts[ch] || ch).join('');
     });
 
-    // 3. 순환소수 변환: 1.5(4) -> 1.54̇ (순환마디 위 점 표기)
+    // 3. 순환소수 변환: 1.5(4) -> 폰트 깨짐 없는 CSS 점 표기
     text = text.replace(/(\d+)\((\d+)\)/g, function(m, p1, p2) {
-      const dotted = p2.split('').map(ch => ch + '\u0307').join('');
+      const dotted = p2.split('').map(ch => `<span class="rep-dot">${ch}</span>`).join('');
       return p1 + dotted;
     });
 
@@ -3199,7 +3245,12 @@ function isEncounterTile(code, mapId) {
   }
 
   // 🌟 수식 변환기가 적용된 배틀 렌더러
+// (A) renderBattlePhase 초반부: 단계가 바뀔 때마다 오답제거 사용 여부 초기화
   function renderBattlePhase() {
+    battleState.used5050InPhase = false; // 🌟 현재 단계(Phase) 오답제거 1회 제한 리셋
+    const btn5050 = document.getElementById('btn-5050');
+    if (btn5050) btn5050.style.opacity = '1';
+
     const totalSteps = battleState.maxHp || (battleState.isBoss ? 3 : 1);
     const phaseData = battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0];
     
@@ -3395,6 +3446,10 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
     if (isCorrect) {
       comboCount++;
       wildWrongStreak = 0; // 🌟 [추가] 정답을 맞히면 연속 오답 카운터 즉시 0 리셋!
+      if (!currentUser.inventory) currentUser.inventory = {};
+      if (comboCount > (Number(currentUser.inventory.max_combo) || 0)) {
+        currentUser.inventory.max_combo = comboCount;
+      }
       if (comboCount >= 3 && !isFeverActive) activateFever();
 
       // 🌟 [개편] 정답 시 알 부화기 게이지 증가 (고난도 3단계 문제 정답 시 +2 가속, 피버 시 추가 보너스)
@@ -3599,12 +3654,32 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
         document.getElementById('b-dialog-text').innerText = `${cheerPrefix}${hintMsg}`;
       }
 
+      // (C) handlePlayerAction 내 오답 복귀 타이머: 그림자 포켓몬 포획 전환 & 영구 힌트 박스 유지
       setTimeout(() => {
         if (battleState.active) {
           if (willFlee) {
-            // 🌟 도주 시 필드 복귀 처리
-            playRetroSound('wrong');
-            showToast(`💨 앗! 야생의 ${battleState.monster.name}이(가) 도망쳐버렸다...`);
+            // 🌟 [포켓몬 GO 접목] 빈손 도주 대신 '그림자 포켓몬(Shadow)' 상태로 포획하여 오답 복습 유도!
+            const targetMonId = Number(battleState.monster.id);
+            if (!currentUser.inventory) currentUser.inventory = {};
+            if (!currentUser.inventory.shadows) currentUser.inventory.shadows = {};
+            
+            // 이미 정식 등록된 포켓몬이 아닐 경우 그림자 상태로 도감 등록
+            if (!currentUser.captured_ids.includes(targetMonId)) {
+              currentUser.captured_ids.push(targetMonId);
+              currentUser.inventory.shadows[targetMonId] = {
+                zone: battleState.battleData.zone || currentMapId,
+                missedDesc: (battleState.battleData.phases[battleState.phase] || {}).desc || ""
+              };
+              if (!currentUser.inventory.stars) currentUser.inventory.stars = {};
+              currentUser.inventory.stars[targetMonId] = 0; // 그림자 상태는 0성
+              updateHud();
+              saveGameData();
+              playRetroSound('ball');
+              showToast(`🟣 폭주하는 [${battleState.monster.name}]을(를) '그림자 상태'로 포획했습니다! (도감에서 복습 정화 가능)`);
+            } else {
+              playRetroSound('wrong');
+              showToast(`💨 앗! 야생의 ${battleState.monster.name}이(가) 도망쳐버렸다...`);
+            }
             document.getElementById('battle-overlay').style.display = 'none';
             battleState.active = false;
             isAnswerLocked = false;
@@ -3617,9 +3692,12 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
           isAnswerLocked = false;
           const totalSteps = battleState.maxHp || 1;
           const phaseData = battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0];
-          document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 1}/${totalSteps}단계]</b> ${formatMathText(phaseData.desc)}`;
+          // 🌟 3초가 지나도 힌트가 사라지지 않고 문제 하단에 고정되어 풀이 스캐폴딩 제공!
+          const persistentHint = (phaseData.hint && String(phaseData.hint).trim() !== "")
+            ? `<div style="margin-top:4px; padding:3px 6px; background:#e8f5e9; border-left:3px solid #2a9d8f; font-size:10px; color:#1b4332;">💡 <b>파트너의 힌트:</b> ${formatMathText(phaseData.hint)}</div>`
+            : "";
+          document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 1}/${totalSteps}단계]</b> ${formatMathText(phaseData.desc)}${persistentHint}`;
           
-          // 🌟 [핵심 변경] 기존 고정 버튼 텍스트 교체 대신 3개 보기 버튼을 무작위로 섞어서 새로 배치
           reshuffleBattleOptions(phaseData);
         }
       }, 3000);
@@ -4029,13 +4107,21 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
   }
 
   // 사탕 버프: 50:50 찬스 (오답 보기 1개 즉시 소멸)
+// (B) use5050Chance 초반부: 한 문제당 1회만 오답제거 허용 (찍기 방지)
   function use5050Chance() {
     if (isAnswerLocked || !battleState.active) return;
+    if (battleState.used5050InPhase) {
+      playRetroSound('wrong');
+      showToast("⛔ 오답제거 찬스는 한 문제당 1번만 사용할 수 있습니다!");
+      return;
+    }
     if (currentUser.candy_count < 1) {
       showToast("🍬 사탕이 부족합니다! (1개 필요)");
       return;
     }
-    const grid = document.getElementById('b-action-grid');
+    battleState.used5050InPhase = true;
+    const btn5050 = document.getElementById('btn-5050');
+    if (btn5050) btn5050.style.opacity = '0.4';    const grid = document.getElementById('b-action-grid');
     const wrongItems = [];
     battleState.currentOpts.forEach((opt, idx) => {
       const btn = grid.children[idx];
@@ -4060,21 +4146,6 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
         setTutorialStep(21);
       }
     }
-  }
-
-  // 골든 피버 모드 (20초 지속)
-  function activateFever() {
-    isFeverActive = true;
-    document.getElementById('fever-indicator').style.display = 'inline-block';
-    showToast("🔥 [골든 피버 발동!] 20초간 희귀 출현 및 사탕 획득 2배!");
-
-    if (feverTimer) clearTimeout(feverTimer);
-    feverTimer = setTimeout(() => {
-      isFeverActive = false;
-      document.getElementById('fever-indicator').style.display = 'none';
-      comboCount = 0;
-      showToast("💨 골든 피버 종료!");
-    }, 20000);
   }
 
   // 🌟 [개편] B버튼 스마트 통합 핸들러 (배틀 도망 / 대화 종료 / 모달 닫기)
@@ -5382,9 +5453,16 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       const bList = Array.isArray(u.badges) ? u.badges : [];
       const cCount = Number(u.captured_count !== undefined ? u.captured_count : (Array.isArray(u.captured_ids) ? u.captured_ids.length : 0));
       const candy = Number(u.candy_count) || 0;
-      const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
-      const score = calculateLeagueScore(bList, cCount, candy);
-      const pId = u.partner_id || (u.id === String(currentUser.student_id) ? currentUser.partner_id : null);
+const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
+      // 🌟 유저 인벤토리 내 총 강화 횟수(upgrades 객체 값의 합) 추출하여 점수(+150점/강) 반영
+      let upgTotal = 0;
+      const invObj = (typeof u.inventory === 'string') ? JSON.parse(u.inventory || '{}') : (u.inventory || {});
+      if (invObj && invObj.upgrades) {
+        upgTotal = Object.values(invObj.upgrades).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      } else if (String(u.student_id) === String(currentUser.student_id) && currentUser.inventory && currentUser.inventory.upgrades) {
+        upgTotal = Object.values(currentUser.inventory.upgrades).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      }
+      const score = calculateLeagueScore(bList, cCount, candy, upgTotal);      const pId = u.partner_id || (u.id === String(currentUser.student_id) ? currentUser.partner_id : null);
 
       return {
         id: String(u.student_id || ''),
@@ -5738,7 +5816,10 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
         tierBadge = `<span style="font-size:8px; background:#adb5bd; color:#222; padding:1px 3px; border-radius:3px; font-weight:bold; letter-spacing:-0.5px;">일반</span>`;
       }
 
-      const REINFORCE_COST = 10;
+const isShadow = isCaught && inv.shadows && inv.shadows[numId];
+      const isPurified = isCaught && inv.purified && inv.purified.includes(numId);
+      // 🌟 정화된 포켓몬은 포켓몬 GO처럼 강화·진화 사탕 비용 20% 할인 (10개 -> 8개)
+      const REINFORCE_COST = isPurified ? 8 : 10;
 
       // 🌟 별 등급(1~3성) 뱃지 생성
       let starHtml = '';
@@ -5751,33 +5832,42 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
         starHtml = `<span style="font-size:8.5px; color:#555; letter-spacing:-1px;">☆☆☆</span>`;
       }
 
-      // 🌟 포획 완료 포켓몬 전용 2열 버튼 그리드 생성 (미발견 카드는 빈 영역 미생성)
+      // 🌟 포획 완료 포켓몬 전용 2열 버튼 그리드 생성 (그림자 / 일반·정화 분기)
       let actionGridHtml = '';
       if (isCaught) {
-        let evolveHtml = '';
-        const evoTargetId = Number(mon.evolveTo || mon['evolve to'] || mon.evolveto || 0);
-        const evoNeedCandy = Number(mon.evolveCost || mon.evolvecost || 0);
-        if (evoTargetId > 0) {
-          const nextMon = monsterPool.find(m => Number(m.id) === evoTargetId);
-          if (nextMon) {
-            evolveHtml = `<button class="evolve-btn" onclick="evolvePokemon(${mon.id}, ${nextMon.id}, ${evoNeedCandy})">✨ 진화(🍬${evoNeedCandy})</button>`;
+        if (isShadow) {
+          actionGridHtml = `
+            <div class="dex-btn-grid">
+              <button class="evolve-btn span-2" style="background:#7209b7; border-color:#ffd166;" onclick="purifyShadowPokemon(${mon.id})">
+                ✨ 그림자 정화하기 (복습 시 ★★★ & 사탕 20% 할인)
+              </button>
+            </div>
+          `;
+        } else {
+          let evolveHtml = '';
+          const evoTargetId = Number(mon.evolveTo || mon['evolve to'] || mon.evolveto || 0);
+          const rawEvoCost = Number(mon.evolveCost || mon.evolvecost || 0);
+          const evoNeedCandy = isPurified ? Math.max(1, Math.floor(rawEvoCost * 0.8)) : rawEvoCost;
+          if (evoTargetId > 0) {
+            const nextMon = monsterPool.find(m => Number(m.id) === evoTargetId);
+            if (nextMon) {
+              evolveHtml = `<button class="evolve-btn" onclick="evolvePokemon(${mon.id}, ${nextMon.id}, ${evoNeedCandy})">✨ 진화(🍬${evoNeedCandy})</button>`;
+            }
           }
+          const spanClass = evolveHtml ? 'span-2' : '';
+          const isMyPartner = (currentUser.partner_id == mon.id);
+          const partnerHtml = isMyPartner
+            ? `<div class="partner-badge ${spanClass}">👑 대표 파트너</div>`
+            : `<button class="partner-btn ${spanClass}" onclick="setPartnerPokemon(${mon.id})">⭐ 파트너 지정</button>`;
+
+          actionGridHtml = `
+            <div class="dex-btn-grid">
+              <button class="reinforce-btn" onclick="reinforcePokemon(${mon.id}, ${REINFORCE_COST})">💪 강화(🍬${REINFORCE_COST})</button>
+              ${evolveHtml}
+              ${partnerHtml}
+            </div>
+          `;
         }
-
-        // 진화 버튼이 있으면 파트너 버튼을 아래줄 2칸(span-2)에 꽉 차게, 없으면 1행 2열에 나란히 배치
-        const spanClass = evolveHtml ? 'span-2' : '';
-        const isMyPartner = (currentUser.partner_id == mon.id);
-        const partnerHtml = isMyPartner
-          ? `<div class="partner-badge ${spanClass}">👑 대표 파트너</div>`
-          : `<button class="partner-btn ${spanClass}" onclick="setPartnerPokemon(${mon.id})">⭐ 파트너 지정</button>`;
-
-        actionGridHtml = `
-          <div class="dex-btn-grid">
-            <button class="reinforce-btn" onclick="reinforcePokemon(${mon.id})">💪 강화(🍬${REINFORCE_COST})</button>
-            ${evolveHtml}
-            ${partnerHtml}
-          </div>
-        `;
       }
 
       card.innerHTML = `
@@ -5817,52 +5907,110 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       list.appendChild(card);
     });
   }
+// 🌟 [포켓몬 GO 접목] 그림자 포켓몬 복습 정화 함수
+  function purifyShadowPokemon(monId) {
+    const numId = Number(monId);
+    const shadowInfo = (currentUser.inventory && currentUser.inventory.shadows && currentUser.inventory.shadows[numId]) || {};
+    const targetZone = shadowInfo.zone || currentMapId;
+    const reviewBattle = createFormattedBattle(targetZone, targetZone);
+    const qObj = reviewBattle.phases[0];
 
-  // 🌟포켓몬 강화 사탕 개수 수정
-  function reinforcePokemon(monId) {
-    const REINFORCE_COST = 10; // 👈 필요한 사탕 개수를 여기서 자유롭게 변경하세요!
+    const cleanQ = qObj.desc.replace(/<[^>]*>/g, '');
+    const userAns = prompt(`✨ [그림자 포켓몬 정화 리서치]\n아래 복습 문제를 풀면 포켓몬의 어두운 오라가 정화되어\n즉시 3성(★★★)이 되고 진화·강화 사탕이 20% 할인됩니다!\n\n문제: ${cleanQ}\n💡 힌트: ${qObj.hint || '차근차근 계산해 보세요!'}\n(보기: ${qObj.opts.join('  |  ')})`);
+    if (userAns === null) return;
+
+    const correctText = String(qObj.opts[qObj.ans]).replace(/<[^>]*>/g, '').trim();
+    if (userAns.trim().replace(/\s+/g, '') === correctText.replace(/\s+/g, '')) {
+      delete currentUser.inventory.shadows[numId];
+      if (!Array.isArray(currentUser.inventory.purified)) currentUser.inventory.purified = [];
+      if (!currentUser.inventory.purified.includes(numId)) currentUser.inventory.purified.push(numId);
+      if (!currentUser.inventory.stars) currentUser.inventory.stars = {};
+      currentUser.inventory.stars[numId] = 3; // 정화 완료 시 3성 확정!
+
+      playRetroSound('fanfare');
+      renderDexList();
+      saveGameData();
+      showToast("✨ 정화 성공! 3성(★★★) 승급 및 진화·강화 사탕 20% 영구 할인이 적용되었습니다!");
+    } else {
+      playRetroSound('wrong');
+      showToast("❌ 아쉽습니다! 힌트를 보고 다시 정화에 도전해 보세요!");
+    }
+  }
+
+  // 🌟 포켓몬 강화 실행 (정화 할인 가격 및 이로치 개체명 대응)
+  function reinforcePokemon(monId, costOverride) {
+    if (!currentUser.inventory) currentUser.inventory = {};
+    if (!currentUser.inventory.upgrades) currentUser.inventory.upgrades = {};
+
+    const numId = Number(monId);
+    const baseId = Math.floor(numId);
+    const variant = getShinyVariantById(numId);
+    const isPurified = Array.isArray(currentUser.inventory.purified) && currentUser.inventory.purified.includes(numId);
+    const REINFORCE_COST = costOverride || (isPurified ? 8 : 10);
+
     if (currentUser.candy_count < REINFORCE_COST) {
       playRetroSound('wrong');
       showToast(`🍬 강화에 필요한 사탕이 부족합니다! (사탕 ${REINFORCE_COST}개 필요)`);
       return;
     }
-    if (!currentUser.inventory) currentUser.inventory = {};
-    if (!currentUser.inventory.upgrades) currentUser.inventory.upgrades = {};
 
     currentUser.candy_count -= REINFORCE_COST;
-    const nextLv = (Number(currentUser.inventory.upgrades[monId]) || 0) + 1;
-    currentUser.inventory.upgrades[monId] = nextLv;
+    const nextLv = (Number(currentUser.inventory.upgrades[numId]) || 0) + 1;
+    currentUser.inventory.upgrades[numId] = nextLv;
 
-    const mon = monsterPool.find(m => m.id == monId);
+    const mon = monsterPool.find(m => Number(m.id) === baseId);
+    const monName = mon ? (variant ? `${variant.prefix} ${mon.name}` : mon.name) : '포켓몬';
+
     playRetroSound('correct');
     updateHud();
     renderDexList();
     saveGameData();
-    showToast(`💪 [${mon ? mon.name : '포켓몬'}]이(가) +${nextLv}강으로 강화되었습니다! (전당 점수 +150)`);
+    showToast(`💪 [${monName}]이(가) +${nextLv}강으로 강화되었습니다! (전당 점수 +150)`);
   }
 
-  // 포켓몬 진화 실행 로직
+  // 🌟 포켓몬 진화 실행 (이로치 변색·별 등급·정화 혜택 계승)
   function evolvePokemon(fromId, toId, cost) {
     if (currentUser.candy_count < cost) {
       showToast(`🍬 진화 사탕이 부족합니다! (${cost}개 필요)`);
       return;
     }
-    const nextMon = monsterPool.find(m => m.id === toId);
+    const numFromId = Number(fromId);
+    const variant = getShinyVariantById(numFromId);
+    const finalToId = variant ? Number((Number(toId) + variant.code * 0.1).toFixed(1)) : Number(toId);
+    const nextMon = monsterPool.find(m => Number(m.id) === Number(toId));
+    if (!nextMon) return;
+
+    if (!currentUser.inventory) currentUser.inventory = {};
     currentUser.candy_count -= cost;
-    if (!currentUser.captured_ids.includes(toId)) {
-      currentUser.captured_ids.push(toId);
+
+    if (!currentUser.captured_ids.some(cid => Number(cid) === finalToId)) {
+      currentUser.captured_ids.push(finalToId);
     }
 
-    // 🌟 [추가] 누적 진화 횟수 카운트 (10단계 evolve_total 미션용)
-    if (!currentUser.inventory) currentUser.inventory = {};
+    // 🌟 이로치·별 등급·정화 상태 계승
+    if (variant) {
+      if (!Array.isArray(currentUser.inventory.shinies)) currentUser.inventory.shinies = [];
+      if (!currentUser.inventory.shinies.includes(finalToId)) currentUser.inventory.shinies.push(finalToId);
+    }
+    if (currentUser.inventory.stars && currentUser.inventory.stars[numFromId]) {
+      const prevStar = currentUser.inventory.stars[numFromId];
+      currentUser.inventory.stars[finalToId] = Math.max(currentUser.inventory.stars[finalToId] || 1, prevStar);
+    }
+    if (Array.isArray(currentUser.inventory.purified) && currentUser.inventory.purified.includes(numFromId)) {
+      if (!currentUser.inventory.purified.includes(finalToId)) currentUser.inventory.purified.push(finalToId);
+    }
+
+    // 누적 진화 횟수 카운트
     currentUser.inventory.evolve_count = (Number(currentUser.inventory.evolve_count) || 0) + 1;
 
+    const evolvedName = variant ? `${variant.prefix} ${nextMon.name}` : nextMon.name;
+    playRetroSound('fanfare');
     updateHud();
     renderDexList();
     checkQuestProgress('evolve');
-    checkQuestProgress('evolve_total'); // 🌟 [추가] 누적 진화 미션 트리거
+    checkQuestProgress('evolve_total');
     saveGameData();
-    showToast(`축하합니다! 포켓몬이 [${nextMon.name}]으로 진화했습니다! ✨`);
+    showToast(`축하합니다! 포켓몬이 [${evolvedName}]으로 진화했습니다! ✨`);
   }
 
 // 🌟 [추가] 대표 파트너 포켓몬 지정 함수
@@ -6424,8 +6572,8 @@ function startAdventure() {
       currentUser.inventory = {};
     }
 
-    // 🌟 시스템 내부 숫자 변수(부화기 진행도, 미션 누적 카운터 등)는 가방 목록에서 제외
-    const sysNumKeys = ['egg_progress', 'egg_max', 'evolve_count', 'buy_count'];
+    // 🌟 시스템 내부 숫자 변수(친밀도, 최고콤보, 부화기 진행도, 미션 누적 카운터 등)는 가방 목록에서 제외
+    const sysNumKeys = ['friendship', 'max_combo', 'egg_progress', 'egg_max', 'evolve_count', 'buy_count'];
     const ownedKeys = Object.keys(currentUser.inventory || {}).filter(
       k => !sysNumKeys.includes(k) && typeof currentUser.inventory[k] === 'number' && currentUser.inventory[k] > 0
     );
@@ -6669,8 +6817,8 @@ function evaluateQuest(q) {
     maxVal = Number(parts[1]) || 1;
     curVal = monsterPool.filter(m => (currentUser.captured_ids || []).includes(m.id) && String(m.tier).toLowerCase().trim() === reqTier).length;
   } else if (targetType === 'combo') {
-    // 연속 정답 콤보
-    curVal = comboCount;
+    // 연속 정답 콤보 (현재 콤보 및 최고 기록 중 큰 값 반영)
+    curVal = Math.max(comboCount, Number(inv.max_combo) || 0);
   } else if (targetType === 'gym_clear') {
     // 특정 체육관 배지 획득 여부
     curVal = (currentUser.badges || []).includes(targetVal.toLowerCase()) ? 1 : 0;
@@ -6705,8 +6853,9 @@ function evaluateQuest(q) {
     // 🌟 [개편] 누적 진화 횟수 (1회 진화 및 5회 누적 진화 모두 지원)
     curVal = isClaimed ? maxVal : (Number(inv.evolve_count) || 0);
   } else if (targetType === 'league_score') {
-    // 🌟 [추가] 리그 랭킹 복합 점수 달성 여부
-    curVal = calculateLeagueScore(currentUser.badges, (currentUser.captured_ids || []).length, currentUser.candy_count);
+    // 🌟 리그 랭킹 복합 점수 달성 여부 (강화 보너스 포함)
+    const upgTotal = inv.upgrades ? Object.values(inv.upgrades).reduce((acc, v) => acc + (Number(v) || 0), 0) : 0;
+    curVal = calculateLeagueScore(currentUser.badges, (currentUser.captured_ids || []).length, currentUser.candy_count, upgTotal);
   }
 
   const isCompleted = curVal >= maxVal;
@@ -6998,6 +7147,32 @@ function triggerRaidVictory() {
   });
   showToast(`🎉우리 반이 [${battleState.monster.name}]을 격파했습니다! (사탕 +${candyReward})`);
 }
+
+// 🌟 [추가] 반투명 수학 손글씨 연습장 제어 엔진
+let isDrawingPad = false;
+function toggleScratchpad(force) {
+  const wrap = document.getElementById('scratchpad-wrap');
+  const cvs = document.getElementById('scratchpad-canvas');
+  if (!wrap || !cvs) return;
+  const show = (force !== undefined) ? force : (wrap.style.display === 'none');
+  wrap.style.display = show ? 'flex' : 'none';
+  if (show) {
+    cvs.width = cvs.clientWidth;
+    cvs.height = cvs.clientHeight;
+    const c = cvs.getContext('2d');
+    c.strokeStyle = '#1d3557';
+    c.lineWidth = 2.5;
+    c.lineCap = 'round';
+    cvs.onpointerdown = (e) => { isDrawingPad = true; c.beginPath(); c.moveTo(e.offsetX, e.offsetY); };
+    cvs.onpointermove = (e) => { if (!isDrawingPad) return; c.lineTo(e.offsetX, e.offsetY); c.stroke(); };
+    cvs.onpointerup = () => { isDrawingPad = false; };
+  }
+}
+function clearScratchpad() {
+  const cvs = document.getElementById('scratchpad-canvas');
+  if (cvs) cvs.getContext('2d').clearRect(0, 0, cvs.width, cvs.height);
+}
+
 </script>
 </body>
 </html>
