@@ -2221,7 +2221,21 @@
   let sprayInterval = null;
   let sprayTimeRemaining = 0;
 
-  // 1. 벌레회피 스프레이 가동 (기본 30초)
+  // 🌟 현재 순수 맵 탐험 중인지 판별 (배틀·포켓기어·가방·상점·대화창 열림 시 false)
+  function isPureMapExploring() {
+    if (!currentUser.student_id || battleState.active || isWarping || activeNpc) return false;
+    const blockingModals = [
+      'pokegear-modal', 'shop-modal', 'bag-modal', 'rank-modal',
+      'capture-modal', 'champion-modal', 'npc-dialog-modal',
+      'intro-guide-modal', 'starter-modal', 'tut-ending-modal', 'loading-overlay'
+    ];
+    return !blockingModals.some(id => {
+      const el = document.getElementById(id);
+      return el && el.style.display !== 'none' && el.style.display !== '';
+    });
+  }
+
+  // 1. 벌레회피 스프레이 가동 (맵 탐험 중에만 30초 카운트다운)
   function activateRepelSpray(durationSec = 30) {
     if (battleState.active) {
       showToast("배틀 중에는 스프레이를 사용할 수 없습니다!");
@@ -2236,10 +2250,16 @@
       badge.innerText = `🧪 스프레이 ${sprayTimeRemaining}s`;
     }
     playRetroSound('ball');
-    showToast(`🧪 [스프레이 분사!] ${durationSec}초간 야생 포켓몬이 나타나지 않습니다!`);
+    showToast(`🧪 [스프레이 분사!] 맵 탐험 중 ${durationSec}초간 야생 포켓몬 출현 차단!`);
 
     if (sprayInterval) clearInterval(sprayInterval);
     sprayInterval = setInterval(() => {
+      // 🌟 배틀 중이거나 포켓기어·가방·대화창이 열려 있으면 타이머 일시 정지!
+      if (!isPureMapExploring()) {
+        if (badge) badge.innerText = `🧪 스프레이 ${sprayTimeRemaining}s(정지)`;
+        return;
+      }
+
       sprayTimeRemaining--;
       if (badge) badge.innerText = `🧪 스프레이 ${sprayTimeRemaining}s`;
 
@@ -2253,69 +2273,57 @@
     }, 1000);
   }
 
-  // 2. 달콤한꿀 가동 (기본 60초)
+  // 🌟 상단 버프 뱃지(배틀 횟수제 꿀·피버) 동기화 헬퍼
+  function syncBattleBuffBadges() {
+    const inv = currentUser.inventory || {};
+    const honeyLeft = Math.max(0, Number(inv.battle_honey_left) || 0);
+    const feverLeft = Math.max(0, Number(inv.battle_fever_left) || 0);
+
+    isSweetScentActive = (honeyLeft > 0);
+    isFeverActive = (feverLeft > 0);
+
+    const honeyBadge = document.getElementById('honey-indicator');
+    if (honeyBadge) {
+      honeyBadge.style.display = honeyLeft > 0 ? 'inline-flex' : 'none';
+      honeyBadge.innerText = `🍯 꿀 ${honeyLeft}회`;
+    }
+    const feverBadge = document.getElementById('fever-indicator');
+    if (feverBadge) {
+      feverBadge.style.display = feverLeft > 0 ? 'inline-flex' : 'none';
+      feverBadge.innerText = `🔥 피버 ${feverLeft}회`;
+    }
+  }
+
+  // 2. 달콤한꿀 가동 (시간제한 없이 다음 4회 야생 배틀 동안 적용)
   let isSweetScentActive = false;
   let sweetScentInterval = null;
   let sweetScentTimeRemaining = 0;
 
-  function activateSweetScent(durationSec = 60) {
+  function activateSweetScent(battleCount = 4) {
     if (battleState.active) {
       showToast("배틀 중에는 꿀을 사용할 수 없습니다!");
       return;
     }
-    isSweetScentActive = true;
-    sweetScentTimeRemaining = durationSec;
+    if (!currentUser.inventory) currentUser.inventory = {};
+    currentUser.inventory.battle_honey_left = Math.min(8, (Number(currentUser.inventory.battle_honey_left) || 0) + battleCount);
+    syncBattleBuffBadges();
+    saveGameData();
 
-    const badge = document.getElementById('honey-indicator');
-    if (badge) {
-      badge.style.display = 'inline-flex';
-      badge.innerText = `🍯 꿀 ${sweetScentTimeRemaining}s`;
-    }
     playRetroSound('ball');
-    showToast(`🍯 [달콤한꿀 발동!] ${durationSec}초간 걸을 때마다 포켓몬이 나타납니다!`);
-
-    if (sweetScentInterval) clearInterval(sweetScentInterval);
-    sweetScentInterval = setInterval(() => {
-      sweetScentTimeRemaining--;
-      if (badge) badge.innerText = `🍯 꿀 ${sweetScentTimeRemaining}s`;
-
-      if (sweetScentTimeRemaining <= 0) {
-        clearInterval(sweetScentInterval);
-        isSweetScentActive = false;
-        if (badge) badge.style.display = 'none';
-        showToast("💨 달콤한꿀의 달콤한 향기가 모두 흩어졌습니다.");
-      }
-    }, 1000);
+    showToast(`🍯 [달콤한꿀 발동!] 다음 ${currentUser.inventory.battle_honey_left}번의 야생 조우까지 걸을 때마다 포켓몬이 나타납니다!`);
   }
 
-  // 3. 골든 피버 / 무지개향로 가동 (초 카운트다운 연동)
+  // 3. 골든 피버 / 무지개향로 가동 (시간제한 없이 다음 4회 야생 배틀 동안 적용)
   let feverInterval = null;
   let feverTimeRemaining = 0;
 
-  function activateFever(durationSec = 30) {
-    isFeverActive = true;
-    feverTimeRemaining = durationSec;
+  function activateFever(battleCount = 4) {
+    if (!currentUser.inventory) currentUser.inventory = {};
+    currentUser.inventory.battle_fever_left = Math.min(8, (Number(currentUser.inventory.battle_fever_left) || 0) + battleCount);
+    syncBattleBuffBadges();
+    saveGameData();
 
-    const badge = document.getElementById('fever-indicator');
-    if (badge) {
-      badge.style.display = 'inline-flex';
-      badge.innerText = `🔥 피버 ${feverTimeRemaining}s`;
-    }
-    showToast(`🔥 [골든 피버!] ${durationSec}초간 사탕 2배 및 희귀/전설 확률 UP!`);
-
-    if (feverInterval) clearInterval(feverInterval);
-    feverInterval = setInterval(() => {
-      feverTimeRemaining--;
-      if (badge) badge.innerText = `🔥 피버 ${feverTimeRemaining}s`;
-
-      if (feverTimeRemaining <= 0) {
-        clearInterval(feverInterval);
-        isFeverActive = false;
-        if (badge) badge.style.display = 'none';
-        comboCount = 0;
-        showToast("💨 골든 피버 종료!");
-      }
-    }, 1000);
+    showToast(`🔥 [골든 피버!] 다음 ${currentUser.inventory.battle_fever_left}번의 야생 배틀 동안 사탕 보너스 및 희귀/전설 확률 UP!`);
   }
 
   let battleState = {
@@ -2546,11 +2554,27 @@ function isEncounterTile(code, mapId) {
         player.moveProgress = 0;
         player.gridX = player.toX;
         player.gridY = player.toY;
-        player.realX = player.gridX * DISPLAY_TILE;
+player.realX = player.gridX * DISPLAY_TILE;
         player.realY = player.gridY * DISPLAY_TILE;
 
-        scheduleSavePosition();
+        // 🌟 [파트너 동행 걸음 보상] 일반(normal) 파트너는 35걸음, 그 외는 50걸음마다 사탕 +1개 발견!
+        if (currentUser.partner_id) {
+          if (!currentUser.inventory) currentUser.inventory = {};
+          const pBonusWalk = getPartnerBattleBonus(currentMapId);
+          const reqSteps = (pBonusWalk.pTier === 'normal') ? 35 : 50;
+          const steps = (Number(currentUser.inventory.walk_steps) || 0) + 1;
+          if (steps >= reqSteps) {
+            currentUser.inventory.walk_steps = 0;
+            currentUser.candy_count += 1;
+            currentUser.inventory.friendship = Math.min(255, (Number(currentUser.inventory.friendship) || 0) + 5);
+            updateHud();
+            showToast(`🐾 ${pBonusWalk.pName || '파트너'}가 풀숲에서 🍬 사탕 1개를 찾아왔습니다! (${reqSteps}걸음 달성)`);
+          } else {
+            currentUser.inventory.walk_steps = steps;
+          }
+        }
 
+        scheduleSavePosition();
         const map = GOLD_MAPS[currentMapId];
         if (!map || !map.grid || !map.grid[player.gridY]) return;
         
@@ -2585,6 +2609,11 @@ function isEncounterTile(code, mapId) {
         if (player.safeSteps > 0) {
           player.safeSteps--; // 안전 걸음 차감
         } else if (!isSprayActive && isEncounterTile(cleanTile, currentMapId) && (isSweetScentActive || Math.random() < 0.25)) {
+          // 🌟 달콤한꿀 활성 시 배틀 횟수 1회 차감
+          if (isSweetScentActive && currentUser.inventory && (Number(currentUser.inventory.battle_honey_left) || 0) > 0) {
+            currentUser.inventory.battle_honey_left -= 1;
+            syncBattleBuffBadges();
+          }
           player.safeSteps = 6; // 🌟 전투 종료 후 기본 6걸음 동안 100% 안전 보장!
           triggerEncounterAnim(map.biome);
           return;
@@ -3263,23 +3292,24 @@ function isEncounterTile(code, mapId) {
 
   function getPartnerBattleBonus(biomeType) {
     if (!currentUser.partner_id) {
-      return { pMon: null, pName: '', upgLv: 0, hasAdvantage: false };
+      return { pMon: null, pName: '', pTier: 'normal', upgLv: 0, hasAdvantage: false };
     }
     const pNumId = Number(currentUser.partner_id);
     const pBaseId = Math.floor(pNumId);
     const pVariant = getShinyVariantById(pNumId);
     const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
     if (!pMon) {
-      return { pMon: null, pName: '', upgLv: 0, hasAdvantage: false };
+      return { pMon: null, pName: '', pTier: 'normal', upgLv: 0, hasAdvantage: false };
     }
 
     const pName = pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name;
+    const pTier = String(pMon.tier || 'normal').toLowerCase().trim();
     const upgLv = (currentUser.inventory && currentUser.inventory.upgrades && Number(currentUser.inventory.upgrades[pNumId])) || 0;
     const pType = String(pMon.type || '').toLowerCase().trim();
     const targetBiome = String(biomeType || '').toLowerCase().trim();
     const hasAdvantage = (TYPE_ADVANTAGE_MAP[pType] || []).includes(targetBiome);
 
-    return { pMon, pName, upgLv, hasAdvantage };
+    return { pMon, pName, pTier, upgLv, hasAdvantage };
   }
 
   // 🌟 [추가] 강화 단계별(0->1 ~ 4->5강) 점진적 사탕 비용 계산기 (정화 포켓몬 20% 할인)
@@ -3290,23 +3320,30 @@ function isEncounterTile(code, mapId) {
   }
 
   function startEncounter(biomeType) {
-    // 🌟 1. 요일별 대량발생 보너스 & 티어 확률 계산
+    // 🌟 1. 요일별 대량발생 보너스 & 전설 파트너 패시브(+50%) 반영 티어 확률 계산
+    const prePartner = getPartnerBattleBonus(biomeType);
+    const isLegendaryPartner = (prePartner.pTier === 'legendary');
+
     const outbreak = getTodayOutbreak();
     const isOutbreakZone = (String(biomeType || '').toLowerCase() === outbreak.biome);
     const rand = Math.random() * 100;
     let targetTier = 'normal';
 
+    let legCut = 97;
+    let rareCut = 85;
     if (isFeverActive) {
-      if (rand >= 82) targetTier = 'legendary';
-      else if (rand >= 40) targetTier = 'rare';
+      legCut = 82; rareCut = 40;
     } else if (isOutbreakZone) {
-      // 대량발생 지역은 희귀·전설 출현율 2배 상승!
-      if (rand >= 94) targetTier = 'legendary';
-      else if (rand >= 75) targetTier = 'rare';
-    } else {
-      if (rand >= 97) targetTier = 'legendary';
-      else if (rand >= 85) targetTier = 'rare';
+      legCut = 94; rareCut = 75;
     }
+    // 🌟 전설 파트너 동행 시 희귀·전설 등장 확률 +50% 가중
+    if (isLegendaryPartner) {
+      legCut = 100 - Math.round((100 - legCut) * 1.5);
+      rareCut = 100 - Math.round((100 - rareCut) * 1.5);
+    }
+
+    if (rand >= legCut) targetTier = 'legendary';
+    else if (rand >= rareCut) targetTier = 'rare';
 
     // 🌟 2. 알 전용(egg_only) 및 체육관 보스 전용(boss / gym_) 포켓몬은 야생 인카운터 풀에서 원천 배제
     const wildAvailablePool = monsterPool.filter(m => {
@@ -3364,9 +3401,10 @@ function isEncounterTile(code, mapId) {
 
     const chosenBattle = createFormattedBattle(biomeType);
 
-    // 🌟 이로치(변색 포켓몬) 판정 및 독립 개체 (밤 시간대에는 이로치 등장 확률 5배 상승!)
+    // 🌟 이로치(변색 포켓몬) 판정 (밤 5배 + 전설 파트너 동행 시 +50% 추가 상승!)
     const baseShinyChance = isFeverActive ? SHINY_CONFIG.feverRate : SHINY_CONFIG.normalRate;
-    const shinyChance = isNight ? (baseShinyChance * 5) : baseShinyChance;
+    const nightBoost = isNight ? (baseShinyChance * 5) : baseShinyChance;
+    const shinyChance = isLegendaryPartner ? (nightBoost * 1.5) : nightBoost;
     const shinyVariant = (Math.random() < shinyChance) ? rollShinyVariant() : null;
     const isShinyEncounter = !!shinyVariant;
 
@@ -3392,6 +3430,7 @@ function isEncounterTile(code, mapId) {
 
     battleState.active = true;
     battleState.isBoss = false;
+    battleState.usedMasterball = false;
     battleState.gymData = null;
     battleState.monster = activeMonster;
     battleState.battleData = chosenBattle;
@@ -3408,6 +3447,7 @@ function isEncounterTile(code, mapId) {
     const pBonus = getPartnerBattleBonus(biomeType);
     battleState.partnerBonus = pBonus;
     battleState.comboShieldUsed = false;
+    battleState.free5050Used = false; // 🌟 전설 파트너 무료 오답제거 찬스 초기화
 
     // 🌟 미등록은 티어별(1~3단계), 기포획 1~2성은 2단계 승급전(HP=2), 3성 완성은 1단계(HP=1)
     let setHp = 1;
@@ -3575,9 +3615,12 @@ function isEncounterTile(code, mapId) {
     const totalSteps = battleState.maxHp || (battleState.isBoss ? 3 : 1);
     const phaseData = battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0];
     
-    // 🌟 지문 수식 자동 변환 적용
+    // 🌟 지문 수식 자동 변환 적용 (레이드는 '단계 1/300' 대신 실시간 HP 표기)
     const formattedDesc = formatMathText(phaseData.desc);
-document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 1}/${totalSteps}단계]</b> ${formattedDesc} <span style="color:#d90429;">⏳(잠시 생각하세요!)</span>`;
+    const stepBadgeHtml = battleState.isRaid
+      ? `<b>[👑 학급 레이드 · HP ${battleState.hp}/${totalSteps}]</b>`
+      : `<b>[${battleState.phase + 1}/${totalSteps}단계]</b>`;
+    document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formattedDesc} <span style="color:#d90429;">⏳(잠시 생각하세요!)</span>`;
 
     const grid = document.getElementById('b-action-grid');
     grid.innerHTML = '';
@@ -3612,15 +3655,17 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
     setTimeout(() => {
       if (battleState.active) {
         isAnswerLocked = false;
-        // 🌟 [+1강 특전] 2단계 이상 배틀에서 첫 번째 문제 아래 힌트를 처음부터 미리 개방!
-        const hasLv1Preview = (battleState.phase === 0 && (totalSteps >= 2 || battleState.isBoss) &&
-                               battleState.partnerBonus && battleState.partnerBonus.upgLv >= 1 &&
+        // 🌟 [+1강 특전] 2단계 이상 배틀에서 1단계 힌트 개방 (희귀 파트너 +1강 중첩 시 2단계까지 확대!)
+        const pBonusNow = battleState.partnerBonus || {};
+        const maxHintPhase = (pBonusNow.pTier === 'rare' && pBonusNow.upgLv >= 1) ? 1 : 0;
+        const hasLv1Preview = (battleState.phase <= maxHintPhase && (totalSteps >= 2 || battleState.isBoss) &&
+                               pBonusNow.upgLv >= 1 &&
                                phaseData.hint && String(phaseData.hint).trim() !== "");
         const previewHintHtml = hasLv1Preview
           ? `<div style="margin-top:4px; padding:3px 6px; background:#e0f2fe; border-left:3px solid #0284c7; font-size:10px; color:#0c4a6e;">🧠 <b>[+1강 예습 눈썰미]</b> ${formatMathText(phaseData.hint)}</div>`
           : "";
 
-        document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 1}/${totalSteps}단계]</b> ${formattedDesc}${previewHintHtml}`;
+document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formattedDesc}${previewHintHtml}`;
         const buttons = grid.querySelectorAll('.action-btn');
         buttons.forEach((b, idx) => {
           b.classList.remove('disabled');
@@ -3889,40 +3934,70 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       btnElem.style.background = '#ffccd5';
       btnElem.style.borderColor = '#e63946';
       
-      // 🌟 [개편] 체육관 관장전 오답 시 사탕 2개로 현재 단계 '이어하기' 지원
+      // 🌟 [개편] 체육관 관장전 오답 시 '재정비하기(이어하기 15→30→45개 vs 새로하기)' 선택 UI 제공
       if (battleState.isBoss) {
-        if (currentUser.candy_count >= 2) {
-          const useContinue = confirm(`❌ 아쉽습니다! 오답입니다.\n\n🍬 사탕 2개를 사용하여 체력을 초기화하지 않고 현재 단계에서 그대로 이어서 도전하시겠습니까?\n(현재 보유 사탕: ${currentUser.candy_count}개)`);
-          if (useContinue) {
-            currentUser.candy_count -= 2;
-            updateHud();
-            saveGameData();
-            showToast("🍬 사탕 2개를 사용해 현재 단계에서 이어서 도전합니다!");
-            document.getElementById('b-dialog-text').innerText = `💡 힌트: ${hintText || '차근차근 다시 계산해보자!'} (3초 후 재도전)`;
-            setTimeout(() => {
-              if (battleState.active) {
-                isAnswerLocked = false;
-                const phaseData = battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0];
-                document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 1}/${battleState.maxHp}단계]</b> ${formatMathText(phaseData.desc)}`;
-                reshuffleBattleOptions(phaseData);
-              }
-            }, 3000);
+        const contCount = (battleState.bossContinueCount || 0) + 1;
+        const contCost = contCount * 15; // 1회차 15개 -> 2회차 30개 -> 3회차 45개
+        const canContinue = (contCount <= 3 && currentUser.candy_count >= contCost);
+
+        document.getElementById('b-dialog-text').innerHTML = `
+          ❌ <b>오답!</b> ${battleState.gymData.name}: "아직 수련이 부족하구나!"<br>
+          <span style="font-size:10px; color:#1d3557;">재정비 방법을 선택하세요 (보유 사탕: 🍬<b>${currentUser.candy_count}개</b>)</span>
+        `;
+
+        const grid = document.getElementById('b-action-grid');
+        grid.innerHTML = '';
+
+        // 1) 이어하기 버튼 (15 -> 30 -> 45개 누진제, 최대 3회)
+        const contBtn = document.createElement('button');
+        contBtn.className = `action-btn ${canContinue ? '' : 'disabled'}`;
+        contBtn.style.background = canContinue ? '#ffd166' : '#e9ecef';
+        contBtn.style.borderColor = '#111';
+        contBtn.innerHTML = contCount > 3
+          ? `⛔ 이어하기 한도 초과`
+          : `💫 이어하기 (🍬${contCost}개 · ${contCount}/3회)`;
+        contBtn.onclick = () => {
+          if (!canContinue) {
+            playRetroSound('wrong');
+            showToast(contCount > 3 ? "⛔ 이어하기는 최대 3회까지만 가능합니다!" : `🍬 사탕이 부족합니다! (${contCost}개 필요)`);
             return;
           }
-        }
+          battleState.bossContinueCount = contCount;
+          currentUser.candy_count -= contCost;
+          updateHud();
+          saveGameData();
+          playRetroSound('ball');
+          showToast(`🍬 사탕 ${contCost}개를 사용해 현재 단계에서 이어서 도전합니다!`);
 
-        battleState.hp = 3;
-        updateBattleHpBar(3);
-        document.getElementById('b-dialog-text').innerText = `❌ 오답! ${battleState.gymData.name}: "아직 수련이 부족하구나!" (새로운 문제로 처음부터 다시!)`;
+          const phaseData = battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0];
+          const hintBox = (hintText && String(hintText).trim() !== "")
+            ? `<div style="margin-top:4px; padding:3px 6px; background:#fff3cd; border-left:3px solid #ffb703; font-size:10px; color:#664d03;">💡 <b>힌트:</b> ${formatMathText(hintText)}</div>`
+            : "";
+          isAnswerLocked = false;
+          document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 1}/${battleState.maxHp}단계]</b> ${formatMathText(phaseData.desc)}${hintBox}`;
+          reshuffleBattleOptions(phaseData);
+        };
 
-        setTimeout(() => {
-          if (battleState.active) {
-            const newP3 = getGymPhase3Question(battleState.gymData.badgeId);
-            battleState.battleData = { phases: [newP3] };
-            battleState.phase = 0;
-            renderBattlePhase();
-          }
-        }, 2200);
+        // 2) 새로하기 버튼 (체력 초기화 후 새 문제로 무료 재도전)
+        const restartBtn = document.createElement('button');
+        restartBtn.className = 'action-btn';
+        restartBtn.style.background = '#e0fbfc';
+        restartBtn.style.borderColor = '#1d3557';
+        restartBtn.innerHTML = `🔄 새로하기 (무료 재도전)`;
+        restartBtn.onclick = () => {
+          const resetHp = battleState.maxHp || 3; // +5강 선제타격(2칸) 혜택 유지
+          battleState.hp = resetHp;
+          updateBattleHpBar(resetHp);
+          playRetroSound('ball');
+          showToast("🔄 전열을 가다듬고 처음 단계부터 다시 도전합니다!");
+          const newP3 = getGymPhase3Question(battleState.gymData.badgeId);
+          battleState.battleData = { phases: [newP3] };
+          battleState.phase = 0;
+          renderBattlePhase();
+        };
+
+        grid.appendChild(contBtn);
+        grid.appendChild(restartBtn);
         return;
       }
 
@@ -4110,21 +4185,28 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
     }, 900);
 
     setTimeout(() => {
-      let gainCandy = battleState.monster.tier === 'legendary' ? 3 : 1;
-      // 🌟 [0강 상성 효과] 맵 지형에 유리한 속성 파트너 동행 시 사탕 +1
-      if (battleState.partnerBonus && battleState.partnerBonus.hasAdvantage) {
-        gainCandy += 1;
+      const baseCandy = battleState.monster.tier === 'legendary' ? 3 : 1;
+      let gainCandy = baseCandy;
+
+      // 🌟 마스터볼로 문제를 건너뛴 경우에는 배율 보너스 미적용 (차익거래 원천 차단)
+      if (!battleState.usedMasterball) {
+        let multiplier = 1;
+        if (battleState.partnerBonus && battleState.partnerBonus.upgLv >= 4) multiplier += 1; // +4강 황금 수확 (+100%)
+        if (isFeverActive) multiplier += 1; // 골든 피버 (+100%, 최대 ×3배 합연산)
+
+        gainCandy = baseCandy * multiplier;
+
+        // 🌟 [0강 상성 효과] 유리한 속성 파트너 동행 시 정액 +1개 추가
+        if (battleState.partnerBonus && battleState.partnerBonus.hasAdvantage) {
+          gainCandy += 1;
+        }
+        // 🌟 요일별 대량발생 구역 정액 +1개 추가
+        const outbreak = getTodayOutbreak();
+        if (GOLD_MAPS[currentMapId] && GOLD_MAPS[currentMapId].biome === outbreak.biome) {
+          gainCandy += 1;
+        }
       }
-      // 🌟 요일별 대량발생 구역이면 기본 사탕 +1 보너스
-      const outbreak = getTodayOutbreak();
-      if (GOLD_MAPS[currentMapId] && GOLD_MAPS[currentMapId].biome === outbreak.biome) {
-        gainCandy += 1;
-      }
-      // 🌟 [+4강 특전] (기본 사탕 + 상성 보너스 +1) × 2배 황금 수확!
-      if (battleState.partnerBonus && battleState.partnerBonus.upgLv >= 4) {
-        gainCandy *= 2;
-      }
-      if (isFeverActive) gainCandy *= 2;
+
       // 🌟 빛나는 포켓몬(이로치) 포획 시 보너스 사탕 +5개 지급
       if (battleState.isShiny) gainCandy += 5;
 
@@ -4182,24 +4264,41 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       if (!currentUser.inventory) currentUser.inventory = {};
       if (!currentUser.inventory.stars) currentUser.inventory.stars = {};
 
-      // 🌟 [투척 판정 차등 보상] EXCELLENT(0회) / GREAT(1회) / NICE(2회+)
-      let throwBonusTag = '';
-      if (mistakes === 0) {
-        gainCandy += 1;
-        throwBonusTag = '✨ EXCELLENT! 사탕 +1';
-      } else if (mistakes === 1) {
-        if (currentUser.inventory.incubator_active) {
-          const maxP = Number(currentUser.inventory.egg_max) || 10;
-          currentUser.inventory.egg_progress = Math.min(maxP, (Number(currentUser.inventory.egg_progress) || 0) + 1);
-          throwBonusTag = '🎯 GREAT! 알 게이지 +1';
+      // 🌟 [투척 판정 차등 보상] 마스터볼 사용 시 중복 보너스 차단
+      let throwBonusTag = battleState.usedMasterball ? '🟣 마스터볼 포획!' : '';
+      if (!battleState.usedMasterball) {
+        if (mistakes === 0) {
+          gainCandy += 1;
+          throwBonusTag = '✨ EXCELLENT! 사탕 +1';
+        } else if (mistakes === 1) {
+          if (currentUser.inventory.incubator_active) {
+            const maxP = Number(currentUser.inventory.egg_max) || 10;
+            currentUser.inventory.egg_progress = Math.min(maxP, (Number(currentUser.inventory.egg_progress) || 0) + 1);
+            throwBonusTag = '🎯 GREAT! 알 게이지 +1';
+          } else {
+            currentUser.inventory.friendship = Math.min(255, (Number(currentUser.inventory.friendship) || 0) + 15);
+            throwBonusTag = '🎯 GREAT! 친밀도 +15';
+          }
         } else {
-          currentUser.inventory.friendship = Math.min(255, (Number(currentUser.inventory.friendship) || 0) + 15);
-          throwBonusTag = '🎯 GREAT! 친밀도 +15';
+          currentUser.inventory.friendship = Math.min(255, (Number(currentUser.inventory.friendship) || 0) + 25);
+          throwBonusTag = '👍 NICE! 친밀도 +25';
         }
-      } else {
-        currentUser.inventory.friendship = Math.min(255, (Number(currentUser.inventory.friendship) || 0) + 25);
-        throwBonusTag = '👍 NICE! 친밀도 +25';
       }
+
+      // 🌟 배틀 횟수제 피버(무지개향로) 잔여 횟수 1회 차감
+      if ((Number(currentUser.inventory.battle_fever_left) || 0) > 0) {
+        currentUser.inventory.battle_fever_left -= 1;
+      }
+
+      // 🌟 동일 포켓몬 누적 포획 횟수(catch_counts) 및 최근 포획 순서(caught_order) 기록
+      if (!currentUser.inventory.catch_counts) currentUser.inventory.catch_counts = {};
+      currentUser.inventory.catch_counts[targetMonId] = (Number(currentUser.inventory.catch_counts[targetMonId]) || 0) + 1;
+
+      if (!Array.isArray(currentUser.inventory.caught_order)) currentUser.inventory.caught_order = [];
+      currentUser.inventory.caught_order = [
+        targetMonId,
+        ...currentUser.inventory.caught_order.filter(id => Number(id) !== targetMonId)
+      ];
 
       const prevStars = currentUser.inventory.stars[targetMonId] || 0;
       let isUpgraded = false;
@@ -4225,6 +4324,8 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       checkQuestProgress();
       saveGameData();
 
+      ball.style.display = 'none';
+      ball.className = '';
       document.getElementById('battle-overlay').style.display = 'none';
       battleState.active = false;
       isAnswerLocked = false;
@@ -4523,7 +4624,9 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       showToast("⛔ 오답제거 찬스는 한 문제당 1번만 사용할 수 있습니다!");
       return;
     }
-    if (currentUser.candy_count < 1) {
+    const isFreeLegendary5050 = (battleState.partnerBonus && battleState.partnerBonus.pTier === 'legendary' && !battleState.free5050Used);
+
+    if (!isFreeLegendary5050 && currentUser.candy_count < 1) {
       showToast("🍬 사탕이 부족합니다! (1개 필요)");
       return;
     }
@@ -4539,15 +4642,21 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
     });
 
     if (wrongItems.length > 0) {
-      currentUser.candy_count -= 1;
+      if (isFreeLegendary5050) {
+        battleState.free5050Used = true;
+      } else {
+        currentUser.candy_count -= 1;
+      }
       updateHud();
       saveGameData();
       const { opt: targetOpt, btn: targetBtn } = wrongItems[0];
-      targetOpt.isEliminated = true; // 🌟 보기 데이터 자체에 소멸 상태 영구 기록
+      targetOpt.isEliminated = true;
       targetBtn.classList.add('disabled');
       targetBtn.innerText = "❌ 소멸";
       targetBtn.onclick = null;
-      showToast("🍬 오답제거 찬스 발동! 오답 1개 제거 완료!");
+      showToast(isFreeLegendary5050
+        ? "👑 [전설 파트너 특전!] 사탕 소모 없이 오답 1개를 무료 제거했습니다!"
+        : "🍬 오답제거 찬스 발동! 오답 1개 제거 완료!");
 
       // 🌟 튜토리얼 Step 2에서 오답제거 체험 완료 시, 정답 보기를 누르도록 안내 전환
       if (tutorialStep === 2) {
@@ -4896,6 +5005,7 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
   function startGymBossBattle(gym) {
     battleState.active = true;
     battleState.isBoss = true;
+    battleState.bossContinueCount = 0; // 🌟 관장 도전 시작 시 이어하기 횟수 초기화
     battleState.gymData = gym;
     battleState.monster = gym.bossMon;
 
@@ -5011,11 +5121,18 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
     activeNpc.type = rawType;
     activeNpc.quiz_a = realAnswer;
 
-    // 🌟 [추가] 거대 포켓몬 학급 레이드 상호작용
+    // 🌟 [추가] 거대 포켓몬 학급 레이드 상호작용 (시트 보스 이름 및 도감 번호 동적 연동)
     if (rawType === 'raid') {
       typeElem.innerText = "👑 학급 협동 레이드";
+      const bossDisplayName = npc.name || "거대 보스 포켓몬";
+      let bossDexId = 143;
+      if (npc.reward_val) {
+        const parsedId = parseInt(String(npc.reward_val).split(':')[0].replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(parsedId) && parsedId > 0) bossDexId = parsedId;
+      }
+
       const classId = (currentUser.student_id || '10301').substring(0, 3);
-      dialogBody.innerText = `⏳ [${classId}반] 거대 잠만보의 실시간 상태를 확인하는 중...`;
+      dialogBody.innerText = `⏳ [${classId}반] ${bossDisplayName}의 실시간 상태를 확인하는 중...`;
       quizBox.style.display = 'none';
       closeBtn.innerText = "닫기 (B)";
       document.getElementById('npc-dialog-modal').style.display = 'flex';
@@ -5038,17 +5155,16 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
         if (res && res.status === 'success' && res.raid) {
           const rData = res.raid;
           if (rData.is_cleared || rData.current_hp <= 0) {
-            dialogBody.innerHTML = `🎉 <b>축하합니다!</b> 우리 [${classId}반] 학우들이 힘을 합쳐 이미 [${npc.name}]을 잠에서 깨우고 격파했습니다!<br><br>🏆 최후의 일격: <b>${rData.last_hit || '학급 영웅'}</b><br>📖 거대 잠만보 도감 등록이 완료되었습니다.`;
-            // 아직 도감에 등록 안 된 학생은 자동 등록
-            if (!currentUser.captured_ids.includes(143)) {
-              currentUser.captured_ids.push(143);
+            dialogBody.innerHTML = `🎉 <b>축하합니다!</b> 우리 [${classId}반] 학우들이 힘을 합쳐 이미 [${bossDisplayName}]을(를) 격파했습니다!<br><br>🏆 최후의 일격: <b>${rData.last_hit || '학급 영웅'}</b><br>📖 [${bossDisplayName}] 도감 등록이 완료되었습니다.`;
+            if (!currentUser.captured_ids.some(cid => Number(cid) === bossDexId)) {
+              currentUser.captured_ids.push(bossDexId);
               updateHud();
               saveGameData();
             }
           } else {
             dialogBody.innerHTML = `${realDialog}<br><br>📊 <b>[${classId}반 레이드 현황]</b><br>• 남은 HP: <b style="color:#e63946;">${rData.current_hp}</b> / ${rData.total_hp} (${Math.round((rData.current_hp / rData.total_hp) * 100)}%)<br>• 정답을 맞출 때마다 보스의 체력이 깎입니다!`;
             quizBox.style.display = 'flex';
-            document.getElementById('npc-quiz-question').innerText = `⚔️ 거대 잠만보 레이드에 참전하시겠습니까?`;
+            document.getElementById('npc-quiz-question').innerText = `⚔️ [${bossDisplayName}] 레이드에 참전하시겠습니까?`;
             input.style.display = 'none';
             const submitBtn = quizBox.querySelector('.npc-btn-submit');
             if (submitBtn) {
@@ -5828,13 +5944,24 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
   let lastLeaderboardFetchTime = 0;
   const LB_CACHE_DURATION = 30 * 1000; // 30초 캐싱 (서버 부하 방지)
 
-  // 1. 점수 계산 공식: (배지수 * 10000) + (도감수 * 100) + (총 강화단계 * 150) + 사탕수
-  function calculateLeagueScore(badges, capturedCount, candyCount, upgradeTotal = 0) {
+  // 🌟 강화 단계별 누적 투자 가치 점수 테이블 (+1강:150 ~ +5강:1,550점)
+  const UPGRADE_CUMULATIVE_POINTS = { 0: 0, 1: 150, 2: 350, 3: 650, 4: 1050, 5: 1550 };
+
+  function calcUpgradesPointSum(upgradesObj) {
+    if (!upgradesObj || typeof upgradesObj !== 'object') return 0;
+    return Object.values(upgradesObj).reduce((acc, rawLv) => {
+      const lv = Math.min(5, Math.max(0, Number(rawLv) || 0));
+      return acc + (UPGRADE_CUMULATIVE_POINTS[lv] || 0);
+    }, 0);
+  }
+
+  // 1. 점수 계산 공식: (배지수 * 10000) + (도감수 * 100) + 누적 강화 투자점수 + 사탕수
+  function calculateLeagueScore(badges, capturedCount, candyCount, upgradePointSum = 0) {
     const badgeNum = Array.isArray(badges) ? badges.length : 0;
     const monNum = Number(capturedCount) || 0;
     const candyNum = Number(candyCount) || 0;
-    const upgNum = Number(upgradeTotal) || 0;
-    return (badgeNum * 10000) + (monNum * 100) + (upgNum * 150) + candyNum;
+    const upgPts = Number(upgradePointSum) || 0;
+    return (badgeNum * 10000) + (monNum * 100) + upgPts + candyNum;
   }
 
   // 🌟 [통합] 만능 단말기 '포켓기어' 열기 / 탭 전환 / 닫기 엔진
@@ -5991,15 +6118,14 @@ document.getElementById('b-dialog-text').innerHTML = `<b>[${battleState.phase + 
       const cCount = Number(u.captured_count !== undefined ? u.captured_count : (Array.isArray(u.captured_ids) ? u.captured_ids.length : 0));
       const candy = Number(u.candy_count) || 0;
 const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
-      // 🌟 유저 인벤토리 내 총 강화 횟수(upgrades 객체 값의 합) 추출하여 점수(+150점/강) 반영
-      let upgTotal = 0;
+      // 🌟 유저 인벤토리 내 강화 단계별 누적 투자 가치 점수 합산
       const invObj = (typeof u.inventory === 'string') ? JSON.parse(u.inventory || '{}') : (u.inventory || {});
-      if (invObj && invObj.upgrades) {
-        upgTotal = Object.values(invObj.upgrades).reduce((acc, v) => acc + (Number(v) || 0), 0);
-      } else if (String(u.student_id) === String(currentUser.student_id) && currentUser.inventory && currentUser.inventory.upgrades) {
-        upgTotal = Object.values(currentUser.inventory.upgrades).reduce((acc, v) => acc + (Number(v) || 0), 0);
-      }
-      const score = calculateLeagueScore(bList, cCount, candy, upgTotal);      const pId = u.partner_id || (u.id === String(currentUser.student_id) ? currentUser.partner_id : null);
+      const targetUpgrades = (invObj && invObj.upgrades)
+        ? invObj.upgrades
+        : (String(u.student_id) === String(currentUser.student_id) && currentUser.inventory ? currentUser.inventory.upgrades : {});
+      const upgPointSum = calcUpgradesPointSum(targetUpgrades);
+      const score = calculateLeagueScore(bList, cCount, candy, upgPointSum);
+      const pId = u.partner_id || (String(u.student_id) === String(currentUser.student_id) ? currentUser.partner_id : null);
 
       return {
         id: String(u.student_id || ''),
@@ -6066,11 +6192,24 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
 
       const badgesHtml = user.badges.map(b => badgeIcons[b] || "🏅").join('');
 
-      let partnerIconHtml = '';
+      let partnerBadgeHtml = '';
       if (user.partnerId) {
-        const pMon = monsterPool.find(m => m.id == user.partnerId);
-        const pSrc = pMon ? (pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pMon.id}.png`) : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${user.partnerId}.png`;
-        partnerIconHtml = `<img src="${pSrc}" alt="partner" style="width:22px; height:22px; image-rendering:pixelated; vertical-align:middle; margin-right:4px;">`;
+        const pNumId = Number(user.partnerId);
+        const pBaseId = Math.floor(pNumId);
+        const pVariant = getShinyVariantById(pNumId);
+        const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
+        const pSrc = pMon
+          ? (pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`)
+          : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
+        const pDisplayName = pMon ? `${pVariant ? pVariant.prefix + ' ' : ''}${pMon.name}` : `No.${pBaseId}`;
+        const shinyCls = pVariant ? pVariant.cssClass : '';
+
+        partnerBadgeHtml = `
+          <span style="display:inline-flex; align-items:center; gap:2px; background:#252b42; border:1px solid #ffd166; border-radius:4px; padding:0 4px; margin-left:5px; font-size:8.5px; color:#ffd166;">
+            <img src="${pSrc}" alt="partner" class="${shinyCls}" style="width:20px; height:20px; object-fit:contain; image-rendering:pixelated; animation:none;">
+            <span>${pDisplayName}</span>
+          </span>
+        `;
       }
 
       const item = document.createElement('div');
@@ -6078,9 +6217,10 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       item.innerHTML = `
         <div class="lb-rank-num">${medalIcon}</div>
         <div class="lb-user-info">
-          <div class="lb-user-name" style="display:flex; align-items:center;">
-            ${partnerIconHtml}<span>${user.id} ${user.name}</span>
-            ${isMe ? '<span style="font-size:8px; color:#06d6a0; margin-left:4px;">(나)</span>' : ''}
+          <div class="lb-user-name" style="display:flex; align-items:center; flex-wrap:wrap; gap:2px;">
+            <span>${user.id} ${user.name}</span>
+            ${isMe ? '<span style="font-size:8px; color:#06d6a0; margin-left:2px;">(나)</span>' : ''}
+            ${partnerBadgeHtml}
           </div>
           <div class="lb-user-detail">배지: ${badgesHtml || '없음'} · 도감: ${user.capturedCount}마리 · 🍬${user.candyCount}</div>
         </div>
@@ -6212,10 +6352,10 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
     });
   }
 
-  // 🌟 도감 수집 상태, 지형, 정렬 상태 관리
+  // 🌟 도감 수집 상태, 지형, 정렬 상태 관리 ('id_asc' | 'id_desc' | 'recent')
   let currentDexStatusFilter = 'all'; // all | caught | uncaught
   let currentDexBiomeFilter = 'all';  // all | grass | water | snow | volcano | sand
-  let isDexSortAsc = true;
+  let dexSortMode = 'id_asc';
 
   // 기존 도감 열기/닫기(C키 단축키 포함)를 포켓기어 도감 탭으로 연결
   function toggleDex(open) {
@@ -6242,8 +6382,16 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
   }
 
   function toggleDexSort(btnElem) {
-    isDexSortAsc = !isDexSortAsc;
-    btnElem.innerText = isDexSortAsc ? "No. ▲ 오름차순" : "No. ▼ 내림차순";
+    if (dexSortMode === 'id_asc') {
+      dexSortMode = 'id_desc';
+      btnElem.innerText = "No. ▼ 내림차순";
+    } else if (dexSortMode === 'id_desc') {
+      dexSortMode = 'recent';
+      btnElem.innerText = "🕒 최근 잡은 순";
+    } else {
+      dexSortMode = 'id_asc';
+      btnElem.innerText = "No. ▲ 오름차순";
+    }
     renderDexList();
   }
 
@@ -6313,8 +6461,30 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       });
     }
 
-    // 3. 도감 번호 정렬
-    filtered.sort((a, b) => isDexSortAsc ? (Number(a.id) - Number(b.id)) : (Number(b.id) - Number(a.id)));
+    // 3. 도감 정렬 (번호 오름/내림차순 또는 최근 잡은 순)
+    const caughtOrderList = (currentUser.inventory && Array.isArray(currentUser.inventory.caught_order))
+      ? currentUser.inventory.caught_order.map(Number)
+      : [];
+
+    filtered.sort((a, b) => {
+      const idA = Number(a.id);
+      const idB = Number(b.id);
+      if (dexSortMode === 'recent') {
+        const idxA = caughtOrderList.indexOf(idA);
+        const idxB = caughtOrderList.indexOf(idB);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB; // 둘 다 최근 기록이 있으면 최신순
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        // 기록 이전 포획 개체는 captured_ids 역순, 미포획 개체는 번호순
+        const capA = currentUser.captured_ids.findIndex(c => Number(c) === idA);
+        const capB = currentUser.captured_ids.findIndex(c => Number(c) === idB);
+        if (capA !== -1 && capB !== -1) return capB - capA;
+        if (capA !== -1) return -1;
+        if (capB !== -1) return 1;
+        return idA - idB;
+      }
+      return dexSortMode === 'id_asc' ? (idA - idB) : (idB - idA);
+    });
 
     if (filtered.length === 0) {
       list.innerHTML = `<div style="grid-column:span 2; text-align:center; color:#888; padding:30px 0; font-size:11px;">조건에 일치하는 포켓몬이 없습니다.</div>`;
@@ -6379,7 +6549,11 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
           if (evoTargetId > 0) {
             const nextMon = monsterPool.find(m => Number(m.id) === evoTargetId);
             if (nextMon) {
-              evolveHtml = `<button class="evolve-btn" onclick="evolvePokemon(${mon.id}, ${nextMon.id}, ${evoNeedCandy})">✨ 진화(🍬${evoNeedCandy})</button>`;
+              const finalEvoTargetId = variant ? Number((evoTargetId + variant.code * 0.1).toFixed(1)) : evoTargetId;
+              const isAlreadyEvolved = currentUser.captured_ids.some(cid => Number(cid) === finalEvoTargetId);
+              evolveHtml = isAlreadyEvolved
+                ? `<button class="evolve-btn" style="background:#555; color:#a8dadc; border-color:#444; cursor:default;" disabled>✅ 진화완료</button>`
+                : `<button class="evolve-btn" onclick="evolvePokemon(${mon.id}, ${nextMon.id}, ${evoNeedCandy})">✨ 진화(🍬${evoNeedCandy})</button>`;
             }
           }
 
@@ -6428,9 +6602,10 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
             ${isCaught ? `${isShiny ? '✨' : ''}${mon.name}${upgLv > 0 ? ` <span style="color:#e63946; font-size:9.5px;">+${upgLv}강</span>` : ''}` : '???'}
           </div>
 
-          <!-- 3줄: 수집 상태 및 지형/타입 -->
-          <div style="font-size:8px; font-weight:bold; color:${isCaught ? '#2a9d8f' : '#777'}; line-height:1;">
-            ${isCaught ? '✅' : '❓'} ${(mon.type || '').toUpperCase()}
+          <!-- 3줄: 수집 상태, 지형/타입 및 동일 포켓몬 누적 수집 횟수 -->
+          <div style="display:flex; align-items:center; justify-content:space-between; font-size:8px; font-weight:bold; color:${isCaught ? '#2a9d8f' : '#777'}; line-height:1;">
+            <span>${isCaught ? '✅' : '❓'} ${(mon.type || '').toUpperCase()}</span>
+            ${isCaught ? `<span style="background:#e0fbfc; color:#1d3557; border:1px solid #98c1d9; padding:0 3px; border-radius:3px;">×${Math.max(1, (inv.catch_counts && Number(inv.catch_counts[numId])) || 1)}마리</span>` : ''}
           </div>
 
           <!-- 4줄: 수평이 반듯하게 정렬된 2열 버튼 그리드 -->
@@ -6604,28 +6779,44 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
 
   // 🌟 포켓몬 진화 실행 (이로치 변색·별 등급·정화 혜택 계승)
   function evolvePokemon(fromId, toId, cost) {
-    if (currentUser.candy_count < cost) {
-      showToast(`🍬 진화 사탕이 부족합니다! (${cost}개 필요)`);
-      return;
-    }
     const numFromId = Number(fromId);
     const variant = getShinyVariantById(numFromId);
     const finalToId = variant ? Number((Number(toId) + variant.code * 0.1).toFixed(1)) : Number(toId);
     const nextMon = monsterPool.find(m => Number(m.id) === Number(toId));
     if (!nextMon) return;
 
-    if (!currentUser.inventory) currentUser.inventory = {};
-    currentUser.candy_count -= cost;
-
-    if (!currentUser.captured_ids.some(cid => Number(cid) === finalToId)) {
-      currentUser.captured_ids.push(finalToId);
+    // 🌟 이미 진화체가 도감에 등록되어 있으면 사탕 중복 소모 차단
+    if (currentUser.captured_ids.some(cid => Number(cid) === finalToId)) {
+      playRetroSound('wrong');
+      showToast(`✅ 이미 [${variant ? variant.prefix + ' ' : ''}${nextMon.name}]으로 진화를 완료했습니다!`);
+      renderDexList();
+      return;
     }
 
-    // 🌟 기존 강화 수치(+N강) 그대로 진화형 포켓몬에게 계승
+    if (currentUser.candy_count < cost) {
+      showToast(`🍬 진화 사탕이 부족합니다! (${cost}개 필요)`);
+      return;
+    }
+
+    if (!currentUser.inventory) currentUser.inventory = {};
+    currentUser.candy_count -= cost;
+    currentUser.captured_ids.push(finalToId);
+
+    // 🌟 진화 개체도 최근 획득 목록(caught_order) 맨 앞에 반영
+    if (!Array.isArray(currentUser.inventory.caught_order)) currentUser.inventory.caught_order = [];
+    currentUser.inventory.caught_order = [
+      finalToId,
+      ...currentUser.inventory.caught_order.filter(id => Number(id) !== finalToId)
+    ];
+
+    // 🌟 기존 강화 수치(+N강)를 진화형 포켓몬에게 이전 (기존 개체 기록 삭제하여 전당 점수 중복 합산 방지)
     if (currentUser.inventory.upgrades && currentUser.inventory.upgrades[numFromId]) {
       const prevUpg = Number(currentUser.inventory.upgrades[numFromId]) || 0;
       const curUpg = Number(currentUser.inventory.upgrades[finalToId]) || 0;
       currentUser.inventory.upgrades[finalToId] = Math.max(curUpg, prevUpg);
+      if (numFromId !== finalToId) {
+        delete currentUser.inventory.upgrades[numFromId];
+      }
     }
 
     // 🌟 이로치·별 등급·정화 상태 계승
@@ -7004,6 +7195,8 @@ function startAdventure() {
     badge.innerText = rank.title;
     badge.style.borderColor = rank.color;
     badge.style.color = rank.color;
+
+    if (typeof syncBattleBuffBadges === 'function') syncBattleBuffBadges();
   }
 
   function showToast(msg) {
@@ -7121,7 +7314,7 @@ function startAdventure() {
   // =======================================================
   const DEFAULT_SHOP_ITEMS = [
     { item_id: "incubator", name: "알 부화기", sprite: "incubator.png", icon: "🧪", price: 0, desc: "가방에서 알을 품어 부화시킵니다. (1회 무료 획득)", usable_in: "all" },
-    { item_id: "masterball", name: "마스터볼", icon: "🟣", price: 10, desc: "배틀 시 문제 없이 즉시 100% 포획합니다.", usable_in: "battle" },
+    { item_id: "masterball", name: "마스터볼 (1일 1개)", icon: "🟣", price: 99, desc: "배틀 시 즉시 100% 포획합니다. (하루 1개 한정 · 배율 보너스 미적용)", usable_in: "battle" },
     { item_id: "sweet_scent", name: "달콤한꿀", icon: "🍯", price: 5, desc: "1분간 걸을 때마다 100% 확률로 야생 몬스터와 만납니다.", usable_in: "field" },
     { item_id: "fever_incense", name: "무지개향로", icon: "✨", price: 8, desc: "즉시 30초간 골든 피버(사탕 2배, 희귀/전설 UP)를 켭니다.", usable_in: "all" },
     { item_id: "escape_rope", name: "탈출로프", icon: "🪢", price: 3, desc: "쿨타임 없이 배틀에서 즉시 도망칩니다.", usable_in: "battle" },
@@ -7140,6 +7333,15 @@ function startAdventure() {
     mystic_egg: { name: "신비한 알", sprite: "egg_mystic.png", icon: "🥚", desc: "정답 50개를 채우면 환상·전설 포켓몬이 부화합니다.", usable_in: "all" }
   };
 
+  // 🌟 이로치 변색물약 5종 기본 메타 데이터 (시트 연동 보조용)
+  const SHINY_POTION_DEFS = {
+    shiny_potion_1: { name: "금색 변색물약",     icon: "💛", desc: "대표 파트너를 [금색] 이로치로 변화시킵니다. (계정당 1회)",     usable_in: "field" },
+    shiny_potion_2: { name: "알비노 변색물약",   icon: "🤍", desc: "대표 파트너를 [알비노] 이로치로 변화시킵니다. (계정당 1회)",   usable_in: "field" },
+    shiny_potion_3: { name: "에메랄드 변색물약", icon: "💚", desc: "대표 파트너를 [에메랄드] 이로치로 변화시킵니다. (계정당 1회)", usable_in: "field" },
+    shiny_potion_4: { name: "루비 변색물약",     icon: "❤️", desc: "대표 파트너를 [루비] 이로치로 변화시킵니다. (계정당 1회)",     usable_in: "field" },
+    shiny_potion_5: { name: "다크 변색물약",     icon: "💜", desc: "대표 파트너를 [다크] 이로치로 변화시킵니다. (계정당 1회)",     usable_in: "field" }
+  };
+
   // 상점 열기
   function openShopModal() {
     const modal = document.getElementById('shop-modal');
@@ -7147,8 +7349,11 @@ function startAdventure() {
     document.getElementById('shop-my-candy').innerText = currentUser.candy_count;
     container.innerHTML = '';
 
+    const inv = currentUser.inventory || {};
+    const todayStr = (typeof getKSTDateStr === 'function') ? getKSTDateStr() : new Date().toISOString().slice(0, 10);
+
     shopPool.forEach(rawItem => {
-      const def = EGG_SPRITE_DEFS[rawItem.item_id];
+      const def = EGG_SPRITE_DEFS[rawItem.item_id] || SHINY_POTION_DEFS[rawItem.item_id];
       // 시트에 옛날 확장자(.jpg)가 적혀 있어도 최신 png 스프라이트로 자동 보정
       let resolvedSprite = rawItem.sprite || (def && def.sprite) || '';
       if (resolvedSprite.includes('egg_purple.jpg')) resolvedSprite = 'egg_purple.png';
@@ -7158,6 +7363,21 @@ function startAdventure() {
         ? `<img src="${item.sprite}" onerror="this.outerHTML='<span style=\\'font-size:22px;\\'>${item.icon || '🥚'}</span>'" style="width:26px; height:26px; object-fit:contain; image-rendering:pixelated;" alt="${item.name}">` 
         : `<span style="font-size:22px;">${item.icon || '📦'}</span>`;
 
+      // 🌟 1회 한정 품목 구매 완료 여부 판정
+      const isPotionBought = String(item.item_id).startsWith('shiny_potion_') &&
+                             Array.isArray(inv.bought_potions) && inv.bought_potions.includes(item.item_id);
+      const isMasterballSoldOut = (item.item_id === 'masterball') && (inv.last_masterball_date === todayStr);
+      const isIncubatorOwned = (item.item_id === 'incubator') && ((inv.incubator || 0) > 0);
+
+      let buyBtnHtml = `<button class="shop-buy-btn" onclick="buyShopItem('${item.item_id}', ${item.price})">🍬 ${item.price}개</button>`;
+      if (isPotionBought) {
+        buyBtnHtml = `<button class="shop-buy-btn" style="background:#444; color:#aaa; border-color:#555; cursor:not-allowed;" disabled>✅ 구매완료</button>`;
+      } else if (isMasterballSoldOut) {
+        buyBtnHtml = `<button class="shop-buy-btn" style="background:#444; color:#aaa; border-color:#555; cursor:not-allowed;" disabled>✅ 오늘 품절</button>`;
+      } else if (isIncubatorOwned) {
+        buyBtnHtml = `<button class="shop-buy-btn" style="background:#444; color:#aaa; border-color:#555; cursor:not-allowed;" disabled>✅ 보유중</button>`;
+      }
+
       const row = document.createElement('div');
       row.className = 'shop-item-row';
       row.innerHTML = `
@@ -7166,7 +7386,7 @@ function startAdventure() {
           <div class="shop-item-name">${item.name}</div>
           <div class="shop-item-desc">${item.desc}</div>
         </div>
-        <button class="shop-buy-btn" onclick="buyShopItem('${item.item_id}', ${item.price})">🍬 ${item.price}개</button>
+        ${buyBtnHtml}
       `;
       container.appendChild(row);
     });
@@ -7180,26 +7400,60 @@ function startAdventure() {
 
   // 아이템 구매
   function buyShopItem(itemId, price) {
-    // 🌟 [추가] 부화기는 계정당 1개만 소지 가능
+    if (!currentUser.inventory) currentUser.inventory = {};
+
+    // 🌟 부화기는 계정당 1개만 소지 가능
     if (itemId === 'incubator' && (currentUser.inventory['incubator'] || 0) > 0) {
       playRetroSound('wrong');
       showToast("🧪 부화기는 이미 보유하고 있습니다! (1개 한정)");
       return;
     }
+
+    // 🌟 이로치 변색물약(shiny_potion_1~5)은 종류별 계정당 1회 구매 제한
+    if (String(itemId).startsWith('shiny_potion_')) {
+      if (!Array.isArray(currentUser.inventory.bought_potions)) {
+        currentUser.inventory.bought_potions = [];
+      }
+      if (currentUser.inventory.bought_potions.includes(itemId)) {
+        playRetroSound('wrong');
+        showToast("✨ 이 변색물약은 계정당 1회만 구매할 수 있습니다!");
+        return;
+      }
+    }
+
+    // 🌟 마스터볼은 한국 날짜 기준 하루 1개만 구매 가능
+    const todayStr = (typeof getKSTDateStr === 'function') ? getKSTDateStr() : new Date().toISOString().slice(0, 10);
+    if (itemId === 'masterball' && currentUser.inventory.last_masterball_date === todayStr) {
+      playRetroSound('wrong');
+      showToast("🟣 마스터볼은 하루에 1개만 구매할 수 있습니다!");
+      return;
+    }
+
     if (currentUser.candy_count < price) {
       playRetroSound('wrong');
       showToast("🍬 사탕이 부족하여 구매할 수 없습니다!");
       return;
     }
+
     currentUser.candy_count -= price;
     currentUser.inventory[itemId] = (currentUser.inventory[itemId] || 0) + 1;
-    // 🌟 [추가] 상점 누적 구매 횟수 기록 (8단계 buy_item: 2 미션 대응)
+
+    // 🌟 1회 한정 품목 구매 이력 영구 기록
+    if (String(itemId).startsWith('shiny_potion_')) {
+      currentUser.inventory.bought_potions.push(itemId);
+    }
+    if (itemId === 'masterball') {
+      currentUser.inventory.last_masterball_date = todayStr;
+    }
+
+    // 🌟 상점 누적 구매 횟수 기록 (8단계 buy_item: 2 미션 대응)
     currentUser.inventory.buy_count = (Number(currentUser.inventory.buy_count) || 0) + 1;
     updateHud();
     document.getElementById('shop-my-candy').innerText = currentUser.candy_count;
-    checkQuestProgress('buy_item'); // 🌟 [추가] 상점 이용 미션 트리거
+    checkQuestProgress('buy_item'); // 🌟 상점 이용 미션 트리거
     saveGameData();
     playRetroSound('correct');
+    openShopModal(); // 🌟 구매 직후 버튼 상태를 '✅ 구매완료'로 즉시 갱신
     showToast(`🎒 아이템을 획득했습니다! (가방에 보관됨)`);
   }
 
@@ -7217,8 +7471,12 @@ function startAdventure() {
       currentUser.inventory = {};
     }
 
-    // 🌟 시스템 내부 숫자 변수(친밀도, 최고콤보, 부화기 진행도, 미션 누적 카운터 등)는 가방 목록에서 제외
-    const sysNumKeys = ['friendship', 'max_combo', 'egg_progress', 'egg_max', 'evolve_count', 'buy_count'];
+    // 🌟 시스템 내부 숫자 변수(친밀도, 최고콤보, 부화기 진행도, 배틀 버프 잔여횟수, 걸음수 등)는 가방 목록에서 제외
+    const sysNumKeys = [
+      'friendship', 'max_combo', 'egg_progress', 'egg_max',
+      'evolve_count', 'buy_count', 'walk_steps',
+      'battle_fever_left', 'battle_honey_left'
+    ];
     const ownedKeys = Object.keys(currentUser.inventory || {}).filter(
       k => !sysNumKeys.includes(k) && typeof currentUser.inventory[k] === 'number' && currentUser.inventory[k] > 0
     );
@@ -7317,6 +7575,86 @@ function startAdventure() {
   function useBagItem(itemId) {
     if (!currentUser.inventory[itemId] || currentUser.inventory[itemId] <= 0) return;
 
+    // 🌟 [추가] 이로치 변색물약(shiny_potion_1~5) 사용: 현재 대표 파트너를 해당 변색 개체로 변환
+    if (String(itemId).startsWith('shiny_potion_')) {
+      if (battleState.active) {
+        showToast("배틀 중에는 변색물약을 사용할 수 없습니다!");
+        return;
+      }
+      if (!currentUser.partner_id) {
+        playRetroSound('wrong');
+        showToast("⭐ 먼저 포켓기어 도감에서 변화시킬 [대표 파트너]를 지정해 주세요!");
+        return;
+      }
+
+      const variantCode = Number(String(itemId).replace('shiny_potion_', '')) || 1;
+      const variantObj = SHINY_CONFIG.variants.find(v => v.code === variantCode) || SHINY_CONFIG.variants[0];
+      const curPartnerId = Number(currentUser.partner_id);
+      const baseId = Math.floor(curPartnerId);
+      const targetShinyId = Number((baseId + variantCode * 0.1).toFixed(1));
+
+      if (curPartnerId === targetShinyId) {
+        playRetroSound('wrong');
+        showToast(`✨ 이미 [${variantObj.prefix}] 색상의 파트너입니다!`);
+        return;
+      }
+
+      const baseMon = monsterPool.find(m => Number(m.id) === baseId);
+      const monName = baseMon ? baseMon.name : "파트너";
+
+      const ok = confirm(`✨ [${variantObj.prefix} 변색물약]을 사용하시겠습니까?\n\n현재 대표 파트너 [${monName}]이(가) [${variantObj.prefix} ${monName}]으로 영구 변화하며, 기존 별 등급과 강화 수치는 모두 계승됩니다!`);
+      if (!ok) return;
+
+      // 1. 물약 1개 소모 및 변색 개체 도감·이로치 목록 등록
+      currentUser.inventory[itemId]--;
+      if (!currentUser.captured_ids.some(cid => Number(cid) === targetShinyId)) {
+        currentUser.captured_ids.push(targetShinyId);
+      }
+      if (!Array.isArray(currentUser.inventory.shinies)) currentUser.inventory.shinies = [];
+      if (!currentUser.inventory.shinies.includes(targetShinyId)) {
+        currentUser.inventory.shinies.push(targetShinyId);
+      }
+
+      // 2. 기존 별 등급(★) 계승
+      if (currentUser.inventory.stars && currentUser.inventory.stars[curPartnerId]) {
+        const prevStar = currentUser.inventory.stars[curPartnerId];
+        currentUser.inventory.stars[targetShinyId] = Math.max(currentUser.inventory.stars[targetShinyId] || 1, prevStar);
+      }
+
+      // 3. 기존 강화 수치(+N강) 이전 (중복 전당 점수 합산 방지)
+      if (currentUser.inventory.upgrades && currentUser.inventory.upgrades[curPartnerId]) {
+        const prevUpg = Number(currentUser.inventory.upgrades[curPartnerId]) || 0;
+        const curUpg = Number(currentUser.inventory.upgrades[targetShinyId]) || 0;
+        currentUser.inventory.upgrades[targetShinyId] = Math.max(curUpg, prevUpg);
+        delete currentUser.inventory.upgrades[curPartnerId];
+      }
+
+      // 4. 그림자 정화 사탕 할인 혜택 계승
+      if (Array.isArray(currentUser.inventory.purified) && currentUser.inventory.purified.includes(curPartnerId)) {
+        if (!currentUser.inventory.purified.includes(targetShinyId)) {
+          currentUser.inventory.purified.push(targetShinyId);
+        }
+      }
+
+      // 5. 대표 파트너를 새로 변색된 포켓몬으로 자동 교체 및 저장
+      currentUser.partner_id = targetShinyId;
+      localStorage.setItem(`pkm_partner_${currentUser.student_id}`, String(targetShinyId));
+
+      playRetroSound('fanfare');
+      updateHud();
+      saveGameData();
+      closeBagModal();
+
+      openCaptureModal({
+        id: targetShinyId,
+        name: `${variantObj.prefix} ${monName}`,
+        sprite: baseMon ? baseMon.sprite : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${baseId}.png`,
+        type: baseMon ? baseMon.type : 'grass'
+      });
+      showToast(`✨ 짜잔! 파트너가 [${variantObj.prefix} ${monName}]으로 변색되었습니다!`);
+      return;
+    }
+
     // 🌟 [개편] 4등급 알(초록/파랑/보라/신비한 알) 통합 사용 로직
     if (itemId.startsWith('egg_') || itemId === 'mystic_egg') {
       if (battleState.active) {
@@ -7373,7 +7711,13 @@ function startAdventure() {
     
     if (itemId === 'masterball') {
       if (!battleState.active) { showToast("배틀 중에만 사용할 수 있습니다!"); return; }
+      if (battleState.isBoss || battleState.isRaid) {
+        playRetroSound('wrong');
+        showToast("⛔ 체육관 관장전 및 학급 레이드에서는 마스터볼을 사용할 수 없습니다!");
+        return;
+      }
       currentUser.inventory[itemId]--;
+      battleState.usedMasterball = true;
       closeBagModal();
       showToast("🟣 마스터볼 투척! 100% 확률로 즉시 포획합니다!");
       triggerCaptureSequence();
@@ -7389,12 +7733,12 @@ function startAdventure() {
     } else if (itemId === 'fever_incense') {
       currentUser.inventory[itemId]--;
       closeBagModal();
-      activateFever(30); // 🌟 30초 카운트다운 시작
+      activateFever(4); // 🌟 다음 4회 야생 배틀 동안 골든 피버 적용
     } else if (itemId === 'sweet_scent') {
       if (battleState.active) { showToast("필드에서만 사용할 수 있습니다!"); return; }
       currentUser.inventory[itemId]--;
       closeBagModal();
-      activateSweetScent(60); // 🌟 60초 카운트다운 시작
+      activateSweetScent(4); // 🌟 다음 4회 야생 조우까지 달콤한꿀 적용
     } else if (itemId === 'repel') {
       if (battleState.active) { showToast("필드에서만 사용할 수 있습니다!"); return; }
       currentUser.inventory[itemId]--;
@@ -7491,9 +7835,9 @@ function evaluateQuest(q) {
     // 🌟 [개편] 누적 진화 횟수 (1회 진화 및 5회 누적 진화 모두 지원)
     curVal = isClaimed ? maxVal : (Number(inv.evolve_count) || 0);
   } else if (targetType === 'league_score') {
-    // 🌟 리그 랭킹 복합 점수 달성 여부 (강화 보너스 포함)
-    const upgTotal = inv.upgrades ? Object.values(inv.upgrades).reduce((acc, v) => acc + (Number(v) || 0), 0) : 0;
-    curVal = calculateLeagueScore(currentUser.badges, (currentUser.captured_ids || []).length, currentUser.candy_count, upgTotal);
+    // 🌟 리그 랭킹 복합 점수 달성 여부 (누적 강화 투자 점수 포함)
+    const upgPointSum = calcUpgradesPointSum(inv.upgrades);
+    curVal = calculateLeagueScore(currentUser.badges, (currentUser.captured_ids || []).length, currentUser.candy_count, upgPointSum);
   }
 
   const isCompleted = curVal >= maxVal;
@@ -7732,10 +8076,19 @@ function startRaidBossBattle(npc, raidStatus) {
   overlay.style.background = 'linear-gradient(180deg, #370617 0%, #6a040f 60%, #03071e 100%)';
   overlay.style.display = 'flex';
 
+  // 🌟 이전 배틀의 몬스터볼이 거대 보스 스프라이트 위에 겹치지 않도록 확실히 숨김
+  const ball = document.getElementById('pokeball-actor');
+  if (ball) {
+    ball.style.display = 'none';
+    ball.className = '';
+  }
+  drawTrainerBattleFrame(0);
+
   const enemyImg = document.getElementById('b-enemy-sprite');
   enemyImg.style.display = 'block';
-  enemyImg.style.transform = 'scale(1.4)'; // 배틀 창에서도 거대화
+  enemyImg.style.transform = 'scale(1.3)';
   enemyImg.style.opacity = '1';
+  enemyImg.className = 'enemy-img';
   enemyImg.src = battleState.monster.sprite;
 
   const classId = (currentUser.student_id || '10301').substring(0, 3);
@@ -7744,7 +8097,7 @@ function startRaidBossBattle(npc, raidStatus) {
 
   updateBattleHpBar(battleState.hp);
   renderBattlePhase();
-  showToast(`⚔️ 거대 잠만보 출현! 정답을 맞춰 체력을 깎으세요!`);
+  showToast(`⚔️ [${battleState.monster.name}] 출현! 정답을 맞춰 체력을 깎으세요!`);
 }
 
 // =======================================================
