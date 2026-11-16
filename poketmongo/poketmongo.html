@@ -469,35 +469,88 @@
     #controller-pad { display: flex; }
   }
 
-  /* 🌟 모바일/태블릿 가로모드 전용: 좌측 하단 방향키 / 우측 하단 A·B 버튼 배치 */
-  @media (orientation: landscape) and (max-height: 620px) {
+  /* 🌟 모바일/태블릿 가로모드 전용: 좌측 방향키 / 중앙 전체 화면 / 우측 A·B 버튼 3단 분할 */
+  @media (orientation: landscape) and (max-height: 760px) {
+    #gbc-wrapper {
+      display: grid;
+      grid-template-rows: 38px 1fr;
+      grid-template-columns: max(116px, calc(env(safe-area-inset-left) + 110px)) 1fr max(116px, calc(env(safe-area-inset-right) + 110px));
+      background: #141622;
+    }
+
+    #header-hud {
+      grid-row: 1;
+      grid-column: 1 / -1;
+    }
+
+    #canvas-container {
+      grid-row: 2;
+      grid-column: 2;
+      width: 100%;
+      height: 100%;
+      border-left: 2px solid #0a0b12;
+      border-right: 2px solid #0a0b12;
+    }
+
+    /* #controller-pad의 자식(.d-pad, .ab-pad)을 그리드 좌·우 열에 직접 배치 */
     #controller-pad {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      min-height: 0;
-      background: transparent;
-      border-top: none;
-      padding: 0 18px max(12px, env(safe-area-inset-bottom)) 18px;
-      pointer-events: none; /* 중앙 맵 터치 투과 */
-      z-index: 45;
+      display: contents !important;
     }
-    #controller-pad .d-pad,
-    #controller-pad .ab-pad {
-      pointer-events: auto;
-      opacity: 0.86;
+
+    #controller-pad .d-pad {
+      grid-row: 2;
+      grid-column: 1;
+      align-self: center;
+      justify-self: center;
+      margin-left: env(safe-area-inset-left);
+      width: 102px;
+      height: 102px;
     }
-    #controller-pad .d-pad { width: 102px; height: 102px; }
     #controller-pad .d-btn { width: 34px; height: 34px; }
     #controller-pad .d-up { top: 0; left: 34px; }
     #controller-pad .d-down { bottom: 0; left: 34px; }
     #controller-pad .d-left { top: 34px; left: 0; }
     #controller-pad .d-right { top: 34px; right: 0; }
     #controller-pad .d-center { top: 34px; left: 34px; width: 34px; height: 34px; }
+
+    #controller-pad .ab-pad {
+      grid-row: 2;
+      grid-column: 3;
+      align-self: center;
+      justify-self: center;
+      margin-right: env(safe-area-inset-right);
+      flex-direction: column-reverse;
+      gap: 12px;
+      transform: rotate(-12deg);
+    }
+    #controller-pad .round-btn {
+      width: 46px;
+      height: 46px;
+    }
+
+    /* 배틀·연습장·패드 숨김 시 좌우 패드를 감추고 중앙 화면을 가로 전체(100%)로 확장 */
+    #gbc-wrapper.in-battle-mode #controller-pad .d-pad,
+    #gbc-wrapper.in-battle-mode #controller-pad .ab-pad,
+    #gbc-wrapper.pad-hidden-for-draw #controller-pad .d-pad,
+    #gbc-wrapper.pad-hidden-for-draw #controller-pad .ab-pad,
+    #gbc-wrapper.pad-force-hidden #controller-pad .d-pad,
+    #gbc-wrapper.pad-force-hidden #controller-pad .ab-pad {
+      display: none !important;
+    }
+
+    #gbc-wrapper.in-battle-mode #canvas-container,
+    #gbc-wrapper.pad-hidden-for-draw #canvas-container,
+    #gbc-wrapper.pad-force-hidden #canvas-container {
+      grid-column: 1 / -1;
+      border-left: none;
+      border-right: none;
+    }
   }
 
-  /* 배틀 중이나 연습장 사용 중에는 가상 패드 숨김 (터치 간섭 차단) */
+  /* 세로모드에서 배틀·연습장·수동 숨김 시 가상 패드 숨김 */
   #gbc-wrapper.in-battle-mode #controller-pad,
-  #gbc-wrapper.pad-hidden-for-draw #controller-pad {
+  #gbc-wrapper.pad-hidden-for-draw #controller-pad,
+  #gbc-wrapper.pad-force-hidden #controller-pad {
     display: none !important;
   }
 
@@ -1515,58 +1568,6 @@
       </div>
     </div>
 
-<!-- 🌟 [정상 위치] 학급 실시간 전당등록 & 리그 랭킹 모달 -->
-    <div id="leaderboard-modal">
-      <div class="lb-card">
-        <div class="lb-header">
-          <span class="lb-title">🏆 수학 리그 명예의 전당</span>
-          <div style="display:flex; gap:6px;">
-            <button class="lb-refresh-btn" id="lb-refresh-btn" onclick="fetchLeaderboardData(true)">🔄 새로고침</button>
-            <button onclick="closeLeaderboardModal()" style="background:#e63946; color:#fff; border:1px solid #111; padding:2px 6px; font-size:10px; cursor:pointer;">닫기(X)</button>
-          </div>
-        </div>
-
-        <!-- 👑 4대 배지 올클리어 챔피언 전당 목록 -->
-        <div class="lb-hof-section">
-          <div class="lb-hof-title">👑 명예의 전당 챔피언 (4대 배지 정복자)</div>
-          <div class="lb-hof-grid" id="lb-hof-grid">
-            <span style="font-size:9px; color:#888;">아직 전당등록을 마친 챔피언이 없습니다.</span>
-          </div>
-        </div>
-
-        <!-- 🌟 [추가] 비인지적 노력 특별 부문상 (협동왕 & 성실 탐험가) -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:2px 0;">
-          <div style="background:#261828; border:1.5px solid #ff70a6; border-radius:5px; padding:6px; text-align:center;">
-            <div style="font-size:9px; color:#ff70a6; font-weight:bold;">🥊 레이드 협동왕</div>
-            <div id="lb-raid-mvp" style="font-size:10px; color:#fff; font-weight:bold; margin-top:2px;">집계 중...</div>
-          </div>
-          <div style="background:#132623; border:1.5px solid #2a9d8f; border-radius:5px; padding:6px; text-align:center;">
-            <div style="font-size:9px; color:#2a9d8f; font-weight:bold;">🎒 성실 탐험가</div>
-            <div id="lb-quest-mvp" style="font-size:10px; color:#fff; font-weight:bold; margin-top:2px;">집계 중...</div>
-          </div>
-        </div>
-
-        <!-- 📊 학급 Top 5 명예의 랭킹 리스트 -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-          <span style="font-size:10.5px; font-weight:bold; color:#ffd166;">🏆 리그 TOP 5 트레이너</span>
-          <span style="font-size:8.5px; color:#8e99b7;">※ 5위까지만 명예 공개됩니다</span>
-        </div>
-        <div class="lb-list" id="lb-ranking-list">
-          <div style="text-align:center; color:#888; font-size:11px; padding:20px 0;">랭킹 기록을 불러오는 중...</div>
-        </div>
-
-        <!-- 🌟 [개편] 개인 달성도 & 성장 중심 안심 푸터 -->
-        <div class="lb-my-footer" id="lb-my-footer" style="flex-direction:column; align-items:flex-start; gap:4px; padding:8px 10px;">
-          <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-            <span style="font-size:11px; color:#06d6a0; font-weight:bold;" id="lb-my-rank-text">🌱 모험 진행도</span>
-            <span style="font-size:10.5px; color:#ffd166; font-weight:bold;" id="lb-my-name-text">🎒 내 정보</span>
-          </div>
-          <div style="font-size:9.5px; color:#ced4da; line-height:1.4; width:100%;" id="lb-my-goal-text">
-            다음 등급까지 목표 계산 중...
-          </div>
-        </div>
-      </div>
-    </div>
 
 <!-- 🌟 [추가] 신규 유저 게임 목적 및 규칙 안내 가이드 모달 -->
     <div id="intro-guide-modal">
@@ -2826,7 +2827,7 @@ player.realX = player.gridX * DISPLAY_TILE;
     // 🌟 [개선] 다채로운 NPC 렌더링 (플레이어와 키/비율 일치 및 발끝 정렬)
     const now = Date.now();
     npcPool.forEach((npc, index) => {
-      if (npc.map_id === currentMapId) {
+      if (String(npc.map_id || '').trim().toLowerCase() === String(currentMapId || '').trim().toLowerCase()) {
         const spriteObj = getNpcImage(npc.sprite);
         // 각 NPC마다 약간씩 엇박자로 들썩이는 레트로 모션
         const bob = Math.sin((now / 350) + index) * 1.5;
@@ -3151,15 +3152,18 @@ player.realX = player.gridX * DISPLAY_TILE;
   }
 
   function switchMap(targetMapId, tx, ty) {
-    if (!GOLD_MAPS[targetMapId]) return;
-    currentMapId = targetMapId;
+    const resolvedId = GOLD_MAPS[targetMapId]
+      ? targetMapId
+      : Object.keys(GOLD_MAPS).find(k => k.toLowerCase() === String(targetMapId || '').trim().toLowerCase());
+    if (!resolvedId) return;
+    currentMapId = resolvedId;
     player.gridX = tx; player.gridY = ty;
     player.fromX = tx; player.fromY = ty;
     player.toX = tx; player.toY = ty;
     player.realX = tx * DISPLAY_TILE; player.realY = ty * DISPLAY_TILE;
     player.isMoving = false;
 
-    const mapObj = GOLD_MAPS[targetMapId];
+    const mapObj = GOLD_MAPS[resolvedId];
     const outbreak = getTodayOutbreak();
     const isOutbreakMap = (mapObj.biome && mapObj.biome.toLowerCase() === outbreak.biome);
 
@@ -4266,7 +4270,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
             if (!currentUser.inventory.shadows) currentUser.inventory.shadows = {};
             
             // 이미 정식 등록된 포켓몬이 아닐 경우 그림자 상태로 도감 등록
-            if (!currentUser.captured_ids.includes(targetMonId)) {
+            if (!currentUser.captured_ids.some(cid => Number(cid) === targetMonId)) {
               currentUser.captured_ids.push(targetMonId);
               currentUser.inventory.shadows[targetMonId] = {
                 zone: battleState.battleData.zone || currentMapId,
@@ -4507,6 +4511,16 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
         targetMonId,
         ...currentUser.inventory.caught_order.filter(id => Number(id) !== targetMonId)
       ];
+
+      // 🌟 그림자 상태였던 포켓몬을 야생에서 정상 포획하면 그림자 상태 즉시 해제 및 정화 혜택 부여
+      if (currentUser.inventory.shadows && currentUser.inventory.shadows[targetMonId]) {
+        delete currentUser.inventory.shadows[targetMonId];
+        if (!Array.isArray(currentUser.inventory.purified)) currentUser.inventory.purified = [];
+        if (!currentUser.inventory.purified.includes(targetMonId)) {
+          currentUser.inventory.purified.push(targetMonId);
+        }
+        updateShadowBadgeCount();
+      }
 
       const prevStars = currentUser.inventory.stars[targetMonId] || 0;
       let isUpgraded = false;
@@ -5127,56 +5141,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     startGymBossBattle(gym);
   }
 
-  // 🌟 Monsters 시트에서 해당 체육관 관장 에이스 포켓몬 조회 (tier='boss' 또는 map_id='gym_속성')
-  function getGymBossMonsterFromSheet(badgeId) {
-    const bId = String(badgeId || '').toLowerCase().trim();
-    const gymTag = `gym_${bId}`;
-
-    // 1순위: Monsters 탭에서 tier가 'boss'이고 type이 일치하거나, map_id에 'gym_속성'이 적힌 몬스터
-    let bosses = monsterPool.filter(m => {
-      const mTier = String(m.tier || '').toLowerCase().trim();
-      const mType = String(m.type || '').toLowerCase().trim();
-      const mMap = String(m.map_id || '').toLowerCase().trim();
-      return (mTier === 'boss' && mType === bId) || mMap.includes(gymTag);
-    });
-
-    // 2순위: 시트에 아직 boss 지정이 없을 경우 해당 속성 몬스터 중 가장 마지막(강한) 개체 자동 선택
-    if (bosses.length === 0) {
-      bosses = monsterPool.filter(m => String(m.type || '').toLowerCase().trim() === bId);
-    }
-
-    const picked = bosses.length > 0
-      ? bosses[Math.floor(Math.random() * bosses.length)]
-      : { id: 150, name: "수호 포켓몬", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/150.png" };
-
-    return {
-      id: Number(picked.id) || 999,
-      name: `${picked.name} (관장 에이스)`,
-      sprite: picked.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${picked.id || 150}.png`,
-      tier: "boss"
-    };
-  }
-
-  // 🌟 맵 이름이나 NPC 정보로 체육관 속성을 안전하게 추적하고 시트 보스 포켓몬을 결합하는 헬퍼 함수
-  function resolveGymData(npcOrMapId) {
-    const rawKey = String(
-      (typeof npcOrMapId === 'object' ? (npcOrMapId.gym_id || npcOrMapId.map_id || currentMapId) : npcOrMapId) || currentMapId
-    ).trim().toLowerCase();
-
-    let baseGym = GYM_LEADERS['water'];
-    if (GYM_LEADERS[rawKey]) baseGym = GYM_LEADERS[rawKey];
-    else if (rawKey.includes('water')) baseGym = GYM_LEADERS['water'];
-    else if (rawKey.includes('snow') || rawKey.includes('ice')) baseGym = GYM_LEADERS['snow'];
-    else if (rawKey.includes('volcano') || rawKey.includes('fire') || rawKey.includes('lava')) baseGym = GYM_LEADERS['volcano'];
-    else if (rawKey.includes('sand') || rawKey.includes('desert')) baseGym = GYM_LEADERS['sand'];
-    else if (GYM_LEADERS[currentMapId]) baseGym = GYM_LEADERS[currentMapId];
-
-    // 시트에서 불러온 에이스 포켓몬(bossMon)을 합쳐서 반환
-    return {
-      ...baseGym,
-      bossMon: getGymBossMonsterFromSheet(baseGym.badgeId)
-    };
-  }
+  // (중복 정의 제거 완료 - 상단의 getGymBossMonsterFromSheet, resolveGymData 사용)
 
   // 🌟 [개편] 1행 1문제 시트에서 관장 전용 최고난도(phase 3) 문제만 무작위 추출하는 함수
   function getGymPhase3Question(gymZone) {
@@ -6363,7 +6328,9 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         : (String(u.student_id) === String(currentUser.student_id) && currentUser.inventory ? currentUser.inventory.upgrades : {});
       const upgPointSum = calcUpgradesPointSum(targetUpgrades);
       const score = calculateLeagueScore(bList, cCount, candy, upgPointSum);
-      const pId = u.partner_id || (String(u.student_id) === String(currentUser.student_id) ? currentUser.partner_id : null);
+      const pId = u.partner_id
+        || (invObj && invObj.partner_id)
+        || (String(u.student_id) === String(currentUser.student_id) ? currentUser.partner_id : null);
 
       return {
         id: String(u.student_id || ''),
@@ -6374,7 +6341,8 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         questCount: qList.length,
         score: score,
         isChampion: bList.length >= 4,
-        partnerId: pId
+        partnerId: pId,
+        inventory: (String(u.student_id) === String(currentUser.student_id) && currentUser.inventory) ? currentUser.inventory : invObj
       };
     });
 
@@ -6442,10 +6410,25 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         const pDisplayName = pMon ? `${pVariant ? pVariant.prefix + ' ' : ''}${pMon.name}` : `No.${pBaseId}`;
         const shinyCls = pVariant ? pVariant.cssClass : '';
 
+        const uInv = user.inventory || {};
+        const pUpgLv = (uInv.upgrades && Number(uInv.upgrades[pNumId])) || 0;
+        const pIsShadow = !!(uInv.shadows && uInv.shadows[pNumId]);
+        const pStarRaw = (uInv.stars && uInv.stars[pNumId] !== undefined) ? Number(uInv.stars[pNumId]) : 1;
+        const pStarCount = Math.min(3, Math.max(1, pStarRaw || 1));
+
+        const pStarHtml = pIsShadow
+          ? `<span style="color:#c77dff; font-weight:bold;">🟣그림자</span>`
+          : `<span style="color:${pStarCount === 3 ? '#ffd166' : (pStarCount === 2 ? '#4cc9f0' : '#adb5bd')}; letter-spacing:-1px;">${'★'.repeat(pStarCount)}${'☆'.repeat(3 - pStarCount)}</span>`;
+        const pUpgHtml = pUpgLv > 0
+          ? `<span style="background:#d90429; color:#fff; padding:0 3px; border-radius:3px; font-weight:bold;">+${pUpgLv}강</span>`
+          : '';
+
         partnerBadgeHtml = `
-          <span style="display:inline-flex; align-items:center; gap:2px; background:#252b42; border:1px solid #ffd166; border-radius:4px; padding:0 4px; margin-left:5px; font-size:8.5px; color:#ffd166;">
-            <img src="${pSrc}" alt="partner" class="${shinyCls}" style="width:20px; height:20px; object-fit:contain; image-rendering:pixelated; animation:none;">
+          <span style="display:inline-flex; align-items:center; gap:3px; background:#252b42; border:1px solid #ffd166; border-radius:4px; padding:1px 5px; margin-left:4px; font-size:8.5px; color:#ffd166;">
+            <img src="${pSrc}" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png';" alt="partner" class="${shinyCls}" style="width:20px; height:20px; object-fit:contain; image-rendering:pixelated; animation:none;">
             <span>${pDisplayName}</span>
+            ${pUpgHtml}
+            ${pStarHtml}
           </span>
         `;
       }
@@ -6675,7 +6658,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       return true;
     });
 
-ㅁ    // 2. 🌟 지형 바이옴 및 맵 ID 양방향 정밀 필터링
+    // 2. 🌟 지형 바이옴 및 맵 ID 양방향 정밀 필터링
     if (currentDexBiomeFilter !== 'all') {
       const filterKey = currentDexBiomeFilter.toLowerCase().trim();
       filtered = filtered.filter(m => {
@@ -6763,10 +6746,12 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
       const isPurified = isCaught && inv.purified && inv.purified.includes(numId);
       const REINFORCE_COST = getReinforceCost(upgLv, isPurified);
 
-      // 🌟 별 등급(1~3성) 뱃지 생성
+      // 🌟 별 등급(1~3성) 및 그림자 상태 뱃지 생성
       let starHtml = '';
-      if (isCaught) {
-        const starCount = (currentUser.inventory && currentUser.inventory.stars && currentUser.inventory.stars[mon.id]) || 1;
+      if (isShadow) {
+        starHtml = `<span style="font-size:8px; color:#c77dff; background:#240046; padding:0 3px; border-radius:3px; font-weight:bold;">🟣그림자</span>`;
+      } else if (isCaught) {
+        const starCount = (currentUser.inventory && currentUser.inventory.stars && Number(currentUser.inventory.stars[mon.id])) || 1;
         const starColor = starCount === 3 ? '#ffb703' : (starCount === 2 ? '#48cae4' : '#adb5bd');
         const starIcons = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
         starHtml = `<span style="font-size:8.5px; color:${starColor}; font-weight:bold; letter-spacing:-1px; text-shadow:0 0 2px rgba(0,0,0,0.3);">${starIcons}</span>`;
@@ -6823,11 +6808,11 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
 
       card.innerHTML = `
         <!-- [좌측] 54px 컴팩트 사진 박스 (불필요한 여백 최소화) -->
-        <div style="width:54px; height:54px; min-width:54px; display:flex; align-items:center; justify-content:center; background:#f0f4f8; border-radius:4px; border:1px solid #d0d7de; flex-shrink:0; overflow:hidden;">
+        <div style="width:54px; height:54px; min-width:54px; display:flex; align-items:center; justify-content:center; background:${isShadow ? '#240046' : '#f0f4f8'}; border-radius:4px; border:1px solid ${isShadow ? '#9d4edd' : '#d0d7de'}; flex-shrink:0; overflow:hidden;">
           <img src="${mon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${baseId}.png`}" 
                onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${baseId}.png';"
                class="${isShiny ? variant.cssClass : ''}"
-               style="width:52px; height:52px; object-fit:contain; image-rendering:pixelated; ${!isCaught ? 'filter:brightness(0);' : ''}">
+               style="width:52px; height:52px; object-fit:contain; image-rendering:pixelated; ${!isCaught ? 'filter:brightness(0);' : (isShadow ? 'filter:drop-shadow(0 0 4px #c77dff) saturate(1.4) hue-rotate(245deg);' : '')}">
         </div>
 
         <!-- [우측] 컴팩트 정보 및 2열 버튼 영역 -->
@@ -6962,7 +6947,8 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
       activePurifyQuestion = null;
 
       playRetroSound('fanfare');
-      updateShadowBadgeCount();
+      updateHud();
+      renderDexList();
       saveGameData();
       renderPokegearPurify();
       showToast("✨ 정화 성공! 3성(★★★) 승급 및 진화·강화 사탕 20% 영구 할인이 적용되었습니다!");
@@ -7103,6 +7089,7 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
     playRetroSound('fanfare');
     showToast(`👑 [${pName}]이(가) 나의 대표 파트너 포켓몬으로 지정되었습니다!`);
     
+    cachedLeaderboardData = null; // 🌟 파트너 변경 즉시 전당 랭킹 캐시 무효화
     renderDexList();
     saveGameData();
 
@@ -7482,8 +7469,7 @@ function startAdventure() {
     }
     if (e.key === 'c' || e.key === 'C') {
       if (tutorialStep > 0) return;
-      const modal = document.getElementById('dex-modal');
-      if (!battleState.active) toggleDex(modal.style.display === 'none');
+      if (!battleState.active) togglePokegear('dex');
     }
   });
 
@@ -7538,24 +7524,40 @@ function startAdventure() {
     btn.addEventListener('click', triggerAbAction);
   });
 
-  // 🌟 [추가] 조작키 ON/OFF 수동 토글 함수
+  // 🌟 [개편] 세로·가로모드 공용 조작키 ON/OFF 수동 토글 함수
   function toggleControllerPad() {
+    const wrapper = document.getElementById('gbc-wrapper');
     const pad = document.getElementById('controller-pad');
-    if (!pad) return;
-    const isHidden = window.getComputedStyle(pad).display === 'none';
-    pad.style.display = isHidden ? 'flex' : 'none';
-    resizeCanvas(); // 화면 크기 재계산
-    showToast(isHidden ? "🕹️ 조작키를 표시합니다." : "🕹️ 조작키를 숨겼습니다.");
+    if (!wrapper || !pad) return;
+
+    const isLandscape = window.matchMedia('(orientation: landscape) and (max-height: 760px)').matches;
+    if (isLandscape) {
+      const willShow = wrapper.classList.contains('pad-force-hidden');
+      wrapper.classList.toggle('pad-force-hidden', !willShow);
+      pad.style.display = '';
+      resizeCanvas();
+      showToast(willShow ? "🕹️ 조작키를 표시합니다." : "🕹️ 조작키를 숨겼습니다.");
+    } else {
+      const isHidden = wrapper.classList.contains('pad-force-hidden') || window.getComputedStyle(pad).display === 'none';
+      wrapper.classList.toggle('pad-force-hidden', !isHidden);
+      pad.style.display = isHidden ? 'flex' : 'none';
+      resizeCanvas();
+      showToast(isHidden ? "🕹️ 조작키를 표시합니다." : "🕹️ 조작키를 숨겼습니다.");
+    }
   }
 
-  // 🌟 [추가] 삼성 브라우저 및 모바일 환경 자동 감지하여 조작키 강제 활성화
+  // 🌟 [개편] 삼성 브라우저 및 모바일 환경 자동 감지 (가로모드 그리드 레이아웃 보호)
   function checkMobileController() {
     const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|SamsungBrowser/i.test(navigator.userAgent);
     const isSmallScreen = window.innerWidth <= 1024;
+    const isLandscape = window.matchMedia('(orientation: landscape) and (max-height: 760px)').matches;
 
     const pad = document.getElementById('controller-pad');
-    if (pad && (isTouch || isMobileUA || isSmallScreen)) {
+    if (!pad) return;
+    if (isLandscape) {
+      pad.style.display = ''; // 가로모드에서는 CSS display: contents 적용
+    } else if (isTouch || isMobileUA || isSmallScreen) {
       pad.style.display = 'flex';
     }
   }
@@ -7564,8 +7566,20 @@ function startAdventure() {
   function resizeCanvas() {
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
+    if (typeof renderScene === 'function' && currentUser && currentUser.student_id && !battleState.active) {
+      renderScene();
+    }
   }
-  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('resize', () => {
+    checkMobileController();
+    resizeCanvas();
+  });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      checkMobileController();
+      resizeCanvas();
+    }, 120);
+  });
 
   checkMobileController();
   resizeCanvas();
