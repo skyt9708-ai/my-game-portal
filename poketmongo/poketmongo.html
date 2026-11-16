@@ -320,25 +320,46 @@
     75% { transform: rotate(25deg); }
   }
 
-  /* 일체형 배틀 문제 & 도망치기 패널 */
+  /* 🌟 대화창 바로 위 단계 배지 & 보조 버튼 바 */
+  .battle-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    z-index: 66;
+  }
+  .battle-step-pill {
+    background: #141824;
+    color: #ffd166;
+    border: 2px solid #ffd166;
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: bold;
+    box-shadow: 0 2px 0 #000;
+    white-space: nowrap;
+  }
+
+  /* 일체형 배틀 문제 패널 (문제 지문 가로 전체 폭 사용) */
   #battle-panel {
     background: #fffdf5; border: 4px solid #222; outline: 2px solid #fff;
-    padding: 12px; display: flex; flex-direction: column; gap: 8px;
-    border-radius: 4px; box-shadow: 0 4px 0 #000; position: relative; margin-bottom: 6px;
-  }
-  .panel-header {
-    display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
+    border-radius: 4px; box-shadow: 0 4px 0 #000; position: relative; margin-bottom: 4px;
   }
   .dialog-text {
-    font-size: 11px; line-height: 1.45; color: #111; flex: 1;
+    font-size: 11.5px; line-height: 1.5; color: #111; width: 100%;
+    word-break: keep-all;
   }
   .panel-btns {
-    display: flex; gap: 4px;
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
   }
   .mini-btn {
-    color: #fff; border: 2px solid #111; padding: 3px 6px;
+    color: #fff; border: 2px solid #111; padding: 4px 7px;
     font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 10px;
+    box-shadow: 0 2px 0 #111;
   }
+  .mini-btn:active { transform: translateY(1px); box-shadow: none; }
   .btn-escape { background: #457b9d; }
   .btn-chance { background: #e76f51; }
 
@@ -434,7 +455,6 @@
     min-height: 145px;
     background: #141622;
     padding: 8px 24px;
-    /* 🌟 안드로이드 하단 바 및 아이폰 제스처 바 모두 가려지지 않도록 충분한 하단 여백 확보 */
     padding-bottom: max(26px, calc(env(safe-area-inset-bottom) + 16px));
     display: none; 
     justify-content: space-between; 
@@ -448,21 +468,57 @@
   @media (max-width: 1024px), (hover: none), (pointer: coarse) {
     #controller-pad { display: flex; }
   }
-  .d-pad { position: relative; width: 110px; height: 110px; }
+
+  /* 🌟 모바일/태블릿 가로모드 전용: 좌측 하단 방향키 / 우측 하단 A·B 버튼 배치 */
+  @media (orientation: landscape) and (max-height: 620px) {
+    #controller-pad {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      min-height: 0;
+      background: transparent;
+      border-top: none;
+      padding: 0 18px max(12px, env(safe-area-inset-bottom)) 18px;
+      pointer-events: none; /* 중앙 맵 터치 투과 */
+      z-index: 45;
+    }
+    #controller-pad .d-pad,
+    #controller-pad .ab-pad {
+      pointer-events: auto;
+      opacity: 0.86;
+    }
+    #controller-pad .d-pad { width: 102px; height: 102px; }
+    #controller-pad .d-btn { width: 34px; height: 34px; }
+    #controller-pad .d-up { top: 0; left: 34px; }
+    #controller-pad .d-down { bottom: 0; left: 34px; }
+    #controller-pad .d-left { top: 34px; left: 0; }
+    #controller-pad .d-right { top: 34px; right: 0; }
+    #controller-pad .d-center { top: 34px; left: 34px; width: 34px; height: 34px; }
+  }
+
+  /* 배틀 중이나 연습장 사용 중에는 가상 패드 숨김 (터치 간섭 차단) */
+  #gbc-wrapper.in-battle-mode #controller-pad,
+  #gbc-wrapper.pad-hidden-for-draw #controller-pad {
+    display: none !important;
+  }
+
+  .d-pad { position: relative; width: 110px; height: 110px; touch-action: none; }
   .d-btn {
     position: absolute; width: 36px; height: 36px;
     background: #2b3044; border: 2px solid #0f1118; color: #8e99b7;
     display: flex; justify-content: center; align-items: center; cursor: pointer;
+    touch-action: manipulation;
   }
   .d-btn:active { background: #e63946; color: white; }
   .d-up { top: 0; left: 37px; } .d-down { bottom: 0; left: 37px; }
   .d-left { top: 37px; left: 0; } .d-right { top: 37px; right: 0; }
   .d-center { top: 37px; left: 37px; width: 36px; height: 36px; background: #2b3044; border: none; }
-  .ab-pad { display: flex; gap: 12px; transform: rotate(-10deg); }
+  .ab-pad { display: flex; gap: 14px; transform: rotate(-10deg); touch-action: manipulation; }
   .round-btn {
-    width: 46px; height: 46px; border-radius: 50%; background: #d90429;
-    border: 2px solid #111; color: white; font-weight: bold; cursor: pointer;
+    width: 50px; height: 50px; border-radius: 50%; background: #d90429;
+    border: 2.5px solid #111; color: white; font-size: 14px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 3px 0 #000; touch-action: manipulation;
   }
+  .round-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
   .btn-b { background: #457b9d; }
 
   #toast-msg {
@@ -855,21 +911,31 @@
   }
   #tut-pointer-arrow {
     position: absolute;
-    font-size: 24px;
+    font-size: 30px;
     z-index: 220;
     pointer-events: none;
     display: none;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
-    animation: tutBounce 0.55s infinite alternate ease-in-out;
+    filter: drop-shadow(0 0 8px #ffd166) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.95));
+    animation: tutBounce 0.45s infinite alternate ease-in-out;
   }
   @keyframes tutBounce {
-    from { transform: translateY(0); }
-    to { transform: translateY(-7px); }
+    from { transform: translateY(0) scale(1); }
+    to { transform: translateY(-9px) scale(1.18); }
+  }
+  @keyframes tutSuperGlow {
+    0% {
+      outline: 3.5px solid #ffd166;
+      box-shadow: 0 0 12px #ffd166, 0 0 24px #ffbe0b, inset 0 0 8px rgba(255, 230, 0, 0.45);
+      filter: brightness(1.05);
+    }
+    100% {
+      outline: 4px solid #ffffff;
+      box-shadow: 0 0 22px #ffd166, 0 0 38px #ff006e, 0 0 52px rgba(255, 209, 102, 0.9), inset 0 0 14px rgba(255, 255, 255, 0.7);
+      filter: brightness(1.28);
+    }
   }
   .tut-highlight {
-    outline: 3px solid #ffd166 !important;
-    box-shadow: 0 0 14px #ffd166, 0 0 24px #e63946 !important;
-    animation: buffPulse 0.55s infinite alternate ease-in-out !important;
+    animation: tutSuperGlow 0.5s infinite alternate ease-in-out !important;
     position: relative;
     z-index: 195 !important;
   }
@@ -1272,9 +1338,9 @@
     <span id="player-title">🎒 TRAINER: -</span>
     <span id="rank-badge" class="hud-btn" style="border-color:#48cae4; color:#48cae4; cursor:pointer;" onclick="openRankModal()">🌱 비기너</span>
     <span id="badge-display" style="font-size:12px; letter-spacing:2px; margin:0 2px;"></span>
-    <span class="hud-btn" style="border-color:#a8dadc; color:#a8dadc; cursor:pointer;" onclick="openBagModal(false)">🎒 가방</span>
-    <!-- 🌟 통합 만능 단말기 '포켓기어' 버튼 (도감·미션·일일암호·정화·전당 통합) -->
-    <span id="hud-pokegear-btn" class="hud-btn" style="border-color:#4cc9f0; color:#4cc9f0; font-weight:bold; cursor:pointer;" onclick="openPokegear('dex')">📱 포켓기어<span id="quest-alert-dot" class="quest-notify-dot" style="display:none;"></span></span>
+    <span class="hud-btn" style="border-color:#a8dadc; color:#a8dadc; cursor:pointer;" onclick="toggleBagModal(false)">🎒 가방</span>
+    <!-- 🌟 통합 만능 단말기 '포켓기어' 버튼 (한 번 더 누르면 닫힘) -->
+    <span id="hud-pokegear-btn" class="hud-btn" style="border-color:#4cc9f0; color:#4cc9f0; font-weight:bold; cursor:pointer;" onclick="togglePokegear('dex')">📱 포켓기어<span id="quest-alert-dot" class="quest-notify-dot" style="display:none;"></span></span>
     <!-- 🌟 조작키 강제 ON/OFF 토글 버튼 -->
     <span class="hud-btn" style="border-color:#9d4edd; color:#e0aaff; cursor:pointer;" onclick="toggleControllerPad()">🕹️ 패드</span>
 
@@ -1625,12 +1691,23 @@
 
     <!-- 로그인 모달 -->
     <div id="login-modal">
-      <div class="login-card">
-        <h3 style="color:#e63946; margin-bottom:6px;">★ 포켓몬 수학 월드 ★</h3>
-        <p style="font-size:11px; color:#555; margin-bottom:10px;">포켓몬고 시스템</p>
-        <input type="text" id="input-std-id" class="retro-input" placeholder="학번 (예: 10301)" maxlength="10">
-        <input type="text" id="input-std-name" class="retro-input" placeholder="이름 (예: 심향)" maxlength="8">
+      <div class="login-card" style="max-width:340px;">
+        <h3 style="color:#e63946; margin-bottom:4px;">★ 포켓몬 수학 월드 ★</h3>
+        <p style="font-size:10.5px; color:#457b9d; font-weight:bold; margin-bottom:8px;">수학 RPG & 도감 수집 시스템</p>
+
+        <div style="background:#fff3cd; border:1.5px solid #ffb703; border-radius:5px; padding:7px 8px; margin-bottom:8px; text-align:left; font-size:9.5px; line-height:1.45; color:#5c3c00;">
+          <b style="color:#d90429;">⚠️ 학번 · 이름 입력 유의사항</b><br>
+          • 반드시 <b>본인 학번 5자리(예: 10301)</b>와 <b>실명</b>을 띄어쓰기 없이 정확히 입력하세요.<br>
+          • 오입력 시 기존 모험 기록이 불러와지지 않거나 랭킹 집계가 누락됩니다.
+        </div>
+
+        <input type="text" id="input-std-id" class="retro-input" placeholder="학번 5자리 (예: 10301)" maxlength="10">
+        <input type="text" id="input-std-name" class="retro-input" placeholder="이름 실명 (예: 홍길동)" maxlength="8">
         <button class="retro-btn" onclick="startAdventure()">모험 출발 (START)</button>
+
+        <div style="margin-top:8px; font-size:9px; color:#6c757d; line-height:1.35;">
+          💡 <b>Chrome · Safari</b> 브라우저 권장 / 태블릿·스마트폰 <b>가로모드</b> 지원
+        </div>
       </div>
     </div>
 
@@ -1683,11 +1760,11 @@
           <canvas id="b-trainer-canvas" width="72" height="83"></canvas>
         </div>
 
-        <!-- [2-2] 🌟 내 대표 파트너 포켓몬 (트레이너 옆 + 전용 HUD + 발판) -->
+        <!-- [2-2] 🌟 내 대표 파트너 포켓몬 (트레이너 옆 + 상성/특전 HUD + 발판) -->
         <div class="partner-zone" id="b-partner-wrap" style="display:none;">
-          <div class="partner-hud">
-            <span style="font-size:10px; color:#ffd166;" id="b-partner-name">👑 앤테이</span>
-            <span style="font-size:8px; color:#48cae4; font-weight:bold;">동행 파트너</span>
+          <div class="partner-hud" style="flex-direction:column; align-items:flex-start; gap:2px; padding:4px 8px;">
+            <span style="font-size:10px; color:#ffd166; font-weight:bold;" id="b-partner-name">👑 앤테이</span>
+            <div id="b-partner-perks" style="display:flex; flex-wrap:wrap; gap:3px; font-size:8px;"></div>
           </div>
           <img id="b-partner-sprite" class="partner-img" src="" alt="partner">
           <div class="battle-base-partner"></div>
@@ -1714,17 +1791,20 @@
         </div>
       </div>
 
-      <!-- 일체형 배틀 패널 -->
-      <div id="battle-panel">
-        <div class="panel-header">
-          <div class="dialog-text" id="b-dialog-text">배틀 개시!</div>
-          <div class="panel-btns">
-            <button class="mini-btn" style="background:#7209b7;" onclick="toggleScratchpad()">✏️ 연습장</button>
-            <button class="mini-btn" style="background:#2a9d8f;" onclick="openBagModal(true)">🎒 가방</button>
-            <button class="mini-btn btn-chance" id="btn-5050" onclick="use5050Chance()">🍬 오답제거</button>
-            <button class="mini-btn btn-escape" onclick="handleBtnB()">🏃 도망</button>
-          </div>
+      <!-- 🌟 대화창 바로 위: [단계/HP 표시] + [연습장·가방·오답제거·도망 버튼] -->
+      <div class="battle-toolbar">
+        <div class="battle-step-pill" id="b-step-badge">1/1단계</div>
+        <div class="panel-btns">
+          <button class="mini-btn" style="background:#7209b7;" onclick="toggleScratchpad()">✏️ 연습장</button>
+          <button class="mini-btn" style="background:#2a9d8f;" onclick="openBagModal(true)">🎒 가방</button>
+          <button class="mini-btn btn-chance" id="btn-5050" onclick="use5050Chance()">🍬 오답제거</button>
+          <button class="mini-btn btn-escape" onclick="handleBtnB()">🏃 도망</button>
         </div>
+      </div>
+
+      <!-- 일체형 배틀 패널 (문제 지문 가로 전체 확장) -->
+      <div id="battle-panel">
+        <div class="dialog-text" id="b-dialog-text">배틀 개시!</div>
         <div style="border-bottom: 2px dashed #ddd; margin: 1px 0;"></div>
         <div class="action-grid" id="b-action-grid"></div>
       </div>
@@ -2185,7 +2265,9 @@
     "Cave":    { name: "어둠의 동굴",         biome: "cave",    spawn: { x: 12, y: 15 }, grid: [] }, // 🌟 cave 맵 등록
     "snow":    { name: "은빛 설원",           biome: "snow",    spawn: { x: 12, y: 16 }, grid: [] },
     "volcano": { name: "홍련 화산",           biome: "volcano", spawn: { x: 2,  y: 8 },   grid: [] },
-    "sand":    { name: "모래 사막",           biome: "sand",    spawn: { x: 23, y: 8 },  grid: [] }
+    "sand":    { name: "모래 사막",           biome: "sand",    spawn: { x: 23, y: 8 },  grid: [] },
+"sky_city": { name: "검은먹 시티",          biome: "sky_city", spawn: { x: 12, y: 12 }, grid: [] },
+"city":    { name: "금빛 시티",           biome: "city",    spawn: { x: 12, y: 12 }, grid: [] }
   };
   let currentMapId = "grass";
  let player = {
@@ -2384,6 +2466,21 @@
     'deep_water':    '타일 이미지/동굴 물.png',
     'cave_entrance': '타일 이미지/동굴 출입구.png',
 
+// ⚡ 도시 & 발전소 지형
+    'city_road':     '타일 이미지/도시보도블록.png',
+    'city_grass':    '타일 이미지/도시수풀.png',
+    'city_wall':     '타일 이미지/도시빌딩벽.png',
+    'city_tower':    '타일 이미지/도시전광판.png',
+    'psychic_pad':   '타일 이미지/에스퍼광장.png',
+
+// 🐉 천공 & 드래곤·페어리 도시 지형
+    'sky_road':      '타일 이미지/천공대리석바닥.png',
+    'sky_grass':     '타일 이미지/천공화원수풀.png',
+    'sky_wall':      '타일 이미지/고대신전외벽.png',
+    'dragon_statue': '타일 이미지/용의석상장식.png',
+    'fairy_plaza':   '타일 이미지/페어리별빛광장.png',
+
+
     // 🌀 포탈 (파일이 없어도 안전한 인라인 Data URI 유지)
     'portal': 'data:image/png;base64,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'
   };
@@ -2433,6 +2530,17 @@
     'O': 'cave_rock',     // 🌟 동굴 큰 바위 (통과 불가 벽)
     'V': 'cave_wall',     // 🌟 동굴 암벽 (통과 불가 벽)
 
+    'M': 'city_road',     // 도시 보도블록 (이동 가능·안전)
+    'U': 'city_grass',    // 도시 공원 전기 수풀 (몬스터 출현)
+    'A': 'city_wall',     // 현대식 빌딩 외벽 (벽)
+    'K': 'city_tower',    // 변압기·전광판 (벽)
+    'Q': 'psychic_pad',   // 에스퍼 문양 타일 (이동 가능·안전)
+
+    'N': 'sky_road',      // 천공 대리석 바닥 (이동 가능·안전)
+    'J': 'sky_grass',     // 천공 화원 수풀 (몬스터 출현)
+    'X': 'sky_wall',      // 고대 신전 외벽 (벽)
+    'h': 'dragon_statue', // 용의 석상 장식 (벽)
+    'q': 'fairy_plaza',   // 페어리 별빛 광장 (이동 가능·안전)
 
 
     // 🌟 [포탈 매핑] 시트에 P 또는 1, 2, 3, 4를 적으면 방금 올리신 소용돌이 포탈이 출력됩니다!
@@ -2478,7 +2586,7 @@
 
 function isSolid(code) { 
   const clean = String(code || '').normalize('NFKC').trim();
-  return ['T', 't', 'R', 'W', '~', 'D', 'p', 'B', 'Y', 'Z', 'O', 'V', 'w', 'v', 'S', 'ｖ', 'H', 'b'].includes(clean); 
+return ['T', 't', 'R', 'W', '~', 'D', 'p', 'B', 'Y', 'Z', 'O', 'V', 'w', 'v', 'S', 'ｖ', 'H', 'b', 'A', 'K', 'X', 'h'].includes(clean);
 }
 
 // 🌟 [개편] Maps 시트의 safe_tiles(안전 타일) 기반 인카운터 판정기
@@ -2582,8 +2690,9 @@ player.realX = player.gridX * DISPLAY_TILE;
         const rawTile = map.grid[player.gridY][player.gridX];
         const tile = String(rawTile || '').normalize('NFKC').trim();
 
-        // 🌟 화산 용암(l) 상호작용
-        if (tile === 'l' && currentMapId === 'volcano') {
+        // 🌟 화산 및 볼케이노케이브 용암(l) 상호작용
+        const curMapLower = String(currentMapId || '').toLowerCase();
+        if (tile === 'l' && (curMapLower === 'volcano' || curMapLower === 'volcanocave')) {
           playRetroSound('wrong');
           showToast("🔥 뜨거워! 뒤로 물러납니다!");
           player.gridX = player.fromX;
@@ -2696,9 +2805,16 @@ player.realX = player.gridX * DISPLAY_TILE;
                         (currentMapId === 'sand' && (currentTile === '.' || currentTile === ''));
 
     // 🌟 밟고 있는 지형에 맞춰 알맞은 발밑 연출 표시
-    if (currentTile === 'G' || currentTile === 'F') {
-      // 일반 풀숲 및 꽃밭: 초록 풀잎 오버레이
-      ctx.drawImage(GRASS_TUFT_OVERLAY, Math.round(player.realX), Math.round(player.realY), DISPLAY_TILE, DISPLAY_TILE);
+    if (['G', 'F', 'U', 'J'].includes(currentTile)) {
+      const rustleX = player.isMoving ? Math.sin(player.moveProgress * Math.PI * 2) * 2 : 0;
+      const rustleY = player.isMoving ? -Math.abs(Math.sin(player.moveProgress * Math.PI)) * 1.5 : 0;
+      ctx.drawImage(
+        GRASS_TUFT_OVERLAY,
+        Math.round(player.realX + rustleX),
+        Math.round(player.realY + rustleY),
+        DISPLAY_TILE,
+        DISPLAY_TILE
+      );
     } else if (isSandFloor) {
       // 🌟 사막/유적 및 모래 맵 기본 바닥('.'): 모래 파묻힘 연출
       ctx.drawImage(SAND_TUFT_OVERLAY, Math.round(player.realX), Math.round(player.realY), DISPLAY_TILE, DISPLAY_TILE);
@@ -3319,6 +3435,17 @@ player.realX = player.gridX * DISPLAY_TILE;
     return isPurified ? Math.max(1, Math.floor(base * 0.8)) : base;
   }
 
+  // 🌟 [추가] 쉼표(,)로 구분된 map_id 목록에서 정확히 일치하는 맵 ID만 판별 ('city'와 'sky_city' 분리)
+  function hasMapToken(rawMapId, targetMapId) {
+    const target = String(targetMapId || "").toLowerCase().trim();
+    if (!target) return false;
+    return String(rawMapId || "")
+      .toLowerCase()
+      .split(',')
+      .map(s => s.trim())
+      .includes(target);
+  }
+
   function startEncounter(biomeType) {
     // 🌟 1. 요일별 대량발생 보너스 & 전설 파트너 패시브(+50%) 반영 티어 확률 계산
     const prePartner = getPartnerBattleBonus(biomeType);
@@ -3355,11 +3482,10 @@ player.realX = player.gridX * DISPLAY_TILE;
 
     const isNight = isNightTimeKST();
 
-    // 맵 필터링 (콤마로 구분된 여러 맵 ID 완벽 지원 + 밤에는 모든 맵에 cave 포켓몬 합류!)
+    // 맵 필터링 (콤마로 구분된 여러 맵 ID 정확 매칭 + 밤에는 모든 맵에 cave 포켓몬 합류!)
     let mapFiltered = basePool.filter(m => {
-      const mMap = String(m.map_id || "").toLowerCase();
       const mType = String(m.type || "").toLowerCase().trim();
-      const inCurrentMap = mMap.includes(String(currentMapId).toLowerCase());
+      const inCurrentMap = hasMapToken(m.map_id, currentMapId);
       const isNightCaveMon = isNight && (mType === 'cave');
       return inCurrentMap || isNightCaveMon;
     });
@@ -3494,20 +3620,65 @@ player.realX = player.gridX * DISPLAY_TILE;
     const partnerSprite = document.getElementById('b-partner-sprite');
     const partnerName = document.getElementById('b-partner-name');
 
+    // 🌟 배틀 화면 파트너 HUD(상성 + 희귀도·강화 특전 뱃지) 갱신 헬퍼
+    function updateBattlePartnerHud(pBonusObj) {
+      const pWrap = document.getElementById('b-partner-wrap');
+      const pImg = document.getElementById('b-partner-sprite');
+      const pNameEl = document.getElementById('b-partner-name');
+      const pPerksEl = document.getElementById('b-partner-perks');
+      if (!pWrap || !pImg || !currentUser.partner_id) {
+        if (pWrap) pWrap.style.display = 'none';
+        return;
+      }
+      const pNumId = Number(currentUser.partner_id);
+      const pBaseId = Math.floor(pNumId);
+      const pVariant = getShinyVariantById(pNumId);
+      const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
+      if (!pMon) { pWrap.style.display = 'none'; return; }
+
+      const pDisplayName = pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name;
+      const lvTag = pBonusObj.upgLv > 0 ? ` +${pBonusObj.upgLv}강` : '';
+      pImg.src = pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
+      pImg.className = `partner-img ${pVariant ? pVariant.cssClass : ''}`.trim();
+      pNameEl.innerText = `👑 ${pDisplayName}${lvTag}`;
+
+      const tags = [];
+      if (pBonusObj.hasAdvantage) {
+        tags.push(`<span style="background:#ffb703; color:#111; padding:1px 4px; border-radius:3px; font-weight:bold;">⚡상성우위(+1사탕)</span>`);
+      } else {
+        tags.push(`<span style="background:#2b3044; color:#adb5bd; padding:1px 4px; border-radius:3px;">상성보통</span>`);
+      }
+
+      if (pBonusObj.pTier === 'legendary') {
+        tags.push(`<span style="background:#7209b7; color:#ffd166; padding:1px 4px; border-radius:3px; font-weight:bold;">👑전설(무료찬스·출현UP)</span>`);
+      } else if (pBonusObj.pTier === 'rare') {
+        tags.push(`<span style="background:#1d3557; color:#4cc9f0; padding:1px 4px; border-radius:3px; font-weight:bold;">🔮희귀(힌트보조)</span>`);
+      } else {
+        tags.push(`<span style="background:#1b4332; color:#80ed99; padding:1px 4px; border-radius:3px; font-weight:bold;">🐾일반(35걸음보상)</span>`);
+      }
+
+      const lvPerks = [];
+      if (pBonusObj.upgLv >= 1) lvPerks.push('🧠예습');
+      if (pBonusObj.upgLv >= 2) lvPerks.push('🛡️끈기');
+      if (pBonusObj.upgLv >= 3) lvPerks.push('⚡선제');
+      if (pBonusObj.upgLv >= 4) lvPerks.push('🍬×2수확');
+      if (pBonusObj.upgLv >= 5) lvPerks.push('👑결전각성');
+      if (lvPerks.length > 0) {
+        tags.push(`<span style="background:#590d22; color:#ffccd5; padding:1px 4px; border-radius:3px; font-weight:bold;">${lvPerks.join('·')}</span>`);
+      }
+
+      if (pPerksEl) pPerksEl.innerHTML = tags.join('');
+      pWrap.style.display = 'flex';
+    }
+
     if (currentUser.partner_id && partnerWrap && partnerSprite) {
       const pNumId = Number(currentUser.partner_id);
       const pBaseId = Math.floor(pNumId);
       const pVariant = getShinyVariantById(pNumId);
       const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
       if (pMon) {
-        const fInfo = getPartnerFriendshipInfo();
         const pDisplayName = pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name;
-        const lvTag = pBonus.upgLv > 0 ? ` +${pBonus.upgLv}강` : '';
-        const advTag = pBonus.hasAdvantage ? ` ⚡상성` : '';
-        partnerSprite.src = pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
-        partnerSprite.className = `partner-img ${pVariant ? pVariant.cssClass : ''}`.trim();
-        partnerName.innerText = `👑 ${pDisplayName}${lvTag}${advTag} (${fInfo.badge})`;
-        partnerWrap.style.display = 'flex';
+        updateBattlePartnerHud(pBonus);
 
         if (preemptiveTriggered) {
           setTimeout(() => showToast(`⚡ [+3강 상성 선제공격!] ${pDisplayName}이(가) 1단계 체력을 돌파했습니다!`), 400);
@@ -3607,20 +3778,36 @@ player.realX = player.gridX * DISPLAY_TILE;
 
   // 🌟 수식 변환기가 적용된 배틀 렌더러
 // (A) renderBattlePhase 초반부: 단계가 바뀔 때마다 오답제거 사용 여부 초기화
+  function get5050CandyCost() {
+    if (battleState.isBoss || battleState.isRaid) return 3;
+    const tier = String((battleState.monster && battleState.monster.tier) || 'normal').toLowerCase().trim();
+    if (tier === 'legendary' || tier === 'boss' || tier === 'raid') return 3;
+    if (tier === 'rare') return 2;
+    return 1;
+  }
+
   function renderBattlePhase() {
     battleState.used5050InPhase = false; // 🌟 현재 단계(Phase) 오답제거 1회 제한 리셋
     const btn5050 = document.getElementById('btn-5050');
-    if (btn5050) btn5050.style.opacity = '1';
+    if (btn5050) {
+      btn5050.style.opacity = '1';
+      const isFreeLeg = (battleState.partnerBonus && battleState.partnerBonus.pTier === 'legendary' && !battleState.free5050Used);
+      const cost5050 = get5050CandyCost();
+      btn5050.innerText = isFreeLeg ? `👑 무료제거` : `🍬 오답제거(${cost5050})`;
+    }
 
     const totalSteps = battleState.maxHp || (battleState.isBoss ? 3 : 1);
     const phaseData = battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0];
     
-    // 🌟 지문 수식 자동 변환 적용 (레이드는 '단계 1/300' 대신 실시간 HP 표기)
+    // 🌟 상단 툴바의 단계/HP 배지 갱신 (대화창 안에서는 제거하여 문제 지문 가로 공간 최대 확보)
     const formattedDesc = formatMathText(phaseData.desc);
-    const stepBadgeHtml = battleState.isRaid
-      ? `<b>[👑 학급 레이드 · HP ${battleState.hp}/${totalSteps}]</b>`
-      : `<b>[${battleState.phase + 1}/${totalSteps}단계]</b>`;
-    document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formattedDesc} <span style="color:#d90429;">⏳(잠시 생각하세요!)</span>`;
+    const stepBadgeEl = document.getElementById('b-step-badge');
+    if (stepBadgeEl) {
+      stepBadgeEl.innerText = battleState.isRaid
+        ? `👑 학급 레이드 · HP ${battleState.hp}/${totalSteps}`
+        : `⚔️ ${battleState.phase + 1} / ${totalSteps} 단계`;
+    }
+    document.getElementById('b-dialog-text').innerHTML = `${formattedDesc} <span style="color:#d90429;">⏳(잠시 생각하세요!)</span>`;
 
     const grid = document.getElementById('b-action-grid');
     grid.innerHTML = '';
@@ -3665,7 +3852,7 @@ player.realX = player.gridX * DISPLAY_TILE;
           ? `<div style="margin-top:4px; padding:3px 6px; background:#e0f2fe; border-left:3px solid #0284c7; font-size:10px; color:#0c4a6e;">🧠 <b>[+1강 예습 눈썰미]</b> ${formatMathText(phaseData.hint)}</div>`
           : "";
 
-document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formattedDesc}${previewHintHtml}`;
+document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewHintHtml}`;
         const buttons = grid.querySelectorAll('.action-btn');
         buttons.forEach((b, idx) => {
           b.classList.remove('disabled');
@@ -4211,12 +4398,33 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
       if (battleState.isShiny) gainCandy += 5;
 
       // 🌟 보스전 승리 판정
+      // 2) triggerCaptureSequence 내 if (battleState.isBoss): 관장 에이스 포켓몬 포획 + 3성 + 최신순 등록
       if (battleState.isBoss) {
         const gym = battleState.gymData;
         if (!currentUser.badges.includes(gym.badgeId)) {
           currentUser.badges.push(gym.badgeId);
         }
         currentUser.candy_count += 30; // 보스 격파 보너스 사탕 30개!
+
+        // 🌟 관장 에이스 포켓몬 도감 포획 등록 (3성 확정 + 최근 잡은 순 반영)
+        const bossMonId = Number(gym.bossMon && gym.bossMon.id);
+        if (bossMonId && bossMonId !== 999) {
+          if (!currentUser.captured_ids.some(cid => Number(cid) === bossMonId)) {
+            currentUser.captured_ids.push(bossMonId);
+          }
+          if (!currentUser.inventory) currentUser.inventory = {};
+          if (!currentUser.inventory.stars) currentUser.inventory.stars = {};
+          currentUser.inventory.stars[bossMonId] = 3;
+
+          if (!currentUser.inventory.catch_counts) currentUser.inventory.catch_counts = {};
+          currentUser.inventory.catch_counts[bossMonId] = (Number(currentUser.inventory.catch_counts[bossMonId]) || 0) + 1;
+
+          if (!Array.isArray(currentUser.inventory.caught_order)) currentUser.inventory.caught_order = [];
+          currentUser.inventory.caught_order = [
+            bossMonId,
+            ...currentUser.inventory.caught_order.filter(id => Number(id) !== bossMonId)
+          ];
+        }
 
         // 도망 버튼 원상 복구
         const escapeBtn = document.querySelector('.btn-escape');
@@ -4469,9 +4677,15 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
     currentUser.inventory.stars[hatchedMon.id] = 3;
 
     // 도감 등록
-    if (!currentUser.captured_ids.includes(hatchedMon.id)) {
-      currentUser.captured_ids.push(hatchedMon.id);
+    const hatchedId = Number(hatchedMon.id);
+    if (!currentUser.captured_ids.some(cid => Number(cid) === hatchedId)) {
+      currentUser.captured_ids.push(hatchedId);
     }
+    if (!Array.isArray(currentUser.inventory.caught_order)) currentUser.inventory.caught_order = [];
+    currentUser.inventory.caught_order = [
+      hatchedId,
+      ...currentUser.inventory.caught_order.filter(id => Number(id) !== hatchedId)
+    ];
 
     // 🌟 [추가] 알 부화 히스토리 보드 기록 (최근 8마리 보존)
     if (!Array.isArray(currentUser.inventory.hatch_history)) {
@@ -4625,14 +4839,16 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
       return;
     }
     const isFreeLegendary5050 = (battleState.partnerBonus && battleState.partnerBonus.pTier === 'legendary' && !battleState.free5050Used);
+    const candyCost = get5050CandyCost();
 
-    if (!isFreeLegendary5050 && currentUser.candy_count < 1) {
-      showToast("🍬 사탕이 부족합니다! (1개 필요)");
+    if (!isFreeLegendary5050 && currentUser.candy_count < candyCost) {
+      showToast(`🍬 사탕이 부족합니다! (${candyCost}개 필요)`);
       return;
     }
     battleState.used5050InPhase = true;
     const btn5050 = document.getElementById('btn-5050');
-    if (btn5050) btn5050.style.opacity = '0.4';    const grid = document.getElementById('b-action-grid');
+    if (btn5050) btn5050.style.opacity = '0.4';
+    const grid = document.getElementById('b-action-grid');
     const wrongItems = [];
     battleState.currentOpts.forEach((opt, idx) => {
       const btn = grid.children[idx];
@@ -4645,7 +4861,7 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
       if (isFreeLegendary5050) {
         battleState.free5050Used = true;
       } else {
-        currentUser.candy_count -= 1;
+        currentUser.candy_count -= candyCost;
       }
       updateHud();
       saveGameData();
@@ -4656,7 +4872,7 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
       targetBtn.onclick = null;
       showToast(isFreeLegendary5050
         ? "👑 [전설 파트너 특전!] 사탕 소모 없이 오답 1개를 무료 제거했습니다!"
-        : "🍬 오답제거 찬스 발동! 오답 1개 제거 완료!");
+        : `🍬 사탕 ${candyCost}개 소모! 오답 1개 제거 완료!`);
 
       // 🌟 튜토리얼 Step 2에서 오답제거 체험 완료 시, 정답 보기를 누르도록 안내 전환
       if (tutorialStep === 2) {
@@ -5014,7 +5230,7 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
     battleState.partnerBonus = pBonus;
     battleState.comboShieldUsed = false;
 
-    const startHp = (pBonus.upgLv >= 5) ? 2 : 3;
+    const startHp = (pBonus.upgLv >= 5) ? 4 : 5;
 
     // 🌟 첫 번째 phase3 문제 추출
     const firstP3 = getGymPhase3Question(gym.badgeId);
@@ -5054,7 +5270,7 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
     if (pBonus.upgLv >= 5) {
       showToast(`👑 [+5강 결전 각성!] ${pBonus.pName}의 선제 일격으로 관장 체력 1칸을 깎고 시작합니다!`);
     } else {
-      showToast(`⚔️ [체육관 보스전!] 틀리지 않고 최고난도 3문제를 연속으로 맞춰야 합니다!`);
+      showToast(`⚔️ [체육관 보스전!] 틀리지 않고 최고난도 5문제를 연속으로 맞춰야 합니다!`);
     }
   }
 
@@ -5967,6 +6183,28 @@ document.getElementById('b-dialog-text').innerHTML = `${stepBadgeHtml} ${formatt
   // 🌟 [통합] 만능 단말기 '포켓기어' 열기 / 탭 전환 / 닫기 엔진
   let currentPokegearTab = 'dex';
 
+  function togglePokegear(tabName = 'dex') {
+    const modal = document.getElementById('pokegear-modal');
+    if (modal && modal.style.display === 'flex') {
+      closePokegear();
+      return;
+    }
+    const bagModal = document.getElementById('bag-modal');
+    if (bagModal && bagModal.style.display === 'flex') closeBagModal();
+    openPokegear(tabName);
+  }
+
+  function toggleBagModal(inBattle = false) {
+    const modal = document.getElementById('bag-modal');
+    if (modal && modal.style.display === 'flex') {
+      closeBagModal();
+      return;
+    }
+    const pgModal = document.getElementById('pokegear-modal');
+    if (pgModal && pgModal.style.display === 'flex') closePokegear();
+    openBagModal(inBattle);
+  }
+
   function openPokegear(tabName = 'dex') {
     const modal = document.getElementById('pokegear-modal');
     if (!modal) return;
@@ -6277,7 +6515,9 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
     'forest': '🌲 숲',
     'electric': '⚡ 발전소',
     'ghost': '👻 탑/유령',
-    'egg': '🥚 알 전용'
+    'egg': '🥚 알 전용',
+'city': '⚡ 금빛시티',
+'sky_city': '🐉 검은먹시티'
   };
 
   // 🌟 [개편] 시트 지형 + 포획 마리수 표시 및 반짝임 발광 필터 칩 생성기
@@ -6326,8 +6566,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         const isCaught = (currentUser.captured_ids || []).includes(m.id);
         if (!isCaught) return false;
         const monType = String(m.type || '').toLowerCase().trim();
-        const monMapId = String(m.map_id || '').toLowerCase().trim();
-        return (monType === bKey || monMapId.includes(bKey));
+        return (monType === bKey || hasMapToken(m.map_id, bKey));
       }).length;
 
       // 🌟 [조건] 15마리 이상: 금색 반짝임 / 7마리 이상: 빨간색 반짝임
@@ -6402,10 +6641,13 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
     document.getElementById('dex-rank-info').innerText = `현재 등급: ${rank.title} (${rank.desc}) / 보유: ${currentUser.captured_ids.length}마리`;
 
     // 🌟 0. 기본 도감(관장 전용 boss 행 제외) + 포획한 이로치 변색 개체(7.1, 7.2 등) 통합 목록 생성
+    // 3) renderDexList 상단: 보스 포켓몬은 미포획 시 숨기고, 관장을 꺾어 포획하면 도감에 표시
     const combinedDexPool = monsterPool.filter(m => {
       const mMap = String(m.map_id || '').toLowerCase();
       const mTier = String(m.tier || '').toLowerCase().trim();
-      return mTier !== 'boss' && !mMap.includes('gym');
+      const isBossMon = (mTier === 'boss' || mMap.includes('gym'));
+      if (!isBossMon) return true;
+      return currentUser.captured_ids.some(cid => Number(cid) === Number(m.id));
     });
     (currentUser.captured_ids || []).forEach(rawCid => {
       const cid = Number(rawCid);
@@ -6433,7 +6675,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       return true;
     });
 
-    // 2. 🌟 지형 바이옴 및 맵 ID 양방향 정밀 필터링
+ㅁ    // 2. 🌟 지형 바이옴 및 맵 ID 양방향 정밀 필터링
     if (currentDexBiomeFilter !== 'all') {
       const filterKey = currentDexBiomeFilter.toLowerCase().trim();
       filtered = filtered.filter(m => {
@@ -6448,8 +6690,8 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         // 1) 포켓몬 속성(type)과 일치하는가?
         if (monType === filterKey) return true;
         
-        // 2) 포켓몬 출현 맵(map_id) 목록에 포함되어 있는가? (예: "grass,cave")
-        if (monMapId.includes(filterKey)) return true;
+        // 2) 포켓몬 출현 맵(map_id) 목록에 정확히 포함되어 있는가? (예: "grass,cave")
+        if (hasMapToken(m.map_id, filterKey)) return true;
 
         // 3) 해당 맵 ID의 바이옴 속성과 일치하는가?
         const currentMapMeta = GOLD_MAPS[filterKey];
@@ -6470,17 +6712,19 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       const idA = Number(a.id);
       const idB = Number(b.id);
       if (dexSortMode === 'recent') {
+        const caughtA = currentUser.captured_ids.some(c => Number(c) === idA);
+        const caughtB = currentUser.captured_ids.some(c => Number(c) === idB);
+        if (caughtA !== caughtB) return caughtA ? -1 : 1; // 포획 개체 우선 상단 배치
+
         const idxA = caughtOrderList.indexOf(idA);
         const idxB = caughtOrderList.indexOf(idB);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB; // 둘 다 최근 기록이 있으면 최신순
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
         if (idxA !== -1) return -1;
         if (idxB !== -1) return 1;
-        // 기록 이전 포획 개체는 captured_ids 역순, 미포획 개체는 번호순
+
         const capA = currentUser.captured_ids.findIndex(c => Number(c) === idA);
         const capB = currentUser.captured_ids.findIndex(c => Number(c) === idB);
         if (capA !== -1 && capB !== -1) return capB - capA;
-        if (capA !== -1) return -1;
-        if (capB !== -1) return 1;
         return idA - idB;
       }
       return dexSortMode === 'id_asc' ? (idA - idB) : (idB - idA);
@@ -6847,8 +7091,11 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
 
 // 🌟 [추가] 대표 파트너 포켓몬 지정 함수
   function setPartnerPokemon(monId) {
-    currentUser.partner_id = Number(monId);
-    localStorage.setItem(`pkm_partner_${currentUser.student_id}`, String(monId));
+    const numPartner = Number(monId);
+    currentUser.partner_id = numPartner;
+    if (!currentUser.inventory) currentUser.inventory = {};
+    currentUser.inventory.partner_id = numPartner;
+    localStorage.setItem(`pkm_partner_${currentUser.student_id}`, String(numPartner));
     
     const partnerMon = monsterPool.find(m => m.id == monId);
     const pName = partnerMon ? partnerMon.name : "포켓몬";
@@ -6912,12 +7159,14 @@ function startAdventure() {
         // (1) 월드 데이터가 왔다면 덮어쓰기
       if (worldData) {
         if (worldData.monsters && worldData.monsters.length > 0) {
-          monsterPool = worldData.monsters.map(m => ({
-            ...m,
-            id: Number(m.id),
-            evolveTo: Number(m.evolveTo ?? m['evolve to'] ?? m.evolveto ?? 0) || 0,
-            evolveCost: Number(m.evolveCost ?? m.evolvecost ?? 0) || 0
-          }));
+          monsterPool = worldData.monsters
+            .filter(m => m && m.id !== "" && m.id !== null && String(m.name || "").trim() !== "")
+            .map(m => ({
+              ...m,
+              id: Number(m.id),
+              evolveTo: Number(m.evolveTo ?? m['evolve to'] ?? m.evolveto ?? 0) || 0,
+              evolveCost: Number(m.evolveCost ?? m.evolvecost ?? 0) || 0
+            }));
         }
         
         // 🌟 시트의 문제 은행 데이터를 원본 그대로 저장
@@ -7056,8 +7305,6 @@ function startAdventure() {
             targetY = (GOLD_MAPS["grass"] && GOLD_MAPS["grass"].spawn) ? GOLD_MAPS["grass"].spawn.y : 9;
           } else {
             // 기존 진행 기록이 있는 유저만 파트너·가방·마지막 위치 복원
-            currentUser.partner_id = userData.user.partner_id || localStorage.getItem(`pkm_partner_${currentUser.student_id}`) || null;
-
             try {
               if (typeof userData.user.inventory === 'string') {
                 currentUser.inventory = JSON.parse(userData.user.inventory) || {};
@@ -7070,6 +7317,12 @@ function startAdventure() {
             if (localInv && Object.keys(currentUser.inventory).length === 0) {
               try { currentUser.inventory = JSON.parse(localInv); } catch(e) {}
             }
+
+            const savedPartner = userData.user.partner_id
+              || (currentUser.inventory && currentUser.inventory.partner_id)
+              || localStorage.getItem(`pkm_partner_${currentUser.student_id}`)
+              || null;
+            currentUser.partner_id = savedPartner ? Number(savedPartner) : null;
             
             if (userData.user.last_map) {
               targetMap = userData.user.last_map;
@@ -7264,16 +7517,25 @@ function startAdventure() {
     });
   });
 
-  // 🌟 [추가] 모바일 가상 A/B 버튼 딜레이 없는 즉각 터치 반응 지원
+  // 🌟 [개편] 모바일 가상 A/B 버튼 짧은 탭·터치 즉각 반응 지원 (꾹 누름 현상 해결)
+  let lastAbTriggerTime = 0;
   document.querySelectorAll('.ab-pad .round-btn').forEach(btn => {
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); // 모바일 300ms 클릭 딜레이 및 중복 트리거 방지
+    const triggerAbAction = (e) => {
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastAbTriggerTime < 140) return; // touchstart/pointerdown/click 중복 실행 방지
+      lastAbTriggerTime = now;
+
       if (btn.classList.contains('btn-b')) {
         handleBtnB();
       } else {
         handleBtnA();
       }
-    });
+    };
+    btn.addEventListener('touchstart', triggerAbAction, { passive: false });
+    btn.addEventListener('pointerdown', triggerAbAction);
+    btn.addEventListener('click', triggerAbAction);
   });
 
   // 🌟 [추가] 조작키 ON/OFF 수동 토글 함수
@@ -7475,7 +7737,7 @@ function startAdventure() {
     const sysNumKeys = [
       'friendship', 'max_combo', 'egg_progress', 'egg_max',
       'evolve_count', 'buy_count', 'walk_steps',
-      'battle_fever_left', 'battle_honey_left'
+      'battle_fever_left', 'battle_honey_left', 'partner_id'
     ];
     const ownedKeys = Object.keys(currentUser.inventory || {}).filter(
       k => !sysNumKeys.includes(k) && typeof currentUser.inventory[k] === 'number' && currentUser.inventory[k] > 0
@@ -8121,10 +8383,20 @@ function triggerRaidVictory() {
     candyReward = Number(npc.reward_val);
   }
 
-  // 도감 등록
-  if (!currentUser.captured_ids.includes(monId)) {
-    currentUser.captured_ids.push(monId);
+  // 도감 등록 및 최근 잡은 순서(caught_order) 반영
+  const numMonId = Number(monId);
+  if (!currentUser.captured_ids.some(cid => Number(cid) === numMonId)) {
+    currentUser.captured_ids.push(numMonId);
   }
+  if (!currentUser.inventory) currentUser.inventory = {};
+  if (!currentUser.inventory.catch_counts) currentUser.inventory.catch_counts = {};
+  currentUser.inventory.catch_counts[numMonId] = (Number(currentUser.inventory.catch_counts[numMonId]) || 0) + 1;
+
+  if (!Array.isArray(currentUser.inventory.caught_order)) currentUser.inventory.caught_order = [];
+  currentUser.inventory.caught_order = [
+    numMonId,
+    ...currentUser.inventory.caught_order.filter(id => Number(id) !== numMonId)
+  ];
   currentUser.candy_count += candyReward;
   updateHud();
   saveGameData();
@@ -8139,14 +8411,17 @@ function triggerRaidVictory() {
   showToast(`🎉우리 반이 [${battleState.monster.name}]을 격파했습니다! (사탕 +${candyReward})`);
 }
 
-// 🌟 [추가] 반투명 수학 손글씨 연습장 제어 엔진
+// 🌟 [개편] 반투명 수학 손글씨 연습장 제어 엔진 (가상 패드 간섭 차단 + 모바일 터치 좌표 정확 보정)
 let isDrawingPad = false;
 function toggleScratchpad(force) {
   const wrap = document.getElementById('scratchpad-wrap');
   const cvs = document.getElementById('scratchpad-canvas');
+  const wrapper = document.getElementById('gbc-wrapper');
   if (!wrap || !cvs) return;
   const show = (force !== undefined) ? force : (wrap.style.display === 'none');
   wrap.style.display = show ? 'flex' : 'none';
+  if (wrapper) wrapper.classList.toggle('pad-hidden-for-draw', show);
+
   if (show) {
     cvs.width = cvs.clientWidth;
     cvs.height = cvs.clientHeight;
@@ -8154,12 +8429,20 @@ function toggleScratchpad(force) {
     c.strokeStyle = '#1d3557';
     c.lineWidth = 2.5;
     c.lineCap = 'round';
-    cvs.onpointerdown = (e) => { isDrawingPad = true; c.beginPath(); c.moveTo(e.offsetX, e.offsetY); };
-    cvs.onpointermove = (e) => { if (!isDrawingPad) return; c.lineTo(e.offsetX, e.offsetY); c.stroke(); };
+
+    const getPos = (e) => {
+      const rect = cvs.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    cvs.onpointerdown = (e) => { e.stopPropagation(); isDrawingPad = true; const p = getPos(e); c.beginPath(); c.moveTo(p.x, p.y); };
+    cvs.onpointermove = (e) => { if (!isDrawingPad) return; e.stopPropagation(); const p = getPos(e); c.lineTo(p.x, p.y); c.stroke(); };
     cvs.onpointerup = () => { isDrawingPad = false; };
+    cvs.onpointercancel = () => { isDrawingPad = false; };
   }
-}
-function clearScratchpad() {
+}function clearScratchpad() {
   const cvs = document.getElementById('scratchpad-canvas');
   if (cvs) cvs.getContext('2d').clearRect(0, 0, cvs.width, cvs.height);
 }
