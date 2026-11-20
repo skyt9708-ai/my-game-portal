@@ -547,6 +547,23 @@
     }
   }
 
+  /* 🌟 스마트폰 가로모드(높이 520px 이하) 전용 배틀 아레나 겹침 방지 */
+  @media (orientation: landscape) and (max-height: 520px) {
+    #battle-overlay { padding: 6px 10px; }
+    .enemy-hud { top: 4px; left: 10px; width: 185px; padding: 4px 8px; }
+    .enemy-zone { top: 4px; right: 8%; }
+    .enemy-img { height: 74px; }
+    .battle-base-enemy { width: 110px; height: 26px; margin-top: -16px; }
+    .trainer-battle-zone { bottom: 2px; left: 2%; }
+    #b-trainer-canvas { width: 68px; height: 78px; }
+    .partner-zone { bottom: 2px; left: 16%; }
+    .partner-hud { padding: 2px 6px; margin-bottom: -2px; }
+    .partner-img { height: 72px; }
+    .battle-base-partner { width: 115px; height: 28px; margin-top: -18px; }
+    #battle-panel { padding: 6px 10px; gap: 5px; margin-bottom: 0; }
+    .action-btn { min-height: 30px; padding: 4px; font-size: 10.5px; }
+  }
+
   /* 세로모드에서 배틀·연습장·수동 숨김 시 가상 패드 숨김 */
   #gbc-wrapper.in-battle-mode #controller-pad,
   #gbc-wrapper.pad-hidden-for-draw #controller-pad,
@@ -2726,11 +2743,10 @@ player.realX = player.gridX * DISPLAY_TILE;
         const rawTile = map.grid[player.gridY][player.gridX];
         const tile = String(rawTile || '').normalize('NFKC').trim();
 
-        // 🌟 화산 및 볼케이노케이브 용암(l) 상호작용
-        const curMapLower = String(currentMapId || '').toLowerCase();
-        if (tile === 'l' && (curMapLower === 'volcano' || curMapLower === 'volcanocave')) {
+        // 🌟 모든 맵 공용 용암(l) 상호작용: 밟는 즉시 직전 칸으로 튕겨 나감
+        if (tile === 'l') {
           playRetroSound('wrong');
-          showToast("🔥 뜨거워! 뒤로 물러납니다!");
+          showToast("🔥 뜨거워! 용암을 밟아 뒤로 튕겨 나갑니다!");
           player.gridX = player.fromX;
           player.gridY = player.fromY;
           player.realX = player.gridX * DISPLAY_TILE;
@@ -2908,9 +2924,15 @@ player.realX = player.gridX * DISPLAY_TILE;
             ctx.drawImage(targetImg, drawX, drawY, drawW, drawH);
           }
 
-          // 🌟 [수정] 미완료 NPC(안내/퀴즈/관장) 및 거대 포켓몬(raid) 머리 위 선명한 노란 물음표(?) 표시
+          // 🌟 미완료 NPC(안내/퀴즈/관장) 및 거대 포켓몬(raid) 머리 위 선명한 노란 물음표(?) 표시
           const nType = String(npc.type || '').toLowerCase().trim();
-          const isCleared = (currentUser.cleared_quests || []).some(qid => String(qid) === String(npc.id));
+          let isCleared = (currentUser.cleared_quests || []).some(qid => String(qid) === String(npc.id));
+          if (!isCleared && nType === 'gym') {
+            const gymMeta = resolveGymData(npc);
+            if (gymMeta && Array.isArray(currentUser.badges) && currentUser.badges.includes(gymMeta.badgeId)) {
+              isCleared = true;
+            }
+          }
 
           if (!isCleared && ['guide', 'quiz', 'gym', 'raid'].includes(nType)) {
             ctx.save();
@@ -3546,16 +3568,16 @@ player.realX = player.gridX * DISPLAY_TILE;
     return { val, tier: 0, badge: '🌱 어색함' };
   }
 
-  // 🌟 [추가] 지형별 유리한 속성 상성 테이블 & 파트너 배틀 보너스 판별기
+  // 🌟 [개편] 8대 바이옴 원작 고증 & 균형 상성 테이블
   const TYPE_ADVANTAGE_MAP = {
-    water:    ['volcano', 'sand'],            // 💧 물 -> 화산·사막에 유리
-    grass:    ['water', 'sand'],              // 🌿 풀 -> 호수·사막에 유리
-    volcano:  ['snow', 'grass', 'sky'],       // 🔥 불 -> 설원·초원·천공(페어리)에 유리
-    snow:     ['grass', 'cave', 'sky'],       // ❄️ 얼음 -> 초원·동굴·천공(비행·드래곤)에 유리
-    sand:     ['volcano', 'cave', 'electric'],// 🏜️ 땅 -> 화산·동굴·전기·에스퍼에 유리
-    cave:     ['grass', 'electric'],          // 🦇 동굴(고스트·악·독) -> 초원·전기·에스퍼에 유리
-    electric: ['water', 'sky'],               // ⚡ 전기·에스퍼 -> 호수·천공(비행)에 유리
-    sky:      ['grass', 'sky']                // 🐉 비행·드래곤·페어리 -> 초원·천공에 유리
+    grass:    ['water', 'sand'],               // 🌿 풀·벌레 -> 호수·사막에 유리
+    water:    ['volcano', 'sand'],             // 💧 물 -> 화산·사막에 유리
+    volcano:  ['grass', 'snow'],               // 🔥 불꽃·격투 -> 초원·설원에 유리
+    snow:     ['grass', 'sky'],                // ❄️ 얼음 -> 초원·천공(비행·드래곤)에 유리
+    sand:     ['volcano', 'snow', 'electric'], // 🏜️ 땅·바위·강철 -> 화산·설원·도시에 유리
+    cave:     ['grass', 'electric'],           // 🦇 독·고스트·악 -> 초원·도시(에스퍼)에 유리
+    electric: ['water', 'sky'],                // ⚡ 전기·에스퍼 -> 호수·천공(비행)에 유리
+    sky:      ['grass', 'cave', 'sky']         // 🐉 비행·드래곤·페어리 -> 초원·동굴·천공에 유리
   };
 
   function getPartnerBattleBonus(biomeType) {
@@ -3596,6 +3618,13 @@ player.realX = player.gridX * DISPLAY_TILE;
       .split(',')
       .map(s => s.trim())
       .includes(target);
+  }
+
+// 🌟 배틀 모드 진입/종료 시 가상 패드 자동 숨김·복원 헬퍼 (전역 선언)
+  function setBattleUiMode(isBattle) {
+    const wrapper = document.getElementById('gbc-wrapper');
+    if (wrapper) wrapper.classList.toggle('in-battle-mode', !!isBattle);
+    if (typeof resizeCanvas === 'function') resizeCanvas();
   }
 
   function startEncounter(biomeType) {
@@ -3766,6 +3795,7 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
     else overlay.style.background = 'linear-gradient(180deg, #343a40 0%, #212529 60%, #111 100%)';
 
     overlay.style.display = 'flex';
+    setBattleUiMode(true);
     document.getElementById('pokeball-actor').style.display = 'none';
     drawTrainerBattleFrame(0); // 🌟 배틀 진입 시 트레이너 1번(대기) 프레임 표시
 
@@ -4447,6 +4477,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
               showToast(`💨 앗! 야생의 ${battleState.monster.name}이(가) 도망쳐버렸다...`);
             }
             document.getElementById('battle-overlay').style.display = 'none';
+            setBattleUiMode(false);
             battleState.active = false;
             isAnswerLocked = false;
             wildWrongStreak = 0;
@@ -4598,6 +4629,15 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
         if (!currentUser.badges.includes(gym.badgeId)) {
           currentUser.badges.push(gym.badgeId);
         }
+        // 🌟 격파한 체육관 관장 NPC ID를 cleared_quests에 기록하여 물음표(?) 제거
+        const defeatedGymNpc = npcPool.find(n => {
+          if (String(n.type || n.npc_type || '').toLowerCase().trim() !== 'gym') return false;
+          const g = resolveGymData(n);
+          return g && g.badgeId === gym.badgeId;
+        });
+        if (defeatedGymNpc && defeatedGymNpc.id && !currentUser.cleared_quests.some(qid => String(qid) === String(defeatedGymNpc.id))) {
+          currentUser.cleared_quests.push(defeatedGymNpc.id);
+        }
         currentUser.candy_count += 30; // 보스 격파 보너스 사탕 30개!
 
         // 🌟 관장 에이스 포켓몬 도감 포획 등록 (3성 확정 + 최근 잡은 순 반영)
@@ -4628,6 +4668,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
         saveGameData();
 
         document.getElementById('battle-overlay').style.display = 'none';
+        setBattleUiMode(false);
         battleState.active = false;
         battleState.isBoss = false;
         isAnswerLocked = false;
@@ -4739,6 +4780,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       ball.style.display = 'none';
       ball.className = '';
       document.getElementById('battle-overlay').style.display = 'none';
+      setBattleUiMode(false);
       battleState.active = false;
       isAnswerLocked = false;
       enemyImg.style.transform = 'none';
@@ -5108,6 +5150,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       }
       lastEscapeTime = now;
       document.getElementById('battle-overlay').style.display = 'none';
+      setBattleUiMode(false);
       battleState.active = false;
       battleState.isBoss = false;
       comboCount = 0;
@@ -5397,6 +5440,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     const overlay = document.getElementById('battle-overlay');
     overlay.style.background = 'linear-gradient(180deg, #1b263b 0%, #415a77 60%, #0d1b2a 100%)';
     overlay.style.display = 'flex';
+    setBattleUiMode(true);
 
     const ball = document.getElementById('pokeball-actor');
     if (ball) {
@@ -5527,8 +5571,16 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
           const rData = res.raid;
           if (rData.is_cleared || rData.current_hp <= 0) {
             dialogBody.innerHTML = `🎉 <b>축하합니다!</b> 우리 [${classId}반] 학우들이 힘을 합쳐 이미 [${bossDisplayName}]을(를) 격파했습니다!<br><br>🏆 최후의 일격: <b>${rData.last_hit || '학급 영웅'}</b><br>📖 [${bossDisplayName}] 도감 등록이 완료되었습니다.`;
+            let needSave = false;
             if (!currentUser.captured_ids.some(cid => Number(cid) === bossDexId)) {
               currentUser.captured_ids.push(bossDexId);
+              needSave = true;
+            }
+            if (npc.id && !currentUser.cleared_quests.some(qid => String(qid) === String(npc.id))) {
+              currentUser.cleared_quests.push(npc.id);
+              needSave = true;
+            }
+            if (needSave) {
               updateHud();
               saveGameData();
             }
@@ -6284,6 +6336,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     const overlay = document.getElementById('battle-overlay');
     overlay.style.background = 'linear-gradient(180deg, #fdfcdc 0%, #fed9b7 60%, #f07167 100%)';
     overlay.style.display = 'flex';
+    setBattleUiMode(true);
     document.getElementById('pokeball-actor').style.display = 'none';
     drawTrainerBattleFrame(0); // 🌟 튜토리얼 배틀 진입 시 트레이너 대기 자세 표시
 
@@ -8317,6 +8370,7 @@ function startAdventure() {
       currentUser.inventory[itemId]--;
       closeBagModal();
       document.getElementById('battle-overlay').style.display = 'none';
+      setBattleUiMode(false);
       battleState.active = false;
       comboCount = 0;
       showToast("🪢 탈출로프를 사용해 안전하게 도망쳤습니다!");
@@ -8670,6 +8724,7 @@ function startRaidBossBattle(npc, raidStatus) {
   const overlay = document.getElementById('battle-overlay');
   overlay.style.background = 'linear-gradient(180deg, #370617 0%, #6a040f 60%, #03071e 100%)';
   overlay.style.display = 'flex';
+  setBattleUiMode(true);
 
   // 🌟 이전 배틀의 몬스터볼이 거대 보스 스프라이트 위에 겹치지 않도록 확실히 숨김
   const ball = document.getElementById('pokeball-actor');
@@ -8700,10 +8755,10 @@ function startRaidBossBattle(npc, raidStatus) {
 // =======================================================
 function triggerRaidVictory() {
   document.getElementById('battle-overlay').style.display = 'none';
+  setBattleUiMode(false);
   battleState.active = false;
   battleState.isRaid = false;
   isAnswerLocked = false;
-
   const npc = battleState.raidNpc || {};
   let monId = battleState.monster.id || 143;
   let candyReward = 50;
@@ -8716,7 +8771,10 @@ function triggerRaidVictory() {
     candyReward = Number(npc.reward_val);
   }
 
-  // 도감 등록 및 최근 잡은 순서(caught_order) 반영
+  // 🌟 레이드 보스 NPC 완료 처리(물음표 제거) 및 도감 등록
+  if (npc.id && !currentUser.cleared_quests.some(qid => String(qid) === String(npc.id))) {
+    currentUser.cleared_quests.push(npc.id);
+  }
   const numMonId = Number(monId);
   if (!currentUser.captured_ids.some(cid => Number(cid) === numMonId)) {
     currentUser.captured_ids.push(numMonId);
