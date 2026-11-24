@@ -1463,8 +1463,8 @@
       <div class="pg-tab-bar">
         <button class="pg-tab-btn active" id="pg-tab-dex" onclick="switchPokegearTab('dex')">📖 도감</button>
         <button class="pg-tab-btn" id="pg-tab-quest" onclick="switchPokegearTab('quest')">📋 미션<span id="pg-quest-dot" class="quest-notify-dot" style="display:none;"></span></button>
-        <button class="pg-tab-btn" id="pg-tab-cipher" onclick="switchPokegearTab('cipher')">🔐 일일암호</button>
-        <button class="pg-tab-btn" id="pg-tab-purify" onclick="switchPokegearTab('purify')">✨ 정화<span id="pg-shadow-count" style="font-size:8.5px; color:#e0aaff;"></span></button>
+        <button class="pg-tab-btn" id="pg-tab-cipher" onclick="switchPokegearTab('cipher')">🔐 약점특훈</button>
+        <button class="pg-tab-btn" id="pg-tab-purify" onclick="switchPokegearTab('purify')">✨ 약점·정화<span id="pg-shadow-count" style="font-size:8.5px; color:#e0aaff;"></span></button>
         <button class="pg-tab-btn" id="pg-tab-hall" onclick="switchPokegearTab('hall')">🏆 전당</button>
       </div>
 
@@ -1508,7 +1508,7 @@
             <button class="lb-refresh-btn" id="lb-refresh-btn" onclick="fetchLeaderboardData(true)">🔄 새로고침</button>
           </div>
           <div class="lb-hof-section">
-            <div class="lb-hof-title">👑 명예의 전당 챔피언 (4대 배지 정복자)</div>
+            <div class="lb-hof-title">👑 명예의 전당 챔피언 (5대 배지 정복자)</div>
             <div class="lb-hof-grid" id="lb-hof-grid">
               <span style="font-size:9px; color:#888;">아직 전당등록을 마친 챔피언이 없습니다.</span>
             </div>
@@ -1565,13 +1565,14 @@
 
         <div class="champ-badge-row">
           <span class="champ-badge-icon" title="블루배지">💧</span>
-          <span class="champ-badge-icon" title="아이스배지">❄️</span>
+          <span class="champ-badge-icon" title="스카이배지">🐉</span>
+          <span class="champ-badge-icon" title="시티배지">⚡</span>
           <span class="champ-badge-icon" title="진홍배지">🔥</span>
           <span class="champ-badge-icon" title="그린배지">🏜️</span>
         </div>
 
         <div style="background:#1a2035; border:1px solid #3d4a6e; border-radius:4px; padding:10px; font-size:11px; line-height:1.5; color:#e0e6ed; margin-bottom:14px;">
-          "모든 대륙의 수학적 시련을 이겨내고 4대 배지를 모두 제패한 위대한 트레이너여! 그대의 이름은 포켓몬 수학 전당에 영원히 기록될 것이다!"<br>
+          "모든 대륙의 수학적 시련을 이겨내고 5대 배지를 모두 제패한 위대한 트레이너여! 그대의 이름은 포켓몬 수학 전당에 영원히 기록될 것이다!"<br>
           <span style="font-size:10px; color:#ffd166; display:block; margin-top:4px;">- 포켓몬 연구소 오키드 박사 -</span>
         </div>
 
@@ -2652,7 +2653,13 @@ function isEncounterTile(code, mapId) {
   // [4] 메인 루프 & 걷기 물리
   // =======================================================
   let lastTime = performance.now();
-  const WALK_SPEED = 0.007;
+const WALK_SPEED = 0.007;
+  const SKATE_SPEED_MULTIPLIER = 1.65;
+
+  function getCurrentWalkSpeed() {
+    const isSkateOn = !!(currentUser && currentUser.inventory && currentUser.inventory.skate_active);
+    return isSkateOn ? (WALK_SPEED * SKATE_SPEED_MULTIPLIER) : WALK_SPEED;
+  }
 
   function gameLoop(now) {
     const dt = now - lastTime;
@@ -2683,7 +2690,7 @@ function isEncounterTile(code, mapId) {
 
   function updateMovement(dt) {
     if (player.isMoving) {
-      player.moveProgress += WALK_SPEED * dt;
+      player.moveProgress += getCurrentWalkSpeed() * dt;
       if (player.moveProgress >= 1) {
         player.isMoving = false;
         player.moveProgress = 0;
@@ -3138,14 +3145,211 @@ player.realX = player.gridX * DISPLAY_TILE;
     return paired;
   }
 
-  function renderPokegearCipherOptions(locked) {
-    const optWrap = document.getElementById('pg-cipher-opts');
-    if (!optWrap) return;
-    optWrap.innerHTML = dailyCipherPairedOpts.map((opt, idx) => `
-      <button class="pg-opt-btn ${locked ? 'disabled' : ''}" onclick="submitPokegearCipher(${idx})">
-        ${locked ? '🔒' : '▶'} ${opt.text}
-      </button>
-    `).join('');
+  // 🌟 [개편] 주관식 수식 정규화 (위첨자 ²->^2, 곱셈기호, 루트 괄호 통일)
+  function normalizeSubjectiveMathValue(rawStr) {
+    let s = String(rawStr || '').trim();
+    const supRev = { '⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁺':'+','⁻':'-','ⁿ':'n','ˣ':'x','ʸ':'y' };
+    s = s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿˣʸ]+/g, m => '^' + m.split('').map(c => supRev[c] || c).join(''));
+    s = s.replace(/\s+/g, '');
+    s = s.replace(/^[a-zA-Z가-힣]+\s*=/, ''); // "x = 3" -> "3"
+    s = s.replace(/×|\*/g, '');
+    s = s.replace(/sqrt\(([^)]+)\)/gi, '√$1');
+    s = s.replace(/√\(([^)]+)\)/g, '√$1');
+    s = s.replace(/^\((.+)\)$/, '$1');
+    return s;
+  }
+
+  // 🌟 [개편] 정수·소수·분수 + 루트(√)·파이(π)·거듭제곱(^) 수치 동치 계산기
+  function evalMathNumericValue(str) {
+    let clean = normalizeSubjectiveMathValue(str).toLowerCase();
+    if (!clean) return null;
+    // 문자(x, y, a, b 등)가 포함된 다항식은 수치 평가 제외 (문자식 비교로 처리)
+    if (/[a-z]/.test(clean.replace(/pi/g, ''))) return null;
+
+    clean = clean.replace(/pi/g, 'π');
+    let expr = clean
+      .replace(/(\d)(√|π)/g, '$1*$2')
+      .replace(/(√\d+(?:\.\d+)?)(π)/g, '$1*$2')
+      .replace(/(π)(√)/g, '$1*$2')
+      .replace(/√(\d+(?:\.\d+)?)/g, 'Math.sqrt($1)')
+      .replace(/π/g, 'Math.PI')
+      .replace(/\^([+-]?\d+)/g, '**($1)');
+
+    if (!/^[0-9+\-*/().MathsqrtPI\s]+$/.test(expr)) return null;
+    try {
+      const val = Function('"use strict"; return (' + expr + ');')();
+      return (typeof val === 'number' && isFinite(val)) ? val : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isSubjectiveAnswerCorrect(userRaw, correctRaw) {
+    const uNorm = normalizeSubjectiveMathValue(userRaw).toLowerCase();
+    const cNorm = normalizeSubjectiveMathValue(correctRaw).toLowerCase();
+    if (!uNorm || !cNorm) return false;
+    if (uNorm === cNorm) return true;
+
+    const uNum = evalMathNumericValue(uNorm);
+    const cNum = evalMathNumericValue(cNorm);
+    if (uNum !== null && cNum !== null && Math.abs(uNum - cNum) < 1e-5) {
+      return true;
+    }
+    return false;
+  }
+
+  // 🌟 [추가] 학생 개인의 취약 단원(zone) 및 세부주제(sub_topic) 분석기
+  function getStudentWeaknessSummary() {
+    const inv = currentUser.inventory || {};
+    const qStats = inv.q_stats || {};
+    const shadows = inv.shadows || {};
+
+    const battleById = {};
+    (battlePool || []).forEach(b => {
+      const id = String(b.qid || b.battle_id || b.id || '').trim();
+      if (id) battleById[id] = b;
+    });
+
+    const zoneStats = {};   // { zone: { attempts, wrongs } }
+    const topicStats = {};  // { topic: { attempts, wrongs } }
+    const questionList = [];
+
+    Object.keys(qStats).forEach(qid => {
+      const pair = Array.isArray(qStats[qid]) ? qStats[qid] : [0, 0];
+      const attempts = Number(pair[0]) || 0;
+      const wrongs = Number(pair[1]) || 0;
+      const row = battleById[qid];
+      const zone = row ? String(row.zone || row.zone_tag || 'grass').toLowerCase().trim() : 'grass';
+      const topic = row ? String(row.sub_topic || row.subtopic || row.topic || row['세부주제'] || '').trim() : '';
+      const phase = row ? (Number(row.phase) || 1) : 1;
+
+      if (!zoneStats[zone]) zoneStats[zone] = { attempts: 0, wrongs: 0 };
+      zoneStats[zone].attempts += attempts;
+      zoneStats[zone].wrongs += wrongs;
+
+      if (topic) {
+        if (!topicStats[topic]) topicStats[topic] = { attempts: 0, wrongs: 0, zone };
+        topicStats[topic].attempts += attempts;
+        topicStats[topic].wrongs += wrongs;
+      }
+
+      if (wrongs > 0 && row) {
+        questionList.push({
+          qid,
+          zone,
+          topic,
+          phase,
+          attempts,
+          wrongs,
+          wrongRate: Math.round((wrongs / Math.max(1, attempts)) * 100),
+          row
+        });
+      }
+    });
+
+    // 그림자 포켓몬 오답 단원도 가중 반영
+    Object.values(shadows).forEach(s => {
+      if (!s || typeof s !== 'object') return;
+      const z = String(s.zone || 'grass').toLowerCase().trim();
+      if (!zoneStats[z]) zoneStats[z] = { attempts: 0, wrongs: 0 };
+      zoneStats[z].attempts += 1;
+      zoneStats[z].wrongs += 1;
+    });
+
+    questionList.sort((a, b) => (b.wrongs - a.wrongs) || (b.wrongRate - a.wrongRate));
+
+    let weakestZone = null;
+    let maxZoneScore = 0;
+    Object.keys(zoneStats).forEach(z => {
+      const st = zoneStats[z];
+      if (st.wrongs > 0) {
+        const score = st.wrongs * 10 + Math.round((st.wrongs / Math.max(1, st.attempts)) * 10);
+        if (score > maxZoneScore) {
+          maxZoneScore = score;
+          weakestZone = z;
+        }
+      }
+    });
+
+    return { zoneStats, topicStats, questionList, weakestZone };
+  }
+
+  // 🌟 [추가] 취약단원에서 주관식(정수·소수·기약분수) 출제 가능한 문항 1개 추출
+  function pickSubjectiveWeaknessQuestion() {
+    const { weakestZone, questionList } = getStudentWeaknessSummary();
+    const isSubjectiveSafe = (row) => {
+      const parsed = parseSingleQuestionRow(row);
+      if (!parsed || !parsed.opts || parsed.opts[parsed.ans] === undefined) return false;
+
+      // 1. "다음 중 ~ 것은?", "~개는?", "~아닌 것은?" 같은 선다형 지문 제외
+      const qText = String(parsed.desc || '').replace(/\s+/g, '');
+      const choiceStylePatterns = [
+        /다음중/, /옳은것/, /옳지않은것/, /아닌것/, /인것은\??$/,
+        /고른것/, /모두고르/, /몇개인가/, /개수는\??$/, /짝지은것/
+      ];
+      if (choiceStylePatterns.some(pat => pat.test(qText))) return false;
+
+      // 2. 정답이 숫자·분수·루트·파이·지수·문자식 형태인 문항만 허용
+      const ansText = normalizeSubjectiveMathValue(parsed.opts[parsed.ans]).toLowerCase();
+      if (/[가-힣≤≥≠<>]/.test(ansText)) return false;
+      return /^[0-9+\-*/.^√πxy()]+$/.test(ansText);
+    };
+
+    // 1순위: 오답 이력이 있는 문항 중 주관식 가능 문항
+    const wrongSubj = questionList.map(q => q.row).filter(isSubjectiveSafe);
+    if (wrongSubj.length > 0) {
+      const picked = wrongSubj[Math.floor(Math.random() * wrongSubj.length)];
+      const parsed = parseSingleQuestionRow(picked);
+      return { ...parsed, targetZone: String(picked.zone || picked.zone_tag || weakestZone || 'grass').toLowerCase().trim(), isWeakTarget: true };
+    }
+
+    // 2순위: 취약 단원(weakestZone) 내 주관식 가능 문항
+    if (weakestZone) {
+      const zonePool = getBattlePoolByZone(weakestZone, weakestZone).filter(isSubjectiveSafe);
+      if (zonePool.length > 0) {
+        const picked = zonePool[Math.floor(Math.random() * zonePool.length)];
+        const parsed = parseSingleQuestionRow(picked);
+        return { ...parsed, targetZone: weakestZone, isWeakTarget: true };
+      }
+    }
+
+    // 3순위: 전체 문제 은행 중 기초(phase 1) 주관식 가능 문항
+    const allSafe = (battlePool || []).filter(isSubjectiveSafe);
+    const p1Safe = allSafe.filter(b => Number(b.phase) === 1);
+    const finalPool = p1Safe.length > 0 ? p1Safe : allSafe;
+    if (finalPool.length > 0) {
+      const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
+      const parsed = parseSingleQuestionRow(picked);
+      return { ...parsed, targetZone: String(picked.zone || picked.zone_tag || 'grass').toLowerCase().trim(), isWeakTarget: false };
+    }
+
+    return {
+      qid: "SUBJ_DEF_1",
+      sub_topic: "기초 연산",
+      desc: "다음 식의 값을 구하시오.<br>[ -7 + 12 ]",
+      opts: ["5"],
+      ans: 0,
+      hint: "절댓값이 큰 수의 부호를 붙이고 두 수의 차를 구해보세요!",
+      targetZone: "grass",
+      isWeakTarget: false
+    };
+  }
+
+  function pressSubjectivePad(token) {
+    if (isPgCipherLocked) {
+      showToast("⏳ 문제를 먼저 읽어보세요!");
+      return;
+    }
+    const inp = document.getElementById('pg-subj-input');
+    if (!inp) return;
+    if (token === 'CLEAR') {
+      inp.value = '';
+    } else if (token === 'BACK') {
+      inp.value = inp.value.slice(0, -1);
+    } else {
+      if (inp.value.length >= 16) return;
+      inp.value += token;
+    }
   }
 
   function renderPokegearCipher() {
@@ -3155,121 +3359,166 @@ player.realX = player.gridX * DISPLAY_TILE;
 
     const todayStr = getKSTDateStr();
     if (!currentUser.inventory) currentUser.inventory = {};
+    if (currentUser.inventory.daily_drill_date !== todayStr) {
+      currentUser.inventory.daily_drill_date = todayStr;
+      currentUser.inventory.daily_drill_count = 0;
+    }
 
-    if (currentUser.inventory.last_cipher_date === todayStr) {
-      box.innerHTML = `
-        <div class="pg-quiz-card" style="text-align:center;">
-          <div style="font-size:28px;">✅</div>
-          <div style="font-size:13px; font-weight:bold; color:#2a9d8f;">오늘의 수학 암호 해독 완료!</div>
-          <div style="font-size:10.5px; color:#555; line-height:1.5;">
-            오늘의 출석 보너스(🍬 사탕 +5개)를 이미 받았습니다.<br>
-            내일 다시 포켓기어를 열어 새로운 암호에 도전하세요!
-          </div>
-        </div>
-      `;
+    const doneCount = Number(currentUser.inventory.daily_drill_count) || 0;
+    const DAILY_LIMIT = 3;
+
+    if (doneCount >= DAILY_LIMIT) {
+      box.innerHTML =
+        '<div class="pg-quiz-card" style="text-align:center;">' +
+          '<div style="font-size:28px;">🏆</div>' +
+          '<div style="font-size:13px; font-weight:bold; color:#2a9d8f;">오늘의 취약단원 주관식 특훈 완료! (' + DAILY_LIMIT + '/' + DAILY_LIMIT + ')</div>' +
+          '<div style="font-size:10.5px; color:#555; line-height:1.5;">오늘의 주관식 복습 보상을 모두 획득했습니다. 내일 다시 도전하세요!</div>' +
+        '</div>';
       return;
     }
 
     if (!dailyCipherQuestion) {
-      if (Array.isArray(battlePool) && battlePool.length > 0) {
-        const p1List = battlePool.filter(b => Number(b.phase) === 1);
-        const pool = p1List.length > 0 ? p1List : battlePool;
-        dailyCipherQuestion = parseSingleQuestionRow(pool[Math.floor(Math.random() * pool.length)]);
-      }
-      if (!dailyCipherQuestion) {
-        dailyCipherQuestion = { desc: "15 + 27 의 값은 얼마일까요?", opts: ["32", "42", "52"], ans: 1, hint: "일의 자리부터 더해 보세요!" };
-      }
+      dailyCipherQuestion = pickSubjectiveWeaknessQuestion();
     }
 
     const q = dailyCipherQuestion;
-    dailyCipherPairedOpts = buildShuffledPgOptions(q);
+    const zoneLabel = (typeof BIOME_LABELS !== 'undefined' && BIOME_LABELS[q.targetZone]) || q.targetZone || '기초 종합';
+    const targetBadge = q.isWeakTarget
+      ? '<span style="background:#ffe5ec; color:#d90429; border:1px solid #ff758f; padding:1px 5px; border-radius:4px; font-size:9px; font-weight:bold;">🎯 취약단원 집중: ' + zoneLabel + (q.sub_topic ? ' · ' + q.sub_topic : '') + '</span>'
+      : '<span style="background:#e0fbfc; color:#0077b6; border:1px solid #90e0ef; padding:1px 5px; border-radius:4px; font-size:9px; font-weight:bold;">📘 기초 연산 특훈</span>';
+
+    const numStyle = 'padding:6px 0; background:#fff; color:#111; border:1.5px solid #333; border-radius:5px; font-size:13px; font-weight:bold; box-shadow:0 2px #999; cursor:pointer;';
+    const symStyle = 'padding:6px 0; background:#eef5fc; color:#1d3557; border:1.5px solid #333; border-radius:5px; font-size:13px; font-weight:bold; box-shadow:0 2px #999; cursor:pointer;';
+
+    const keypadHtml =
+      '<div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:2px;">' +
+        '<button type="button" onclick="pressSubjectivePad(\'7\')" style="' + numStyle + '">7</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'8\')" style="' + numStyle + '">8</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'9\')" style="' + numStyle + '">9</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'√\')" style="' + symStyle + '">√</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'BACK\')" style="padding:6px 0; background:#457b9d; color:#fff; border:1.5px solid #111; border-radius:5px; font-size:10.5px; font-weight:bold; cursor:pointer;">⌫ 지움</button>' +
+
+        '<button type="button" onclick="pressSubjectivePad(\'4\')" style="' + numStyle + '">4</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'5\')" style="' + numStyle + '">5</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'6\')" style="' + numStyle + '">6</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'π\')" style="' + symStyle + '">π</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'CLEAR\')" style="padding:6px 0; background:#6c757d; color:#fff; border:1.5px solid #111; border-radius:5px; font-size:10.5px; font-weight:bold; cursor:pointer;">초기화</button>' +
+
+        '<button type="button" onclick="pressSubjectivePad(\'1\')" style="' + numStyle + '">1</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'2\')" style="' + numStyle + '">2</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'3\')" style="' + numStyle + '">3</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'^\')" style="' + symStyle + '">^</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'+\')" style="' + symStyle + '">+</button>' +
+
+        '<button type="button" onclick="pressSubjectivePad(\'0\')" style="' + numStyle + '">0</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'.\')" style="' + symStyle + '">.</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'/\')" style="' + symStyle + '">/</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'-\')" style="' + symStyle + '">-</button>' +
+        '<button type="button" onclick="pressSubjectivePad(\'x\')" style="' + symStyle + '">x</button>' +
+
+        '<button type="button" onclick="pressSubjectivePad(\'y\')" style="' + symStyle + '">y</button>' +
+        '<button type="button" onclick="submitPokegearCipher()" style="grid-column:span 4; padding:7px 0; background:#2a9d8f; color:#fff; border:1.5px solid #111; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;">✅ 정답 확인</button>' +
+      '</div>';
+
     isPgCipherLocked = true;
 
-    box.innerHTML = `
-      <div class="pg-quiz-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px dashed #ddd; padding-bottom:6px;">
-          <span style="font-size:12px; font-weight:bold; color:#d90429;">🔐 오늘의 수학 암호 (1일 1회)</span>
-          <span style="font-size:9.5px; background:#ffd166; color:#111; padding:2px 6px; border-radius:4px; font-weight:bold;">보상: 🍬+5 & 🥚+2</span>
-        </div>
-        <div style="font-size:11.5px; line-height:1.55; color:#111;">
-          ${formatMathText(q.desc)}
-          <span id="pg-cipher-lock-msg" style="color:#d90429; font-size:10px; font-weight:bold;"> ⏳(1.5초간 문제를 읽어보세요!)</span>
-        </div>
-        <div id="pg-cipher-hint-area"></div>
-        <div id="pg-cipher-opts" style="display:flex; flex-direction:column; gap:6px; margin-top:4px;"></div>
-      </div>
-    `;
+    box.innerHTML =
+      '<div class="pg-quiz-card" style="gap:7px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px dashed #ddd; padding-bottom:5px;">' +
+          '<span style="font-size:11.5px; font-weight:bold; color:#d90429;">🔐 주관식 일일 특훈 (' + (doneCount + 1) + '/' + DAILY_LIMIT + '문제)</span>' +
+          '<span style="font-size:9px; background:#ffd166; color:#111; padding:2px 6px; border-radius:4px; font-weight:bold;">보상: 🍬+3 & 🥚+1</span>' +
+        '</div>' +
+        '<div>' + targetBadge + '</div>' +
+        '<div style="font-size:11.5px; line-height:1.5; color:#111;">' +
+          formatMathText(q.desc) +
+          '<span id="pg-cipher-lock-msg" style="color:#d90429; font-size:10px; font-weight:bold;"> ⏳(1.5초간 문제를 읽어보세요!)</span>' +
+        '</div>' +
+        '<div id="pg-cipher-hint-area"></div>' +
+        '<div style="display:flex; gap:6px; align-items:center;">' +
+          '<input id="pg-subj-input" type="text" readonly placeholder="아래 키패드로 정답 입력" style="flex:1; padding:7px 10px; font-size:14px; font-weight:bold; text-align:center; border:2px solid #1d3557; border-radius:6px; background:#f8f9fa; color:#111;">' +
+          '<button id="pg-subj-submit-btn" onclick="submitPokegearCipher()" disabled style="padding:8px 12px; background:#adb5bd; color:#fff; border:2px solid #111; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;">제출(✓)</button>' +
+        '</div>' +
+        keypadHtml +
+        '<div style="font-size:9px; color:#6c757d; text-align:center;">※ 분수: <b>3/4</b> · 루트: <b>√2/2</b> · 파이: <b>20π/3</b> · 거듭제곱: <b>2^5</b></div>' +
+      '</div>';
 
-    renderPokegearCipherOptions(true);
-    pgCipherTimer = setTimeout(() => {
+    pgCipherTimer = setTimeout(function() {
       isPgCipherLocked = false;
       const lockMsg = document.getElementById('pg-cipher-lock-msg');
       if (lockMsg) lockMsg.remove();
-      renderPokegearCipherOptions(false);
+      const subBtn = document.getElementById('pg-subj-submit-btn');
+      if (subBtn) {
+        subBtn.disabled = false;
+        subBtn.style.background = '#e63946';
+      }
     }, 1500);
   }
 
-  function submitPokegearCipher(selectedIdx) {
+  function submitPokegearCipher() {
     if (!dailyCipherQuestion) return;
     if (isPgCipherLocked) {
       showToast("⏳ 문제를 차분히 읽고 풀어주세요!");
       return;
     }
 
-    const chosen = dailyCipherPairedOpts[selectedIdx];
-    if (!chosen) return;
-    const todayStr = getKSTDateStr();
+    const inp = document.getElementById('pg-subj-input');
+    const userVal = inp ? inp.value.trim() : '';
+    if (!userVal) {
+      showToast("✏️ 키패드로 정답을 먼저 입력해 주세요!");
+      return;
+    }
 
-    if (chosen.isCorrect) {
+    const q = dailyCipherQuestion;
+    const correctAnsText = (q.opts && q.opts[q.ans] !== undefined) ? String(q.opts[q.ans]) : "";
+    const isCorrect = isSubjectiveAnswerCorrect(userVal, correctAnsText);
+
+    if (q.qid) {
+      if (!currentUser.inventory.q_stats) currentUser.inventory.q_stats = {};
+      const prev = Array.isArray(currentUser.inventory.q_stats[q.qid]) ? currentUser.inventory.q_stats[q.qid] : [0, 0];
+      currentUser.inventory.q_stats[q.qid] = [
+        (Number(prev[0]) || 0) + 1,
+        isCorrect ? Math.max(0, (Number(prev[1]) || 0) - 1) : (Number(prev[1]) || 0) + 1
+      ];
+    }
+
+    if (isCorrect) {
       isPgCipherLocked = true;
-      currentUser.inventory.last_cipher_date = todayStr;
-      currentUser.candy_count += 5;
+      const todayStr = getKSTDateStr();
+      currentUser.inventory.daily_drill_date = todayStr;
+      currentUser.inventory.daily_drill_count = (Number(currentUser.inventory.daily_drill_count) || 0) + 1;
+      currentUser.candy_count += 3;
 
       let eggMsg = "";
       if (currentUser.inventory.incubator_active) {
         const maxP = Number(currentUser.inventory.egg_max) || 10;
-        currentUser.inventory.egg_progress = Math.min(maxP, (Number(currentUser.inventory.egg_progress) || 0) + 2);
-        eggMsg = ` & 🥚 알 게이지 +2칸!`;
+        currentUser.inventory.egg_progress = Math.min(maxP, (Number(currentUser.inventory.egg_progress) || 0) + 1);
+        eggMsg = " & 🥚 알 게이지 +1칸!";
       }
 
       dailyCipherQuestion = null;
-      dailyCipherPairedOpts = [];
       playRetroSound('fanfare');
       updateHud();
       saveGameData();
       renderPokegearCipher();
-      showToast(`🎉 암호 해독 성공! 🍬 사탕 +5개${eggMsg}`);
+      showToast("🎉 주관식 정답! 🍬 사탕 +3개" + eggMsg);
     } else {
-      isPgCipherLocked = true;
       playRetroSound('wrong');
-
-      const optWrap = document.getElementById('pg-cipher-opts');
-      if (optWrap) {
-        Array.from(optWrap.children).forEach((btn, i) => {
-          btn.classList.add('disabled');
-          if (i === selectedIdx) {
-            btn.style.background = '#ffccd5';
-            btn.style.borderColor = '#e63946';
+      if (inp) {
+        inp.style.background = '#ffccd5';
+        inp.style.borderColor = '#e63946';
+        setTimeout(function() {
+          if (inp) {
+            inp.style.background = '#f8f9fa';
+            inp.style.borderColor = '#1d3557';
+            inp.value = '';
           }
-        });
+        }, 700);
       }
-
       const hintArea = document.getElementById('pg-cipher-hint-area');
       if (hintArea) {
-        hintArea.innerHTML = `<div style="padding:5px 8px; background:#fff3cd; border-left:3px solid #ffb703; font-size:10px; color:#664d03;">💡 <b>힌트:</b> ${formatMathText(dailyCipherQuestion.hint || '천천히 다시 계산해 보세요!')} <span style="color:#d90429;">(3초 후 보기가 섞입니다)</span></div>`;
+        hintArea.innerHTML = '<div style="padding:4px 8px; background:#fff3cd; border-left:3px solid #ffb703; font-size:10px; color:#664d03;">💡 <b>힌트:</b> ' + formatMathText(q.hint || '부호와 수식 형태를 다시 확인해 보세요!') + '</div>';
       }
-      showToast("❌ 오답입니다! 3초간 힌트를 복습한 뒤 다시 도전하세요.");
-
-      if (pgCipherTimer) clearTimeout(pgCipherTimer);
-      pgCipherTimer = setTimeout(() => {
-        if (!dailyCipherQuestion) return;
-        for (let i = dailyCipherPairedOpts.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [dailyCipherPairedOpts[i], dailyCipherPairedOpts[j]] = [dailyCipherPairedOpts[j], dailyCipherPairedOpts[i]];
-        }
-        isPgCipherLocked = false;
-        renderPokegearCipherOptions(false);
-      }, 3000);
+      showToast("❌ 오답입니다! 힌트를 보고 다시 계산해 보세요.");
     }
   }
 
@@ -3323,10 +3572,16 @@ player.realX = player.gridX * DISPLAY_TILE;
       return p1.split('').map(ch => superscripts[ch] || ch).join('');
     });
 
-    // 3. 순환소수 변환: 1.5(4) -> 폰트 깨짐 없는 CSS 점 표기
+    // 0-1. 깨진 문자(□) 및 결합 윗점(\u0307, \u02D9) 정리
+    text = text.replace(/\uFFFD/g, '').replace(/[\u0307\u02D9]/g, '');
+
+    // 3. 순환소수 변환: 1.5(4) -> CSS 점 표기 / 0.83(순환마디 3) -> 겹침 없는 깔끔한 표기
     text = text.replace(/(\d+)\((\d+)\)/g, function(m, p1, p2) {
-      const dotted = p2.split('').map(ch => `<span class="rep-dot">${ch}</span>`).join('');
-      return p1 + dotted;
+      const dotted = p2.split('').map(ch => `<span class="rep-dot">${ch}</span>`).join(' ');
+      return p1 + ' ' + dotted;
+    });
+    text = text.replace(/\(순환마디\s*([0-9,\s]+)\)/g, function(m, inner) {
+      return ` <span style="font-size:0.92em; color:#1d3557; font-weight:bold;">(순환마디 ${inner.trim()})</span>`;
     });
 
     // 4. 🌟 교과서형 근호(루트) 변환 (π 포함 식 대응)
@@ -3515,8 +3770,8 @@ player.realX = player.gridX * DISPLAY_TILE;
 
   // 🌟 [설정] 이로치(변색 포켓몬) 등장 확률 및 5종 변색 데이터 (숫자만 수정해 확률 조절 가능)
   const SHINY_CONFIG = {
-    normalRate: 0.03, // 평소 야생 등장 확률 (0.03 = 3%, 0.05 = 5%)
-    feverRate:  0.06, // 골든 피버 중 등장 확률 (0.06 = 6%)
+    normalRate: 0.01, // 평소 야생 등장 확률 (0.01 = 1%)
+    feverRate:  0.03, // 골든 피버 중 등장 확률 (0.02 = 3%)
     variants: [
       { code: 1, suffix: '.1', prefix: '금색',     cssClass: 'shiny-golden',  weight: 30 },
       { code: 2, suffix: '.2', prefix: '알비노',   cssClass: 'shiny-albino',  weight: 25 },
@@ -4187,6 +4442,21 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     const allBtns = document.querySelectorAll('#b-action-grid .action-btn');
     allBtns.forEach(b => b.classList.add('disabled'));
 
+    // 🌟 [추가] 문항별 정오답 누적 통계 기록 (q_stats: { qid: [시도수, 오답수] })
+    const curPhase = (battleState.battleData && battleState.battleData.phases)
+      ? (battleState.battleData.phases[battleState.phase] || battleState.battleData.phases[0])
+      : null;
+    if (curPhase && curPhase.qid && battleState.battleData.id !== 'TUTORIAL_001') {
+      if (!currentUser.inventory) currentUser.inventory = {};
+      if (!currentUser.inventory.q_stats) currentUser.inventory.q_stats = {};
+      const qKey = String(curPhase.qid).trim();
+      const prev = Array.isArray(currentUser.inventory.q_stats[qKey]) ? currentUser.inventory.q_stats[qKey] : [0, 0];
+      currentUser.inventory.q_stats[qKey] = [
+        (Number(prev[0]) || 0) + 1,
+        (Number(prev[1]) || 0) + (isCorrect ? 0 : 1)
+      ];
+    }
+
     const enemyImg = document.getElementById('b-enemy-sprite');
 
     if (isCorrect) {
@@ -4373,8 +4643,28 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
           renderBattlePhase();
         };
 
+        // 3) 도전 중단 버튼 (필드로 즉시 복귀)
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'action-btn span-2';
+        stopBtn.style.background = '#ffe5ec';
+        stopBtn.style.borderColor = '#d90429';
+        stopBtn.style.color = '#d90429';
+        stopBtn.innerHTML = `🏃 도전 중단 (필드로 돌아가기)`;
+        stopBtn.onclick = () => {
+          document.getElementById('battle-overlay').style.display = 'none';
+          setBattleUiMode(false);
+          battleState.active = false;
+          battleState.isBoss = false;
+          battleState.gymData = null;
+          battleState.bossContinueCount = 0;
+          isAnswerLocked = false;
+          comboCount = 0;
+          showToast("🏃 관장 도전을 멈추고 필드로 돌아왔습니다!");
+        };
+
         grid.appendChild(contBtn);
         grid.appendChild(restartBtn);
+        grid.appendChild(stopBtn);
         return;
       }
 
@@ -4676,8 +4966,8 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
 
         playRetroSound('fanfare');
 
-        // 🌟 4대 배지(물, 눈, 화산, 사막)를 모두 수집했는지 확인
-        const ALL_BADGES = ['water', 'snow', 'volcano', 'sand'];
+        // 🌟 4대 배지(물, 천공/스카이, 화산, 사막)를 모두 수집했는지 확인
+        const ALL_BADGES = ['water', 'city', 'sky', 'volcano', 'sand'];
         const hasAll = ALL_BADGES.every(b => currentUser.badges.includes(b));
 
         if (hasAll) {
@@ -5135,26 +5425,27 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     }
     // 1. 배틀 중인 경우: 도망치기 처리
     if (battleState.active) {
-      if (battleState.isBoss) {
-        playRetroSound('wrong');
-        showToast("⛔ 체육관 관장과의 공식 승부에서는 도망칠 수 없습니다!");
-        return;
-      }
-      const now = Date.now();
-      const elapsed = now - lastEscapeTime;
+      const isGymBoss = !!battleState.isBoss;
+      if (!isGymBoss) {
+        const now = Date.now();
+        const elapsed = now - lastEscapeTime;
 
-      if (elapsed < ESCAPE_COOLDOWN) {
-        const remainSec = Math.ceil((ESCAPE_COOLDOWN - elapsed) / 1000);
-        showToast(`⏳ 아직 도망칠 수 없습니다! (${remainSec}초 남음)`);
-        return;
+        if (elapsed < ESCAPE_COOLDOWN) {
+          const remainSec = Math.ceil((ESCAPE_COOLDOWN - elapsed) / 1000);
+          showToast(`⏳ 아직 도망칠 수 없습니다! (${remainSec}초 남음)`);
+          return;
+        }
+        lastEscapeTime = now;
       }
-      lastEscapeTime = now;
       document.getElementById('battle-overlay').style.display = 'none';
       setBattleUiMode(false);
       battleState.active = false;
       battleState.isBoss = false;
+      battleState.gymData = null;
+      battleState.bossContinueCount = 0;
+      isAnswerLocked = false;
       comboCount = 0;
-      showToast("🏃 안전하게 도망쳤습니다! (쿨타임 20초)");
+      showToast(isGymBoss ? "🏃 관장 도전을 멈추고 필드로 돌아왔습니다!" : "🏃 안전하게 도망쳤습니다! (쿨타임 20초)");
       return;
     }
 
@@ -5206,7 +5497,8 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       if (activeNpc.type === 'gym') {
         const gym = resolveGymData(activeNpc);
         const isCleared = gym && currentUser.badges.includes(gym.badgeId);
-        const myCatches = gym ? monsterPool.filter(m => isBaseMonsterCaught(m.id) && String(m.type).toLowerCase() === gym.badgeId) : [];
+        const targetType = (gym && gym.badgeId === 'city') ? 'electric' : (gym ? gym.badgeId : '');
+        const myCatches = gym ? monsterPool.filter(m => isBaseMonsterCaught(m.id) && String(m.type).toLowerCase() === targetType) : [];
 
         if (gym && !isCleared && myCatches.length >= gym.reqCount) {
           launchGymBattle();
@@ -5276,12 +5568,12 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       reqCount: 15,
       desc: "기하학의 원론처럼 빈틈없는 논리력을 시험하겠다!"
     },
-    'snow': {
+    'sky': {
       name: "관장 유클리드",
-      badgeId: "snow",
-      badgeName: "❄️ 아이스배지",
+      badgeId: "sky",
+      badgeName: "🐉 스카이배지",
       reqCount: 15,
-      desc: "매서운 얼음 앞에서도 흔들리지 않는 냉철한 통계와 계산력을 보여다오!"
+      desc: "창공을 가르는 바람과 별자리 속에서도 흔들리지 않는 냉철한 수리력을 보여다오!"
     },
     'volcano': {
       name: "관장 피타고라스",
@@ -5296,6 +5588,13 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       badgeName: "🏜️ 그린배지",
       reqCount: 15,
       desc: "고대 유적의 미궁과 한붓그리기의 비밀을 풀 실력을 시험해보마!"
+    },
+    'city': {
+      name: "관장 데카르트",
+      badgeId: "city",
+      badgeName: "⚡ 시티배지",
+      reqCount: 15,
+      desc: "좌표와 도형 속에 숨겨진 기하학적 질서를 꿰뚫어 보아라!"
     }
   };
 
@@ -5338,9 +5637,10 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     let baseGym = GYM_LEADERS['water'];
     if (GYM_LEADERS[rawKey]) baseGym = GYM_LEADERS[rawKey];
     else if (rawKey.includes('water')) baseGym = GYM_LEADERS['water'];
-    else if (rawKey.includes('snow') || rawKey.includes('ice')) baseGym = GYM_LEADERS['snow'];
+    else if (rawKey.includes('sky') || rawKey.includes('dragon') || rawKey.includes('fairy')) baseGym = GYM_LEADERS['sky'];
     else if (rawKey.includes('volcano') || rawKey.includes('fire') || rawKey.includes('lava')) baseGym = GYM_LEADERS['volcano'];
     else if (rawKey.includes('sand') || rawKey.includes('desert')) baseGym = GYM_LEADERS['sand'];
+    else if (rawKey.includes('city') || rawKey.includes('electric')) baseGym = GYM_LEADERS['city'];
     else if (GYM_LEADERS[currentMapId]) baseGym = GYM_LEADERS[currentMapId];
 
     return {
@@ -5363,8 +5663,9 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       return;
     }
 
-    // 해당 속성 포켓몬 수집 마릿수 검사 (이로치 포함)
-    const myCatches = monsterPool.filter(m => isBaseMonsterCaught(m.id) && String(m.type).toLowerCase() === String(mapId).toLowerCase());
+    // 해당 속성 포켓몬 수집 마릿수 검사 (이로치 포함 · city 배지는 electric 타입 기준)
+    const targetType = (String(mapId).toLowerCase() === 'city') ? 'electric' : String(mapId).toLowerCase();
+    const myCatches = monsterPool.filter(m => isBaseMonsterCaught(m.id) && String(m.type).toLowerCase() === targetType);
     if (myCatches.length < gym.reqCount) {
       showToast(`⛔ 입장 불가! [${mapId.toUpperCase()}] 속성 포켓몬을 ${gym.reqCount}마리 이상 수집해야 합니다! (현재 ${myCatches.length}마리)`);
       return;
@@ -5495,20 +5796,48 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
     const typeElem = document.getElementById('npc-talk-type');
     const closeBtn = document.getElementById('npc-close-btn');
 
-    // 🌟 [추가] 필드 보물상자(item/chest/treasure) 상호작용 처리
+    // 🌟 [개편] 필드 보물상자(item/chest/treasure) 상호작용 처리 (사탕 · 아이템 · 알 모두 지원)
     if (checkType === 'item' || checkType === 'chest' || checkType === 'treasure') {
-      const isClaimed = currentUser.cleared_quests.includes(npc.id);
+      const isClaimed = currentUser.cleared_quests.some(qid => String(qid) === String(npc.id));
       if (isClaimed) {
         showToast("📦 이미 획득한 보물상자입니다. (비어 있음)");
         return;
       }
 
-      // 사탕 지급 및 획득 완료 영구 저장
-      const rewardCandy = Number(npc.reward_val) || 5;
+      if (!currentUser.inventory) currentUser.inventory = {};
       currentUser.cleared_quests.push(npc.id);
-      currentUser.candy_count += rewardCandy;
+
+      const rType = String(npc.reward_type || 'candy').trim().toLowerCase();
+      const rVal = String(npc.reward_val || '').trim();
+      let rewardHtml = '';
+
+      if (rType === 'item' && rVal) {
+        const parts = rVal.split(':');
+        const itemId = parts[0].trim();
+        const count = Number(parts[1]) || 1;
+        currentUser.inventory[itemId] = (currentUser.inventory[itemId] || 0) + count;
+
+        const foundMeta = (typeof shopPool !== 'undefined' && shopPool.find(s => s.item_id === itemId))
+          || (typeof EGG_SPRITE_DEFS !== 'undefined' && EGG_SPRITE_DEFS[itemId])
+          || (typeof SHINY_POTION_DEFS !== 'undefined' && SHINY_POTION_DEFS[itemId])
+          || (typeof DEFAULT_SHOP_ITEMS !== 'undefined' && DEFAULT_SHOP_ITEMS.find(d => d.item_id === itemId));
+        const itemDisplayName = (foundMeta && foundMeta.name) || itemId;
+
+        rewardHtml = `<b style="color:#d90429;">🎒 [${itemDisplayName}] x${count}개</b>를 획득했습니다! (가방 확인)`;
+      } else if (rType === 'egg' && rVal) {
+        const eggId = normalizeEggType(rVal);
+        const eggNames = { egg_green: "초록 알", egg_blue: "파랑 알", egg_purple: "보라 알", egg_mystic: "신비한 알" };
+        currentUser.inventory[eggId] = (currentUser.inventory[eggId] || 0) + 1;
+
+        rewardHtml = `<b style="color:#2a9d8f;">🥚 [${eggNames[eggId]}]</b>을(를) 획득했습니다! (가방 확인)`;
+      } else {
+        const rewardCandy = Number(rVal) || 5;
+        currentUser.candy_count += rewardCandy;
+        rewardHtml = `<b style="color:#d90429;">🍬 사탕 +${rewardCandy}개</b>를 획득했습니다!`;
+      }
+
       updateHud();
-      checkQuestProgress(); // 🌟 [추가] 보물상자 열기(chest_open) 미션 알림 갱신
+      checkQuestProgress(); // 보물상자 열기(chest_open) 미션 알림 갱신
       saveGameData();
       playRetroSound('fanfare'); // 획득 팡파레 재생
 
@@ -5516,7 +5845,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
       activeNpc = npc;
       nameElem.innerText = npc.name || "🎁 보물상자";
       typeElem.innerText = "보물 획득";
-      dialogBody.innerHTML = `${npc.dialog || '필드 구석에서 보물상자를 열었다!'}<br><br><b style="color:#d90429;">🍬 사탕 +${rewardCandy}개</b>를 획득했습니다!`;
+      dialogBody.innerHTML = `${npc.dialog || '필드 구석에서 보물상자를 열었다!'}<br><br>${rewardHtml}`;
       quizBox.style.display = 'none';
       closeBtn.innerText = "확인 (A/B)";
       document.getElementById('npc-dialog-modal').style.display = 'flex';
@@ -5618,7 +5947,8 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
         quizBox.style.display = 'none';
         closeBtn.innerText = "대화 종료 (B)";
       } else {
-        const myCatches = monsterPool.filter(m => isBaseMonsterCaught(m.id) && String(m.type).toLowerCase() === gym.badgeId);
+        const targetType = (gym.badgeId === 'city') ? 'electric' : gym.badgeId;
+        const myCatches = monsterPool.filter(m => isBaseMonsterCaught(m.id) && String(m.type).toLowerCase() === targetType);
         if (myCatches.length < gym.reqCount) {
           dialogBody.innerText = `${realDialog}\n\n⛔ 도전 조건: [${gym.badgeId.toUpperCase()}] 속성 포켓몬 ${gym.reqCount}마리 이상 포획 필요!\n(현재 보유: ${myCatches.length} / ${gym.reqCount}마리)`;
           quizBox.style.display = 'none';
@@ -6631,7 +6961,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
 
     // 5. 🌟 [핵심] 전체 순위는 Top 5까지만 공개!
     rankingList.innerHTML = '';
-    const badgeIcons = { water: "💧", snow: "❄️", volcano: "🔥", sand: "🏜️" };
+    const badgeIcons = { water: "💧", city: "⚡", sky: "🐉", volcano: "🔥", sand: "🏜️" };
     const top5 = sorted.slice(0, 5);
 
     top5.forEach((user, idx) => {
@@ -7142,6 +7472,129 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
     `).join('');
   }
 
+  let heatmapFilterZone = 'all';
+  let heatmapFilterPhase = 0;
+
+  function setHeatmapFilter(zone, phase) {
+    heatmapFilterZone = zone;
+    heatmapFilterPhase = Number(phase) || 0;
+    renderPokegearPurify();
+  }
+
+  function startWeaknessRetryInCipher(qid) {
+    const row = (battlePool || []).find(b => String(b.qid || b.battle_id || b.id || '').trim() === String(qid).trim());
+    if (!row) return;
+    const parsed = parseSingleQuestionRow(row);
+    dailyCipherQuestion = {
+      ...parsed,
+      targetZone: String(row.zone || row.zone_tag || 'grass').toLowerCase().trim(),
+      isWeakTarget: true
+    };
+    switchPokegearTab('cipher');
+  }
+
+  function buildStudentHeatmapAndAnalysisHtml() {
+    const { questionList } = getStudentWeaknessSummary();
+    const qStats = (currentUser.inventory && currentUser.inventory.q_stats) || {};
+    const battleById = {};
+    (battlePool || []).forEach(b => {
+      const id = String(b.qid || b.battle_id || b.id || '').trim();
+      if (id) battleById[id] = b;
+    });
+
+    // 단원별 × 난이도(1·2·3단계) 매트릭스 집계
+    const matrix = {}; // { zone: { 1:[att,wrg], 2:[att,wrg], 3:[att,wrg] } }
+    Object.keys(qStats).forEach(qid => {
+      const pair = Array.isArray(qStats[qid]) ? qStats[qid] : [0, 0];
+      const row = battleById[qid];
+      if (!row) return;
+      const z = String(row.zone || row.zone_tag || 'grass').toLowerCase().trim();
+      const p = Math.min(3, Math.max(1, Number(row.phase) || 1));
+      if (!matrix[z]) matrix[z] = { 1: [0, 0], 2: [0, 0], 3: [0, 0] };
+      matrix[z][p][0] += Number(pair[0]) || 0;
+      matrix[z][p][1] += Number(pair[1]) || 0;
+    });
+
+    const zones = Object.keys(matrix);
+    if (zones.length === 0) {
+      return `
+        <div style="background:#161b2c; border:1.5px solid #3d4560; border-radius:6px; padding:10px; font-size:10px; color:#a8b2d1; text-align:center;">
+          📊 아직 누적된 문항 풀이 기록이 없습니다.<br>야생 배틀에서 문제를 풀면 <b>단원별·난이도별 오답 히트맵</b>이 자동 생성됩니다!
+        </div>
+      `;
+    }
+
+    const cellStyle = (att, wrg) => {
+      if (att === 0) return 'background:#1e2436; color:#6c757d;';
+      const rate = wrg / att;
+      if (wrg === 0) return 'background:#1b4332; color:#80ed99; border:1px solid #2d6a4f;';
+      if (rate < 0.4) return 'background:#5c4d00; color:#ffd166; border:1px solid #ffb703;';
+      return 'background:#6a040f; color:#ffccd5; border:1px solid #e63946; font-weight:bold;';
+    };
+
+    const rowsHtml = zones.map(z => {
+      const label = BIOME_LABELS[z] || z.toUpperCase();
+      return `
+        <tr>
+          <td style="padding:4px 5px; font-size:9.5px; color:#fff; font-weight:bold; text-align:left; border-bottom:1px solid #2b3044;">${label}</td>
+          ${[1, 2, 3].map(p => {
+            const [att, wrg] = matrix[z][p];
+            const isSelected = (heatmapFilterZone === z && heatmapFilterPhase === p);
+            return `
+              <td onclick="setHeatmapFilter('${z}', ${p})"
+                  style="padding:4px 2px; font-size:9px; text-align:center; border-radius:4px; cursor:pointer; ${cellStyle(att, wrg)} ${isSelected ? 'outline:2px solid #4cc9f0;' : ''}">
+                ${att === 0 ? '-' : `오답 ${wrg}/${att}`}
+              </td>
+            `;
+          }).join('')}
+        </tr>
+      `;
+    }).join('');
+
+    // 필터링된 다빈도 오답 문항 TOP 5
+    const filteredQ = questionList.filter(q => {
+      if (heatmapFilterZone !== 'all' && q.zone !== heatmapFilterZone) return false;
+      if (heatmapFilterPhase > 0 && q.phase !== heatmapFilterPhase) return false;
+      return true;
+    }).slice(0, 5);
+
+    const qCardsHtml = filteredQ.length > 0 ? filteredQ.map(q => `
+      <div style="background:#fffdf5; color:#111; border:1.5px solid #222; border-radius:5px; padding:7px 8px; display:flex; flex-direction:column; gap:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:9px;">
+          <span style="font-weight:bold; color:#1d3557;">${BIOME_LABELS[q.zone] || q.zone} · ${q.phase}단계 ${q.topic ? '(' + q.topic + ')' : ''}</span>
+          <span style="background:#ffe5ec; color:#d90429; padding:1px 5px; border-radius:3px; font-weight:bold;">오답 ${q.wrongs}회 / 시도 ${q.attempts}회 (${q.wrongRate}%)</span>
+        </div>
+        <div style="font-size:10.5px; line-height:1.45;">${formatMathText(q.row.question || q.row.desc || '')}</div>
+        <button onclick="startWeaknessRetryInCipher('${q.qid}')"
+                style="align-self:flex-end; background:#2a9d8f; color:#fff; border:1px solid #111; border-radius:4px; padding:3px 8px; font-size:9.5px; font-weight:bold; cursor:pointer;">
+          🔄 주관식으로 다시 풀어 극복하기
+        </button>
+      </div>
+    `).join('') : `<div style="font-size:9.5px; color:#80ed99; text-align:center; padding:6px;">✅ 선택한 구역에는 남은 오답 문항이 없습니다!</div>`;
+
+    return `
+      <div style="background:#161b2c; border:1.5px solid #4cc9f0; border-radius:6px; padding:8px; display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11px; font-weight:bold; color:#4cc9f0;">📊 단원별 × 난이도별 오답 히트맵</span>
+          ${heatmapFilterZone !== 'all' ? `<button onclick="setHeatmapFilter('all', 0)" style="font-size:8.5px; background:#2b3044; color:#ffd166; border:1px solid #ffd166; border-radius:3px; padding:1px 5px; cursor:pointer;">전체보기</button>` : `<span style="font-size:8.5px; color:#adb5bd;">칸 터치 시 문항 필터</span>`}
+        </div>
+        <table style="width:100%; border-collapse:separate; border-spacing:3px;">
+          <thead>
+            <tr style="font-size:9px; color:#ffd166;">
+              <th style="text-align:left; padding-left:4px;">단원(대륙)</th>
+              <th>1단계(기초)</th>
+              <th>2단계(응용)</th>
+              <th>3단계(심화)</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <div style="font-size:10.5px; font-weight:bold; color:#ffd166; margin-top:2px;">🔍 주요 오답 문항 분석 (TOP 5)</div>
+        <div style="display:flex; flex-direction:column; gap:5px;">${qCardsHtml}</div>
+      </div>
+    `;
+  }
+
   function purifyShadowPokemon(monId) {
     activePurifyMonId = Number(monId);
     const shadowInfo = (currentUser.inventory && currentUser.inventory.shadows && currentUser.inventory.shadows[activePurifyMonId]) || {};
@@ -7155,6 +7608,7 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
     if (!box) return;
     if (pgPurifyTimer) { clearTimeout(pgPurifyTimer); pgPurifyTimer = null; }
 
+    const heatmapHtml = buildStudentHeatmapAndAnalysisHtml();
     const shadows = (currentUser.inventory && currentUser.inventory.shadows) ? currentUser.inventory.shadows : {};
     const shadowIds = Object.keys(shadows).map(Number);
 
@@ -7163,12 +7617,13 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
       activePurifyQuestion = null;
       purifyPairedOpts = [];
       box.innerHTML = `
-        <div class="pg-quiz-card" style="text-align:center;">
-          <div style="font-size:28px;">✨</div>
-          <div style="font-size:13px; font-weight:bold; color:#2a9d8f;">정화가 필요한 그림자 포켓몬이 없습니다!</div>
-          <div style="font-size:10.5px; color:#555; line-height:1.5;">
+        ${heatmapHtml}
+        <div class="pg-quiz-card" style="text-align:center; margin-top:4px;">
+          <div style="font-size:22px;">✨</div>
+          <div style="font-size:12px; font-weight:bold; color:#2a9d8f;">정화가 필요한 그림자 포켓몬이 없습니다!</div>
+          <div style="font-size:10px; color:#555; line-height:1.45;">
             희귀·전설 포켓몬 배틀에서 실수해 그림자 상태로 포획된 포켓몬이 생기면,<br>
-            이곳에서 복습 문제를 풀어 <b>3성(★★★)</b>으로 정화하고 <b>사탕 20% 할인</b>을 받을 수 있습니다!
+            이곳에서 복습 문제를 풀어 <b>3성(★★★)</b>으로 정화할 수 있습니다.
           </div>
         </div>
       `;
@@ -7210,6 +7665,7 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
     if (walkedSteps < 100) {
       const pct = Math.min(100, Math.round((walkedSteps / 100) * 100));
       box.innerHTML = `
+        ${heatmapHtml}
         ${selectorHtml}
         <div class="pg-quiz-card" style="text-align:center;">
           <img src="${monSprite}" style="width:64px; height:64px; margin:0 auto; image-rendering:pixelated; filter:invert(0.85) hue-rotate(240deg);">
@@ -7237,6 +7693,7 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
       : '';
 
     box.innerHTML = `
+      ${heatmapHtml}
       ${selectorHtml}
       <div class="pg-quiz-card">
         <div style="display:flex; align-items:center; gap:10px; border-bottom:2px dashed #ddd; padding-bottom:6px;">
@@ -7506,7 +7963,14 @@ function startAdventure() {
     // 🌟 타임아웃 없이 구글 시트 데이터가 100% 넘어올 때까지 대기
     Promise.all([userPromise, worldPromise])
       .then(([userData, worldData]) => {
-        
+        // 🌟 서버에서 관리자 인증 통과 시 교사용 대시보드로 즉시 전환
+        if (userData && userData.status === 'success' && userData.role === 'admin' && userData.admin_token) {
+          sessionStorage.setItem('pkm_admin_token', userData.admin_token);
+          sessionStorage.setItem('pkm_gas_url', GAS_URL);
+          window.location.href = 'teacher_dashboard.html';
+          return;
+        }
+
         // (1) 월드 데이터가 왔다면 덮어쓰기
       if (worldData) {
         if (worldData.monsters && worldData.monsters.length > 0) {
@@ -7791,10 +8255,10 @@ function startAdventure() {
     if (pgCandyEl) pgCandyEl.innerText = currentUser.candy_count;
     updateShadowBadgeCount();
 
-    // 🌟 상단 HUD에 획득한 배지 이모지 나열 (💧, ❄️, 🔥, 🏜️)
+    // 🌟 상단 HUD에 획득한 배지 이모지 나열 (💧, ⚡, 🐉, 🔥, 🏜️)
     const badgeElem = document.getElementById('badge-display');
     if (badgeElem) {
-      const badgeIcons = { water: "💧", snow: "❄️", volcano: "🔥", sand: "🏜️" };
+      const badgeIcons = { water: "💧", snow: "❄️", city: "⚡", sky: "🐉", volcano: "🔥", sand: "🏜️" };
       badgeElem.innerHTML = (currentUser.badges || []).map(b => badgeIcons[b] || "🏅").join(" ");
     }
 
@@ -7957,6 +8421,7 @@ function startAdventure() {
   // 🌟 상점 & 인벤토리 시스템 엔진
   // =======================================================
   const DEFAULT_SHOP_ITEMS = [
+{ item_id: "skate", name: "🛼 롤러스케이트", icon: "🛼", price: 50, desc: "가방에서 착용/해제할 수 있으며 필드 이동 속도가 빨라집니다.", usable_in: "field" },
     { item_id: "masterball", name: "마스터볼 (1일 1개)", icon: "🟣", price: 99, desc: "배틀 시 즉시 100% 포획합니다. (하루 1개 한정 · 배율 보너스 미적용)", usable_in: "battle" },
     { item_id: "sweet_scent", name: "달콤한꿀", icon: "🍯", price: 5, desc: "1분간 걸을 때마다 100% 확률로 야생 몬스터와 만납니다.", usable_in: "field" },
     { item_id: "fever_incense", name: "무지개향로", icon: "✨", price: 8, desc: "즉시 30초간 골든 피버(사탕 2배, 희귀/전설 UP)를 켭니다.", usable_in: "all" },
@@ -8118,7 +8583,7 @@ function startAdventure() {
     const sysNumKeys = [
       'friendship', 'max_combo', 'egg_progress', 'egg_max',
       'evolve_count', 'buy_count', 'walk_steps',
-      'battle_fever_left', 'battle_honey_left', 'partner_id'
+      'battle_fever_left', 'battle_honey_left', 'partner_id', 'skate_active'
     ];
     const ownedKeys = Object.keys(currentUser.inventory || {}).filter(
       k => !sysNumKeys.includes(k) && typeof currentUser.inventory[k] === 'number' && currentUser.inventory[k] > 0
@@ -8171,6 +8636,12 @@ function startAdventure() {
             btnText = '비어있음';
             extraStyle = 'background:#2b3044; color:#adb5bd; border-color:#444;';
           }
+        } else if (k === 'skate') {
+          const isWorn = !!currentUser.inventory.skate_active;
+          btnText = isWorn ? '🛼 착용중 (해제)' : '착용하기';
+          extraStyle = isWorn
+            ? 'background:#06d6a0; color:#111; border-color:#ffd166; font-weight:bold;'
+            : 'background:#457b9d; color:#fff;';
         } else if (k.startsWith('egg_') || k === 'mystic_egg') {
           btnText = '부화기에 넣기';
           extraStyle = 'background:#2a9d8f; color:#fff;';
@@ -8383,6 +8854,12 @@ function startAdventure() {
       currentUser.inventory[itemId]--;
       closeBagModal();
       activateSweetScent(4); // 🌟 다음 4회 야생 조우까지 달콤한꿀 적용
+    } else if (itemId === 'skate') {
+      if (battleState.active) { showToast("배틀 중에는 롤러스케이트를 신고 벗을 수 없습니다!"); return; }
+      const nextState = !currentUser.inventory.skate_active;
+      currentUser.inventory.skate_active = nextState;
+      playRetroSound('ball');
+      showToast(nextState ? "🛼 롤러스케이트를 착용했습니다! 이동 속도가 빨라집니다." : "👟 롤러스케이트를 벗었습니다.");
     } else if (itemId === 'repel') {
       if (battleState.active) { showToast("필드에서만 사용할 수 있습니다!"); return; }
       currentUser.inventory[itemId]--;
