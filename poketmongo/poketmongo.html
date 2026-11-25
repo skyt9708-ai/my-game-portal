@@ -2730,15 +2730,15 @@ const WALK_SPEED = 0.007;
     const dt = now - lastTime;
     lastTime = now;
 
-    // 🌟 로그인 완료 전에는 이동 및 렌더링을 건너뛰어 루프 멈춤 에러 원천 차단
-    if (!currentUser.student_id) {
-      requestAnimationFrame(gameLoop);
-      return;
-    }
-
-    if (!battleState.active) {
-      updateMovement(dt);
-      renderScene();
+    try {
+      if (currentUser.student_id && !battleState.active) {
+        updateMovement(dt);
+        renderScene();
+      }
+    } catch (loopErr) {
+      console.error("gameLoop 오류 복구:", loopErr);
+      player.isMoving = false;
+      player.moveProgress = 0;
     }
     requestAnimationFrame(gameLoop);
   }
@@ -2754,14 +2754,21 @@ const WALK_SPEED = 0.007;
   }
 
   function updateMovement(dt) {
+    syncExplorationLockState();
+    const safeDt = Math.min(Math.max(Number(dt) || 16, 0), 100);
+
     if (player.isMoving) {
-      player.moveProgress += getCurrentWalkSpeed() * dt;
+      player.moveProgress += getCurrentWalkSpeed() * safeDt;
       if (player.moveProgress >= 1) {
         player.isMoving = false;
         player.moveProgress = 0;
         player.gridX = player.toX;
         player.gridY = player.toY;
-player.realX = player.gridX * DISPLAY_TILE;
+        player.fromX = player.gridX;
+        player.fromY = player.gridY;
+        player.toX = player.gridX;
+        player.toY = player.gridY;
+        player.realX = player.gridX * DISPLAY_TILE;
         player.realY = player.gridY * DISPLAY_TILE;
 
         // 🌟 [파트너 동행 걸음 보상] 사탕 인플레이션 방지를 위해 친밀도 & 부화기 진행으로 전환
@@ -2857,19 +2864,26 @@ player.realX = player.gridX * DISPLAY_TILE;
           return;
         }
         // 🌟 한 칸 이동 완료 직후 누르고 있는 키 방향으로 다음 걸음 즉시 연결!
-        checkContinuousMove();
+        if (!player.isMoving && !battleState.active && !isWarping && !activeNpc) {
+          checkContinuousMove();
+        }
       } else {
         player.realX = (player.fromX + (player.toX - player.fromX) * player.moveProgress) * DISPLAY_TILE;
         player.realY = (player.fromY + (player.toY - player.fromY) * player.moveProgress) * DISPLAY_TILE;
       }
     } else {
+      player.realX = player.gridX * DISPLAY_TILE;
+      player.realY = player.gridY * DISPLAY_TILE;
       // 캐릭터가 멈춰 있을 때도 방향키가 눌려 있다면 즉시 이동
       checkContinuousMove();
     }
   }
 
   function checkContinuousMove() {
-    if (player.isMoving || battleState.active) return;
+    syncExplorationLockState();
+    if (player.isMoving || battleState.active || isWarping || activeNpc) return;
+    if (typeof tutorialStep !== 'undefined' && tutorialStep > 0) return;
+
     if (keysPressed.up) tryMove('up');
     else if (keysPressed.down) tryMove('down');
     else if (keysPressed.left) tryMove('left');
@@ -3071,7 +3085,26 @@ player.realX = player.gridX * DISPLAY_TILE;
     ctx.restore();
   }
 
+  // 🌟 배틀·대화·모달이 닫힌 상태인데 잠금 플래그가 남아 있으면 자동 정리
+  function syncExplorationLockState() {
+    const battleEl = document.getElementById('battle-overlay');
+    const npcEl = document.getElementById('npc-dialog-modal');
+    const isBattleOpen = battleEl && window.getComputedStyle(battleEl).display !== 'none';
+    const isNpcOpen = npcEl && window.getComputedStyle(npcEl).display !== 'none';
+
+    if (!isBattleOpen && battleState.active) {
+      battleState.active = false;
+      battleState.isBoss = false;
+      battleState.isRaid = false;
+      isAnswerLocked = false;
+    }
+    if (!isNpcOpen && activeNpc) {
+      activeNpc = null;
+    }
+  }
+
   function tryMove(dirName) {
+    syncExplorationLockState();
     // 🌟 대화 중(activeNpc), 배틀 중, 워프 중, 튜토리얼 진행 중 이동 100% 차단
     if (player.isMoving || battleState.active || isWarping || activeNpc || tutorialStep > 0) return;
 
@@ -3892,11 +3925,15 @@ player.realX = player.gridX * DISPLAY_TILE;
     return SHINY_CONFIG.variants.find(v => v.code === code) || SHINY_CONFIG.variants[0];
   }
 
-  // 도감 번호 포맷터 (7 -> "No.007", 7.1 -> "No.007.1", 10143 -> "No.G-143")
+  // 도감 번호 포맷터 (7 -> "No.007", 7.1 -> "No.007.1", 10143 -> "No.G-143", 10143.1 -> "No.G-143.1")
   function formatDexNo(monId) {
     const numId = Number(monId);
     if (isGiantMonsterId(numId)) {
-      return `No.G-${String(toBaseMonsterId(numId)).padStart(3, '0')}`;
+      const gBase = toBaseMonsterId(numId);
+      const gVar = getGiantShinyVariant(numId);
+      const dec = gVar ? gVar.code : Math.round((numId - Math.floor(numId)) * 10);
+      const baseStr = String(gBase).padStart(3, '0');
+      return dec > 0 ? `No.G-${baseStr}.${dec}` : `No.G-${baseStr}`;
     }
     const baseId = Math.floor(numId);
     const dec = Math.round((numId - baseId) * 10);
@@ -3940,16 +3977,16 @@ player.realX = player.gridX * DISPLAY_TILE;
       return { pMon: null, pName: '', pTier: 'normal', upgLv: 0, hasAdvantage: false };
     }
     const pNumId = Number(currentUser.partner_id);
-    const isGiantPartner = isGiantMonsterId(pNumId);
-    const pBaseId = isGiantPartner ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
-    const pVariant = isGiantPartner ? null : getShinyVariantById(pNumId);
+    const isGiantP = isGiantMonsterId(pNumId);
+    const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
+    const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
     const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
     if (!pMon) {
       return { pMon: null, pName: '', pTier: 'normal', upgLv: 0, hasAdvantage: false };
     }
 
-    const pName = isGiantPartner
-      ? `거대 ${pMon.name}`
+    const pName = isGiantP
+      ? `${pVariant ? pVariant.prefix + ' ' : ''}거대 ${pMon.name}`
       : (pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name);
     const pTier = String(pMon.tier || 'normal').toLowerCase().trim();
     const upgLv = (currentUser.inventory && currentUser.inventory.upgrades && Number(currentUser.inventory.upgrades[pNumId])) || 0;
@@ -4275,7 +4312,7 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
     const partnerSprite = document.getElementById('b-partner-sprite');
     const partnerName = document.getElementById('b-partner-name');
 
-    // 🌟 [Phase 4] 배틀 화면 파트너 성장 HUD (다음 진화/강화 목표 실시간 카운트 포함)
+    // 🌟 [전역 선언] 배틀 화면 파트너 성장 HUD (정답 시 실시간 카운트·다음 목표 갱신)
   function updateBattlePartnerHud(pBonusObj, justLeveledUp = false) {
     const pWrap = document.getElementById('b-partner-wrap');
     const pImg = document.getElementById('b-partner-sprite');
@@ -4285,21 +4322,27 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
       if (pWrap) pWrap.style.display = 'none';
       return;
     }
+
     const pNumId = Number(currentUser.partner_id);
-    const pBaseId = Math.floor(pNumId);
-    const pVariant = getShinyVariantById(pNumId);
+    const isGiantP = isGiantMonsterId(pNumId);
+    const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
+    const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
     const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
-    if (!pMon) { pWrap.style.display = 'none'; return; }
+    if (!pMon) {
+      pWrap.style.display = 'none';
+      return;
+    }
 
     const bonus = pBonusObj || getPartnerBattleBonus(currentMapId);
-    const pDisplayName = pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name;
+    const pDisplayName = isGiantP
+      ? `${pVariant ? pVariant.prefix + ' ' : ''}거대 ${pMon.name}`
+      : (pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name);
     const lvTag = bonus.upgLv > 0 ? ` +${bonus.upgLv}강` : '';
     const curSolves = getPartnerSolveCount(pNumId);
 
-    // 다음 성장 목표 텍스트 산출 (진화 목표 우선 -> 없으면 강화 목표)
     const evoTargetId = Number(pMon.evolveTo || pMon['evolve to'] || pMon.evolveto || 0);
-    const finalEvoId = variant ? Number((evoTargetId + variant.code * 0.1).toFixed(1)) : evoTargetId;
-    const canEvolveMore = evoTargetId > 0 && !currentUser.captured_ids.some(cid => Number(cid) === finalEvoId);
+    const finalEvoId = pVariant ? Number((evoTargetId + pVariant.code * 0.1).toFixed(1)) : evoTargetId;
+    const canEvolveMore = !isGiantP && evoTargetId > 0 && !currentUser.captured_ids.some(cid => Number(cid) === finalEvoId);
 
     let goalTagHtml = '';
     if (canEvolveMore) {
@@ -4313,6 +4356,7 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
 
     pImg.src = pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
     pImg.className = `partner-img ${pVariant ? pVariant.cssClass : ''}`.trim();
+    pImg.style.transform = isGiantP ? 'scaleX(-1) scale(1.22)' : 'scaleX(-1)';
     pNameEl.innerText = `👑 ${pDisplayName}${lvTag}`;
 
     const tags = [];
@@ -4344,7 +4388,6 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
     if (pPerksEl) pPerksEl.innerHTML = tags.join('');
     pWrap.style.display = 'flex';
 
-    // 정답을 맞혀 카운트가 올라간 순간 파트너 HUD 반짝임 피드백
     const hudBox = pWrap.querySelector('.partner-hud');
     if (justLeveledUp && hudBox) {
       hudBox.style.transform = 'scale(1.08)';
@@ -4358,11 +4401,14 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
 
     if (currentUser.partner_id && partnerWrap && partnerSprite) {
       const pNumId = Number(currentUser.partner_id);
-      const pBaseId = Math.floor(pNumId);
-      const pVariant = getShinyVariantById(pNumId);
+      const isGiantP = isGiantMonsterId(pNumId);
+      const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
+      const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
       const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
       if (pMon) {
-        const pDisplayName = pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name;
+        const pDisplayName = isGiantP
+          ? `${pVariant ? pVariant.prefix + ' ' : ''}거대 ${pMon.name}`
+          : (pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name);
         updateBattlePartnerHud(pBonus);
 
         if (preemptiveTriggered) {
@@ -4738,7 +4784,13 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
         if (!currentUser.inventory) currentUser.inventory = {};
         currentUser.inventory.friendship = Math.min(255, (Number(currentUser.inventory.friendship) || 0) + 15);
         addPartnerSolveCount(1);
-        updateBattlePartnerHud(battleState.partnerBonus, true);
+        try {
+          if (typeof updateBattlePartnerHud === 'function') {
+            updateBattlePartnerHud(battleState.partnerBonus, true);
+          }
+        } catch (hudErr) {
+          console.warn('파트너 HUD 갱신 경고:', hudErr);
+        }
       }
 
       playRetroSound('correct');
@@ -4796,6 +4848,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
 
       // 공격 이펙트가 끝난 뒤 처리
       setTimeout(() => {
+        if (!battleState.active) return;
         if (!battleState.isRaid && battleState.hp <= 0) {
           triggerCaptureSequence();
         } else {
@@ -5227,7 +5280,7 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
 
         playRetroSound('fanfare');
 
-        // 🌟 4대 배지(물, 천공/스카이, 화산, 사막)를 모두 수집했는지 확인
+        // 🌟 5대 체육관 배지(물, 시티/전기, 스카이/천공, 화산, 사막)를 모두 수집했는지 확인
         const ALL_BADGES = ['water', 'city', 'sky', 'volcano', 'sand'];
         const hasAll = ALL_BADGES.every(b => currentUser.badges.includes(b));
 
@@ -7186,6 +7239,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         || (invObj && invObj.partner_id)
         || (String(u.student_id) === String(currentUser.student_id) ? currentUser.partner_id : null);
 
+      const reqBadges = ['water', 'city', 'sky', 'volcano', 'sand'];
       return {
         id: String(u.student_id || ''),
         name: String(u.student_name || '트레이너'),
@@ -7194,7 +7248,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
         candyCount: candy,
         questCount: qList.length,
         score: score,
-        isChampion: bList.length >= 4,
+        isChampion: reqBadges.every(b => bList.includes(b)),
         partnerId: pId,
         inventory: (String(u.student_id) === String(currentUser.student_id) && currentUser.inventory) ? currentUser.inventory : invObj
       };
@@ -7224,7 +7278,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
     const myIndex = sorted.findIndex(u => u.id === String(currentUser.student_id));
     const myRank = myIndex !== -1 ? myIndex + 1 : 1;
 
-    // 4. 👑 명예의 전당 (4대 배지 올클리어자) 렌더링
+    // 4. 👑 명예의 전당 (5대 배지 올클리어자) 렌더링
     const champions = sorted.filter(u => u.isChampion);
     if (champions.length > 0) {
       hofGrid.innerHTML = champions.map(c => 
@@ -7255,13 +7309,16 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       let partnerBadgeHtml = '';
       if (user.partnerId) {
         const pNumId = Number(user.partnerId);
-        const pBaseId = Math.floor(pNumId);
-        const pVariant = getShinyVariantById(pNumId);
+        const isGiantP = isGiantMonsterId(pNumId);
+        const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
+        const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
         const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
         const pSrc = pMon
           ? (pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`)
           : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
-        const pDisplayName = pMon ? `${pVariant ? pVariant.prefix + ' ' : ''}${pMon.name}` : `No.${pBaseId}`;
+        const pDisplayName = pMon
+          ? `${isGiantP ? '거대 ' : ''}${pVariant ? pVariant.prefix + ' ' : ''}${pMon.name}`
+          : formatDexNo(pNumId);
         const shinyCls = pVariant ? pVariant.cssClass : '';
 
         const uInv = user.inventory || {};
@@ -7512,14 +7569,20 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       if (isGiantMonsterId(cid)) {
         const bId = toBaseMonsterId(cid);
         const baseMon = monsterPool.find(m => Number(m.id) === bId);
+        const gVar = getGiantShinyVariant(cid);
+        const gName = baseMon
+          ? `${gVar ? gVar.prefix + ' ' : ''}거대 ${baseMon.name}`
+          : `거대 포켓몬 No.${bId}`;
+
         if (!combinedDexPool.some(m => Number(m.id) === cid)) {
           combinedDexPool.push({
             id: cid,
             baseId: bId,
-            name: baseMon ? `거대 ${baseMon.name}` : `거대 포켓몬`,
+            name: gName,
             type: (baseMon && baseMon.type) || 'grass',
             tier: 'giant',
-            sprite: (baseMon && baseMon.sprite) || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${bId}.png`
+            sprite: (baseMon && baseMon.sprite) || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${bId}.png`,
+            shinyClass: gVar ? gVar.cssClass : ''
           });
         }
         return;
@@ -7617,6 +7680,9 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       const variant = isGiant ? getGiantShinyVariant(numId) : getShinyVariantById(numId);
       const isShiny = isCaught && !!variant;
       const upgLv = isCaught ? ((inv.upgrades && Number(inv.upgrades[numId])) || 0) : 0;
+      const displayMonName = (isGiant && isShiny && !String(mon.name).startsWith(variant.prefix))
+        ? `${variant.prefix} ${mon.name}`
+        : mon.name;
 
       const card = document.createElement('div');
       card.className = `dex-card ${isShiny ? 'shiny-card' : ''}`;
@@ -7751,7 +7817,7 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
           <!-- 1줄: No., 별 등급(★), 티어 뱃지 -->
           <div style="display:flex; justify-content:space-between; align-items:center; line-height:1;">
             <div style="display:flex; align-items:center; gap:2px;">
-              <span style="font-size:8.5px; color:#666; font-weight:bold;">No.${String(mon.id).padStart(3, '0')}</span>
+              <span style="font-size:8.5px; color:#666; font-weight:bold;">${formatDexNo(numId)}</span>
               ${starHtml}
             </div>
             ${tierBadge}
@@ -7759,7 +7825,7 @@ const isShadow = isCaught && inv.shadows && inv.shadows[numId];
 
           <!-- 2줄: 포켓몬 이름 + 이로치(✨) + 강화수치(+N강) -->
           <div style="font-size:11.5px; font-weight:bold; color:#111; margin:2px 0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.15;">
-            ${isCaught ? `${isShiny ? '✨' : ''}${mon.name}${upgLv > 0 ? ` <span style="color:#e63946; font-size:9.5px;">+${upgLv}강</span>` : ''}` : '???'}
+            ${isCaught ? `${isShiny ? '✨' : ''}${displayMonName}${upgLv > 0 ? ` <span style="color:#e63946; font-size:9.5px;">+${upgLv}강</span>` : ''}` : '???'}
           </div>
 
           <!-- 3줄: 수집 상태, 지형/타입 및 동일 포켓몬 누적 수집 횟수 -->
@@ -8710,8 +8776,12 @@ function startAdventure() {
     if (key === 'arrowleft' || key === 'a') { keysPressed.left = true; isDirKey = true; }
     if (key === 'arrowright' || key === 'd') { keysPressed.right = true; isDirKey = true; }
 
-    // 방향키를 누른 즉시 첫 걸음 시작
-    if (isDirKey) checkContinuousMove();
+    if (isDirKey) {
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) {
+        e.preventDefault();
+      }
+      checkContinuousMove();
+    }
 
     if (e.key === 'x' || e.key === 'X') handleBtnB();
     if (e.key === 'z' || e.key === 'Z' || e.key === ' ') {
@@ -8734,25 +8804,43 @@ function startAdventure() {
 
   // 모바일 가상 패드 터치 유지 지원
   let activeTouchDir = null;
+  function releaseAllDirKeys() {
+    keysPressed.up = false;
+    keysPressed.down = false;
+    keysPressed.left = false;
+    keysPressed.right = false;
+    activeTouchDir = null;
+  }
+
   document.querySelectorAll('.d-btn').forEach(btn => {
     const dir = btn.dataset.dir;
     if (!dir) return;
 
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      releaseAllDirKeys();
       activeTouchDir = dir;
       keysPressed[dir] = true;
+      if (btn.setPointerCapture && e.pointerId !== undefined) {
+        try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      }
       checkContinuousMove();
     });
     btn.addEventListener('pointerup', () => {
-      if (activeTouchDir) keysPressed[activeTouchDir] = false;
-      activeTouchDir = null;
+      keysPressed[dir] = false;
+      if (activeTouchDir === dir) activeTouchDir = null;
+    });
+    btn.addEventListener('pointercancel', () => {
+      keysPressed[dir] = false;
+      if (activeTouchDir === dir) activeTouchDir = null;
     });
     btn.addEventListener('pointerleave', () => {
-      if (activeTouchDir) keysPressed[activeTouchDir] = false;
-      activeTouchDir = null;
+      keysPressed[dir] = false;
+      if (activeTouchDir === dir) activeTouchDir = null;
     });
   });
+  window.addEventListener('pointerup', releaseAllDirKeys);
+  window.addEventListener('blur', releaseAllDirKeys);
 
   // 🌟 [개편] 모바일 가상 A/B 버튼 짧은 탭·터치 즉각 반응 지원 (꾹 누름 현상 해결)
   let lastAbTriggerTime = 0;
@@ -9738,13 +9826,22 @@ function triggerRaidVictory() {
   if (npc.id && !currentUser.cleared_quests.some(qid => String(qid) === String(npc.id))) {
     currentUser.cleared_quests.push(npc.id);
   }
-  const numMonId = toGiantMonsterId(monId);
+  const baseGiantId = toGiantMonsterId(monId);
+  const isGiantShinyWin = Math.random() < 0.20; // 레이드 승리 시 20% 확률로 거대 이로치 출현
+  const shinyVar = isGiantShinyWin ? rollShinyVariant() : null;
+  const numMonId = shinyVar ? Number((baseGiantId + shinyVar.code * 0.1).toFixed(1)) : baseGiantId;
+  const winMonName = shinyVar ? `${shinyVar.prefix} ${battleState.monster.name}` : battleState.monster.name;
+
   if (!currentUser.captured_ids.some(cid => Number(cid) === numMonId)) {
     currentUser.captured_ids.push(numMonId);
   }
   if (!currentUser.inventory) currentUser.inventory = {};
+  if (shinyVar) {
+    if (!currentUser.inventory.giant_shinies) currentUser.inventory.giant_shinies = {};
+    currentUser.inventory.giant_shinies[baseGiantId] = shinyVar.code;
+  }
   if (!currentUser.inventory.stars) currentUser.inventory.stars = {};
-  currentUser.inventory.stars[numMonId] = 3; // 거대 레이드 포켓몬 3성(★★★) 확정
+  currentUser.inventory.stars[numMonId] = 3;
   if (!currentUser.inventory.catch_counts) currentUser.inventory.catch_counts = {};
   currentUser.inventory.catch_counts[numMonId] = (Number(currentUser.inventory.catch_counts[numMonId]) || 0) + 1;
 
@@ -9759,12 +9856,16 @@ function triggerRaidVictory() {
 
   playRetroSound('fanfare');
   openCaptureModal({
-    id: monId,
-    name: `${battleState.monster.name} (학급 레이드 제패)`,
+    id: numMonId,
+    name: `${winMonName} (학급 레이드 제패)`,
     sprite: battleState.monster.sprite,
     type: npc.map_id || "grass"
   });
-  showToast(`🎉우리 반이 [${battleState.monster.name}]을 격파했습니다! (사탕 +${candyReward})`);
+  showToast(
+    shinyVar
+      ? `✨ 대박! 희귀 변색 [${winMonName}] 도감 등록! (사탕 +${candyReward})`
+      : `🎉 우리 반이 [${winMonName}]을 격파했습니다! (사탕 +${candyReward})`
+  );
 }
 
 // 🌟 [개편] 반투명 수학 손글씨 연습장 제어 엔진 (가상 패드 간섭 차단 + 모바일 터치 좌표 정확 보정)
