@@ -202,10 +202,20 @@
     z-index: 68;
   }
   .partner-hud {
-    background: #141824; border: 2.5px solid #ffd166; border-radius: 6px;
-    padding: 3px 10px; display: flex; align-items: center; gap: 6px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.5); margin-bottom: -5px; z-index: 69;
-  }
+  background: #141824; border: 2.5px solid #ffd166; border-radius: 6px;
+  padding: 4px 8px; display: flex; align-items: flex-start; flex-direction: column; gap: 2px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5); margin-bottom: -5px; z-index: 72;
+  max-width: 210px; overflow: hidden;
+}
+#b-partner-perks {
+  max-width: 100%;
+}
+#b-partner-perks span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
   .partner-img {
     height: 125px; /* 70px -> 125px 거대 확대 */
     image-rendering: pixelated;
@@ -622,9 +632,9 @@
     .trainer-battle-zone { bottom: 2px; left: 2%; }
     #b-trainer-canvas { width: 68px; height: 78px; }
     .partner-zone { bottom: 2px; left: 16%; }
-    .partner-hud { padding: 2px 6px; margin-bottom: -2px; }
-    .partner-img { height: 72px; }
-    .battle-base-partner { width: 115px; height: 28px; margin-top: -18px; }
+      .partner-hud { padding: 2px 6px; margin-bottom: -2px; }
+      .partner-img { height: 72px; transform-origin: bottom center; }
+      .battle-base-partner { width: 115px; height: 28px; margin-top: -18px; }
     #battle-panel { padding: 6px 10px; gap: 5px; margin-bottom: 0; }
     .action-btn { min-height: 30px; padding: 4px; font-size: 10.5px; }
   }
@@ -1495,18 +1505,21 @@
     color: #111;
     border-color: #fff;
   }
-  @keyframes auraRainbow {
-    0%   { filter: drop-shadow(0 0 8px #ff006e) drop-shadow(0 0 14px #ffd166); }
-    33%  { filter: drop-shadow(0 0 10px #06d6a0) drop-shadow(0 0 16px #4cc9f0); }
-    66%  { filter: drop-shadow(0 0 10px #9d4edd) drop-shadow(0 0 16px #ffbe0b); }
-    100% { filter: drop-shadow(0 0 8px #ff006e) drop-shadow(0 0 14px #ffd166); }
-  }
-  .aura-gold {
-    filter: drop-shadow(0 0 10px #ffd166) drop-shadow(0 0 18px #ff9e00) !important;
-  }
-  .aura-rainbow {
-    animation: idleBounce 0.9s infinite alternate ease-in-out, auraRainbow 1.8s infinite linear !important;
-  }
+  /* 🌟 오라는 이미지 본체(.partner-img)가 아니라 감싸는 래퍼(.partner-zone / .partner-sprite-wrap)에 적용해 이로치 필터 보존 */
+@keyframes auraRainbowRing {
+  0% { box-shadow: 0 0 12px #ff006e, 0 0 22px #ffd166; }
+  33% { box-shadow: 0 0 14px #06d6a0, 0 0 24px #4cc9f0; }
+  66% { box-shadow: 0 0 14px #9d4edd, 0 0 24px #ffbe0b; }
+  100% { box-shadow: 0 0 12px #ff006e, 0 0 22px #ffd166; }
+}
+.aura-gold-effect {
+  border-radius: 50%;
+  box-shadow: 0 0 14px #ffd166, 0 0 24px #ff9e00;
+}
+.aura-rainbow-effect {
+  border-radius: 50%;
+  animation: auraRainbowRing 1.8s infinite linear;
+}
   .lb-name-gold {
     color: #ffd166 !important;
     text-shadow: 0 0 6px rgba(255, 209, 102, 0.75);
@@ -1896,14 +1909,16 @@
         </div>
 
         <!-- [2-2] 🌟 내 대표 파트너 포켓몬 (트레이너 옆 + 상성/특전 HUD + 발판) -->
-        <div class="partner-zone" id="b-partner-wrap" style="display:none;">
-          <div class="partner-hud" style="flex-direction:column; align-items:flex-start; gap:2px; padding:4px 8px;">
-            <span style="font-size:10px; color:#ffd166; font-weight:bold;" id="b-partner-name">👑 앤테이</span>
-            <div id="b-partner-perks" style="display:flex; flex-wrap:wrap; gap:3px; font-size:8px;"></div>
-          </div>
-          <img id="b-partner-sprite" class="partner-img" src="" alt="partner">
-          <div class="battle-base-partner"></div>
+      <div class="partner-zone" id="b-partner-wrap" style="display:none;">
+        <div class="partner-hud" style="flex-direction:column; align-items:flex-start; gap:2px; padding:4px 8px;">
+          <span style="font-size:10px; color:#ffd166; font-weight:bold;" id="b-partner-name">👑 앤테이</span>
+          <div id="b-partner-perks" style="display:flex; flex-wrap:wrap; gap:3px; font-size:8px;"></div>
         </div>
+        <div class="partner-sprite-box" id="b-partner-sprite-box" style="display:inline-flex; justify-content:center; align-items:flex-end; transform-origin:bottom center; z-index:68;">
+          <img id="b-partner-sprite" class="partner-img" src="" alt="partner">
+        </div>
+        <div class="battle-base-partner"></div>
+      </div>
 
         <!-- [3] 상대 야생 포켓몬 (우측 상단 + 발판) -->
         <div class="enemy-zone">
@@ -4415,11 +4430,27 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
           partnerSprite.onerror = null;
           partnerSprite.src = (isGiantP && partnerSprite.src !== normalSrc) ? normalSrc : fallbackSrc;
         };
-        partnerSprite.src = (isGiantP && giantSrc) ? giantSrc : normalSrc;
-        partnerSprite.className = `partner-img ${pVariant ? pVariant.cssClass : ''}`.trim();
-        partnerSprite.style.transform = isGiantP ? 'scaleX(-1) scale(1.22)' : 'scaleX(-1)';
-        if (partnerName) partnerName.innerText = `👑 ${pDisplayName}`;
-        partnerWrap.style.display = 'flex';
+        const giantScale = isGiantP ? 1.65 : 1;
+          const partnerBox = document.getElementById('b-partner-sprite-box');
+          const partnerHudEl = partnerWrap.querySelector('.partner-hud');
+          partnerSprite.src = (isGiantP && giantSrc) ? giantSrc : normalSrc;
+          partnerSprite.className = `partner-img ${pVariant ? pVariant.cssClass : ''}`.trim();
+          partnerSprite.style.transformOrigin = 'bottom center';
+          partnerSprite.style.transform = 'scaleX(-1)';
+          if (partnerBox) {
+            partnerBox.style.transformOrigin = 'bottom center';
+            partnerBox.style.transform = `scale(${giantScale})`;
+            partnerBox.style.zIndex = '67';
+            partnerBox.style.marginTop = isGiantP ? '10px' : '0px';
+          }
+          if (partnerHudEl) {
+            partnerHudEl.style.position = 'relative';
+            partnerHudEl.style.zIndex = '72';
+            partnerHudEl.style.marginBottom = isGiantP ? '18px' : '-5px';
+            partnerHudEl.style.maxWidth = '210px';
+          }
+          if (partnerName) partnerName.innerText = `👑 ${pDisplayName}`;
+          partnerWrap.style.display = 'flex';
 
         updateBattlePartnerHud(pBonus);
 
@@ -4526,11 +4557,40 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
     }
 
     const invAura = currentUser.inventory || {};
-    const auraCls = invAura.aura_rainbow_unlocked ? 'aura-rainbow' : (invAura.aura_gold_unlocked ? 'aura-gold' : '');
-    pImg.src = pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
-    pImg.className = `partner-img ${pVariant ? pVariant.cssClass : ''} ${auraCls}`.trim();
-    pImg.style.transform = isGiantP ? 'scaleX(-1) scale(1.22)' : 'scaleX(-1)';
-    pNameEl.innerText = `👑 ${pDisplayName}${lvTag}`;
+      const shinyClassOnly = pVariant ? pVariant.cssClass : '';
+      const giantScale = isGiantP ? 1.65 : 1;
+      const partnerBox = document.getElementById('b-partner-sprite-box');
+      const partnerHudEl = pWrap.querySelector('.partner-hud');
+      pImg.src = pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
+      // 🌟 파트너 스프라이트에는 이로치 변색 클래스와 좌우 반전만 남겨 색상 변화 및 애니메이션 유지
+      pImg.className = `partner-img ${shinyClassOnly}`.trim();
+      pImg.style.transformOrigin = 'bottom center';
+      pImg.style.transform = 'scaleX(-1)';
+
+      if (partnerBox) {
+        partnerBox.style.transformOrigin = 'bottom center';
+        partnerBox.style.transform = `scale(${giantScale})`;
+        partnerBox.style.zIndex = '67';
+        partnerBox.style.marginTop = isGiantP ? '10px' : '0px';
+      }
+      if (partnerHudEl) {
+        partnerHudEl.style.position = 'relative';
+        partnerHudEl.style.zIndex = '72';
+        partnerHudEl.style.marginBottom = isGiantP ? '18px' : '-5px';
+        partnerHudEl.style.maxWidth = '210px';
+      }
+
+      // 🌟 오라 효과는 파트너 발판(.battle-base-partner)에 적용해 이로치 필터와 충돌 방지
+      const basePartnerEl = pWrap.querySelector('.battle-base-partner');
+      if (basePartnerEl) {
+        basePartnerEl.classList.remove('aura-gold-effect', 'aura-rainbow-effect');
+        if (invAura.aura_rainbow_unlocked) {
+          basePartnerEl.classList.add('aura-rainbow-effect');
+        } else if (invAura.aura_gold_unlocked) {
+          basePartnerEl.classList.add('aura-gold-effect');
+        }
+      }
+      pNameEl.innerText = `👑 ${pDisplayName}${lvTag}`;
 
     const tags = [];
     if (goalTagHtml) tags.push(goalTagHtml);
@@ -7920,29 +7980,48 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       }
     });
 
-    (currentUser.captured_ids || []).forEach(rawCid => {
-      const cid = Number(rawCid);
-      if (isGiantMonsterId(cid)) {
-        const bId = toBaseMonsterId(cid);
-        const baseMon = monsterPool.find(m => Number(m.id) === bId);
-        const gVar = getGiantShinyVariant(cid);
-        const gName = baseMon
-          ? `${gVar ? gVar.prefix + ' ' : ''}거대 ${baseMon.name}`
-          : `거대 포켓몬 No.${bId}`;
+    const dexInv = currentUser.inventory || {};
+  (currentUser.captured_ids || []).forEach(rawCid => {
+    const cid = Number(rawCid);
+    if (isNaN(cid) || cid <= 0) return;
+    if (isGiantMonsterId(cid)) {
+      const bId = toBaseMonsterId(cid);
+      const giantIntId = Math.floor(cid);
+      const decCode = Math.round((cid - giantIntId) * 10);
+      const savedCode = (dexInv.giant_shinies && Number(dexInv.giant_shinies[giantIntId])) || 0;
+      const shineList = Array.isArray(dexInv.shinies) ? dexInv.shinies.map(Number) : [];
+      const hasShineFlag = shineList.includes(cid) || shineList.includes(giantIntId);
+          const effectiveCode = decCode > 0 ? decCode : (savedCode || (hasShineFlag ? 1 : 0));
+          const gVar = effectiveCode > 0
+            ? (SHINY_CONFIG.variants.find(v => v.code === effectiveCode) || SHINY_CONFIG.variants[0])
+            : null;
 
-        if (!combinedDexPool.some(m => Number(m.id) === cid)) {
-          combinedDexPool.push({
-            id: cid,
-            baseId: bId,
-            name: gName,
-            type: (baseMon && baseMon.type) || 'grass',
-            tier: 'giant',
-            sprite: (baseMon && baseMon.sprite) || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${bId}.png`,
-            shinyClass: gVar ? gVar.cssClass : ''
+          const baseMon = monsterPool.find(m => Number(m.id) === bId);
+          const matchedNpc = (npcPool || []).find(npc => {
+            if (String(npc.type || '').toLowerCase().trim() !== 'raid') return false;
+            const parsed = parseInt(String(npc.reward_val || '').split(':')[0].replace(/[^0-9]/g, ''), 10);
+            return !isNaN(parsed) && parsed === bId;
           });
+          const rawBaseName = (baseMon && baseMon.name)
+            || (matchedNpc && String(matchedNpc.name || '').replace(/^거대\s*/, '').trim())
+            || `포켓몬 No.${bId}`;
+          const gName = `${gVar ? gVar.prefix + ' ' : ''}거대 ${rawBaseName}`;
+
+          if (!combinedDexPool.some(m => Number(m.id) === cid)) {
+            combinedDexPool.push({
+              id: cid,
+              baseId: bId,
+              name: gName,
+              type: (baseMon && baseMon.type) || (matchedNpc && matchedNpc.zone) || 'grass',
+              tier: 'giant',
+              sprite: (matchedNpc && matchedNpc.sprite)
+                || (baseMon && baseMon.sprite)
+                || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${bId}.png`,
+              shinyClass: gVar ? gVar.cssClass : ''
+            });
+          }
+          return;
         }
-        return;
-      }
       const variant = getShinyVariantById(cid);
       if (variant) {
         const baseId = Math.floor(cid);
