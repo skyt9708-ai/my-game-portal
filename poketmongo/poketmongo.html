@@ -4312,7 +4312,79 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
     const partnerSprite = document.getElementById('b-partner-sprite');
     const partnerName = document.getElementById('b-partner-name');
 
-    // 🌟 [전역 선언] 배틀 화면 파트너 성장 HUD (정답 시 실시간 카운트·다음 목표 갱신)
+    if (currentUser.partner_id && partnerWrap && partnerSprite) {
+      const pNumId = Number(currentUser.partner_id);
+      const isGiantP = isGiantMonsterId(pNumId);
+      const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
+      const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
+      const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
+      if (pMon) {
+        const pDisplayName = isGiantP
+          ? `${pVariant ? pVariant.prefix + ' ' : ''}거대 ${pMon.name}`
+          : (pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name);
+        updateBattlePartnerHud(pBonus);
+
+        if (preemptiveTriggered) {
+          setTimeout(() => showToast(`⚡ [+3강 상성 선제공격!] ${pDisplayName}이(가) 1단계 체력을 돌파했습니다!`), 400);
+        } else if (pBonus.hasAdvantage) {
+          setTimeout(() => showToast(`✨ [상성 우위!] ${pDisplayName}과 함께하여 포획 사탕 +1 보너스!`), 400);
+        }
+      } else {
+        partnerWrap.style.display = 'none';
+      }
+    } else if (partnerWrap) {
+      partnerWrap.style.display = 'none';
+    }
+
+    const enemyImg = document.getElementById('b-enemy-sprite');
+    enemyImg.style.display = 'block';
+    enemyImg.style.transform = 'none';
+    enemyImg.style.opacity = '1';
+    enemyImg.className = `enemy-img ${activeMonster.shinyClass || ''}`.trim(); // 🌟 변색별 고유 색상 필터 적용
+    enemyImg.onerror = () => {
+      enemyImg.onerror = null;
+      enemyImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${activeMonster.baseId || 25}.png`;
+    };
+    enemyImg.src = activeMonster.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${activeMonster.baseId || 25}.png`;
+
+    // 🌟 이미 도감 등록 여부 + 변색 형용사 이름 표시
+    const namePrefix = isAlreadyCaught ? '✅ ' : '❓ ';
+    const shinyTag = isShinyEncounter ? '✨' : '';
+    document.getElementById('b-enemy-name').innerText = `${namePrefix}${shinyTag}${activeMonster.name}`;
+    if (isShinyEncounter && shinyVariant) {
+      playRetroSound('fanfare');
+      showToast(`✨ 앗! 희귀 변색 [${activeMonster.name}]이(가) 나타났다!`);
+      playShinyAppearFx(shinyVariant.code); // 🌟 변색 고유 컬러 반짝임 파티클 발사!
+    }
+
+    // 🌟 [수정] 실제 몬스터 티어 및 기포획 별 등급(승급전 여부)에 맞춰 라벨 표시
+    const tierElem = document.getElementById('b-enemy-tier');
+    let tierLabel = '';
+    if (isPromotionBattle) {
+      const curStarsStr = '★'.repeat(currentStar) + '☆'.repeat(3 - currentStar);
+      tierLabel = `${curStarsStr} 승급전`;
+      tierElem.style.color = '#e76f51'; // 주황색 승급 강조
+      setTimeout(() => showToast(`🆙 [${activeMonster.name}] (${curStarsStr}) 3성 승급전! 2문제를 한 번에 맞혀보세요!`), 350);
+    } else if (isAlreadyCaught) {
+      tierLabel = '[★★★완성]';
+      tierElem.style.color = '#2a9d8f'; // 청록색
+    } else if (realTier === 'legendary') {
+      tierLabel = '★전설★';
+      tierElem.style.color = '#d90429'; // 강렬한 빨간색
+    } else if (realTier === 'rare') {
+      tierLabel = '★희귀';
+      tierElem.style.color = '#3a86ff'; // 파란색
+    } else {
+      tierLabel = '일반';
+      tierElem.style.color = '#6c757d'; // 회색
+    }
+    tierElem.innerText = tierLabel;
+
+    updateBattleHpBar(battleState.hp);
+    renderBattlePhase();
+  }
+
+  // 🌟 [전역 선언] 배틀 화면 파트너 성장 HUD (정답 시 실시간 카운트·다음 목표 갱신)
   function updateBattlePartnerHud(pBonusObj, justLeveledUp = false) {
     const pWrap = document.getElementById('b-partner-wrap');
     const pImg = document.getElementById('b-partner-sprite');
@@ -4397,78 +4469,6 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
         hudBox.style.borderColor = '#ffd166';
       }, 450);
     }
-  }
-
-    if (currentUser.partner_id && partnerWrap && partnerSprite) {
-      const pNumId = Number(currentUser.partner_id);
-      const isGiantP = isGiantMonsterId(pNumId);
-      const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
-      const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
-      const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
-      if (pMon) {
-        const pDisplayName = isGiantP
-          ? `${pVariant ? pVariant.prefix + ' ' : ''}거대 ${pMon.name}`
-          : (pVariant ? `${pVariant.prefix} ${pMon.name}` : pMon.name);
-        updateBattlePartnerHud(pBonus);
-
-        if (preemptiveTriggered) {
-          setTimeout(() => showToast(`⚡ [+3강 상성 선제공격!] ${pDisplayName}이(가) 1단계 체력을 돌파했습니다!`), 400);
-        } else if (pBonus.hasAdvantage) {
-          setTimeout(() => showToast(`✨ [상성 우위!] ${pDisplayName}과 함께하여 포획 사탕 +1 보너스!`), 400);
-        }
-      } else {
-        partnerWrap.style.display = 'none';
-      }
-    } else if (partnerWrap) {
-      partnerWrap.style.display = 'none';
-    }
-
-    const enemyImg = document.getElementById('b-enemy-sprite');
-    enemyImg.style.display = 'block';
-    enemyImg.style.transform = 'none';
-    enemyImg.style.opacity = '1';
-    enemyImg.className = `enemy-img ${activeMonster.shinyClass || ''}`.trim(); // 🌟 변색별 고유 색상 필터 적용
-    enemyImg.onerror = () => {
-      enemyImg.onerror = null;
-      enemyImg.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${activeMonster.baseId || 25}.png`;
-    };
-    enemyImg.src = activeMonster.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${activeMonster.baseId || 25}.png`;
-
-    // 🌟 이미 도감 등록 여부 + 변색 형용사 이름 표시
-    const namePrefix = isAlreadyCaught ? '✅ ' : '❓ ';
-    const shinyTag = isShinyEncounter ? '✨' : '';
-    document.getElementById('b-enemy-name').innerText = `${namePrefix}${shinyTag}${activeMonster.name}`;
-    if (isShinyEncounter && shinyVariant) {
-      playRetroSound('fanfare');
-      showToast(`✨ 앗! 희귀 변색 [${activeMonster.name}]이(가) 나타났다!`);
-      playShinyAppearFx(shinyVariant.code); // 🌟 변색 고유 컬러 반짝임 파티클 발사!
-    }
-
-    // 🌟 [수정] 실제 몬스터 티어 및 기포획 별 등급(승급전 여부)에 맞춰 라벨 표시
-    const tierElem = document.getElementById('b-enemy-tier');
-    let tierLabel = '';
-    if (isPromotionBattle) {
-      const curStarsStr = '★'.repeat(currentStar) + '☆'.repeat(3 - currentStar);
-      tierLabel = `${curStarsStr} 승급전`;
-      tierElem.style.color = '#e76f51'; // 주황색 승급 강조
-      setTimeout(() => showToast(`🆙 [${activeMonster.name}] (${curStarsStr}) 3성 승급전! 2문제를 한 번에 맞혀보세요!`), 350);
-    } else if (isAlreadyCaught) {
-      tierLabel = '[★★★완성]';
-      tierElem.style.color = '#2a9d8f'; // 청록색
-    } else if (realTier === 'legendary') {
-      tierLabel = '★전설★';
-      tierElem.style.color = '#d90429'; // 강렬한 빨간색
-    } else if (realTier === 'rare') {
-      tierLabel = '★희귀';
-      tierElem.style.color = '#3a86ff'; // 파란색
-    } else {
-      tierLabel = '일반';
-      tierElem.style.color = '#6c757d'; // 회색
-    }
-    tierElem.innerText = tierLabel;
-
-    updateBattleHpBar(battleState.hp);
-    renderBattlePhase();
   }
 
 // 🌟 이로치 조우 시 변색 고유 컬러로 반짝이는 스파클 이펙트
