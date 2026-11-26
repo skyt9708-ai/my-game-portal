@@ -3783,10 +3783,19 @@ const WALK_SPEED = 0.007;
       return `(${digits})`;
     });
 
-    // 3. 순환소수 괄호 표기(0.(7), 1.5(4), 0.1(23))는 원본 그대로 유지하고 안내 문구만 정리
-    text = text.replace(/\(순환마디\s*([0-9,\s]+)\)/g, function(m, inner) {
-      return ` <span style="font-size:0.92em; color:#1d3557; font-weight:bold;">(순환마디 ${inner.trim()})</span>`;
-    });
+    // 3. 순환소수 괄호 표기(0.(7), 1.5(4), 0.1(23))를 교과서식 순환점(.rep-dot)으로 변환
+ text = text.replace(/(\d+\.\d*)\((\d+)\)/g, function(m, prefix, cycle) {
+ if (cycle.length === 1) {
+ return `${prefix}<span class="rep-dot">${cycle}</span>`;
+ }
+ const first = cycle[0];
+ const middle = cycle.slice(1, -1);
+ const last = cycle[cycle.length - 1];
+ return `${prefix}<span class="rep-dot">${first}</span>${middle}<span class="rep-dot">${last}</span>`;
+ });
+ text = text.replace(/\(순환마디\s*([0-9,\s]+)\)/g, function(m, inner) {
+ return ` <span style="font-size:0.92em; color:#1d3557; font-weight:bold;">(순환마디 ${inner.trim()})</span>`;
+ });
 
     // 4. 🌟 교과서형 근호(루트) 변환 (π 포함 식 대응)
     text = text.replace(/(?:√|sqrt|root)\s*\(([^)]+)\)/gi, '<span class="sqrt-wrap"><span class="sqrt-sym">√</span><span class="sqrt-rad">$1</span></span>');
@@ -6157,24 +6166,28 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
 
   // 🌟 맵 이름이나 NPC 정보로 체육관 속성 및 시트 보스 포켓몬을 결합해 반환
   function resolveGymData(npcOrMapId) {
-    const rawKey = String(
-      (typeof npcOrMapId === 'object' ? (npcOrMapId.gym_id || npcOrMapId.map_id || currentMapId) : npcOrMapId) || currentMapId
-    ).trim().toLowerCase();
+  const npcMapKey = (typeof npcOrMapId === 'object')
+    ? String(npcOrMapId.gym_id || npcOrMapId.map_id || '').trim().toLowerCase()
+    : String(npcOrMapId || '').trim().toLowerCase();
+  const curMapKey = String(currentMapId || '').trim().toLowerCase();
+  const rawKey = npcMapKey || curMapKey;
 
-    let baseGym = GYM_LEADERS['water'];
-    if (GYM_LEADERS[rawKey]) baseGym = GYM_LEADERS[rawKey];
-    else if (rawKey.includes('water')) baseGym = GYM_LEADERS['water'];
-    else if (rawKey.includes('sky') || rawKey.includes('dragon') || rawKey.includes('fairy')) baseGym = GYM_LEADERS['sky'];
-    else if (rawKey.includes('volcano') || rawKey.includes('fire') || rawKey.includes('lava')) baseGym = GYM_LEADERS['volcano'];
-    else if (rawKey.includes('sand') || rawKey.includes('desert')) baseGym = GYM_LEADERS['sand'];
-    else if (rawKey.includes('city') || rawKey.includes('electric')) baseGym = GYM_LEADERS['city'];
-    else if (GYM_LEADERS[currentMapId]) baseGym = GYM_LEADERS[currentMapId];
+  let baseGym = null;
+  if (GYM_LEADERS[npcMapKey]) baseGym = GYM_LEADERS[npcMapKey];
+  else if (GYM_LEADERS[curMapKey]) baseGym = GYM_LEADERS[curMapKey];
+  else if (rawKey.includes('water')) baseGym = GYM_LEADERS['water'];
+  else if (rawKey.includes('sky') || rawKey.includes('dragon') || rawKey.includes('fairy')) baseGym = GYM_LEADERS['sky'];
+  else if (rawKey.includes('volcano') || rawKey.includes('fire') || rawKey.includes('lava')) baseGym = GYM_LEADERS['volcano'];
+  else if (rawKey.includes('sand') || rawKey.includes('desert')) baseGym = GYM_LEADERS['sand'];
+  else if (rawKey.includes('city') || rawKey.includes('electric')) baseGym = GYM_LEADERS['city'];
 
-    return {
-      ...baseGym,
-      bossMon: getGymBossMonsterFromSheet(baseGym.badgeId)
-    };
-  }
+  if (!baseGym) baseGym = GYM_LEADERS['sand'];
+
+  return {
+    ...baseGym,
+    bossMon: getGymBossMonsterFromSheet(baseGym.badgeId)
+  };
+}
 
   // 체육관 관장 도전 자격 심사
   function challengeGymLeader(mapId) {
@@ -9459,17 +9472,17 @@ function startAdventure() {
 
   // 🌟 BP 명예상점 전용 상품 14종 카탈로그
   const BP_SHOP_ITEMS = [
-    { item_id: "bp_aura_gold",     name: "✨ 파트너 황금 오라",       icon: "🌟", price: 30, desc: "배틀에서 대표 파트너 주위에 황금빛 오라가 빛납니다. (영구)", type: "unlock" },
-    { item_id: "bp_aura_rainbow",  name: "🌈 파트너 무지개 오라",     icon: "🌈", price: 60, desc: "배틀에서 대표 파트너가 무지갯빛으로 화려하게 발광합니다. (영구)", type: "unlock" },
+    { item_id: "bp_aura_gold",     name: "✨ 파트너 황금 오라",       icon: "🌟", price: 100, desc: "배틀에서 대표 파트너 주위에 황금빛 오라가 빛납니다. (영구)", type: "unlock" },
+    { item_id: "bp_aura_rainbow",  name: "🌈 파트너 무지개 오라",     icon: "🌈", price: 150, desc: "배틀에서 대표 파트너가 무지갯빛으로 화려하게 발광합니다. (영구)", type: "unlock" },
 // TODO: 트레이너 스킨 스프라이트 준비 후 스킨 항목 및 sprite 속성 추가 예정
-    { item_id: "bp_name_gold",     name: "👑 전당 닉네임 컬러권",     icon: "🏷️", price: 40, desc: "명예의 전당 TOP 5에서 내 이름이 빛나는 골드 컬러로 표시됩니다.", type: "unlock" },
-    { item_id: "bp_fx_pack",       name: "💥 배틀 공격 이펙트 팩",    icon: "☄️", price: 35, desc: "배틀 공격 시 파괴광선·용성군·블리자드 특수 연출이 추가됩니다.", type: "unlock" },
-    { item_id: "bp_turbo_skate",   name: "⚡ 터보 스케이트 업그레이드", icon: "🛼", price: 50, desc: "롤러스케이트 착용 시 이동 속도가 2.0배 초고속으로 상승합니다.", type: "unlock" },
-    { item_id: "egg_mystic",       name: "🥚 신비한 알 (BP 전용)",    icon: "🥚", price: 50, desc: "정답 50개를 채우면 환상·전설 포켓몬이 부화합니다. (가방 지급)", type: "bag" },
-    { item_id: "bp_egg_booster",   name: "⏩ 알 부화 가속기 (+5칸)",  icon: "🔋", price: 15, desc: "현재 부화기에서 품고 있는 알의 게이지를 즉시 5칸 충전합니다.", type: "instant" },
+    { item_id: "bp_name_gold",     name: "👑 전당 닉네임 컬러권",     icon: "🏷️", price: 100, desc: "명예의 전당 TOP 5에서 내 이름이 빛나는 골드 컬러로 표시됩니다.", type: "unlock" },
+    { item_id: "bp_fx_pack",       name: "💥 배틀 공격 이펙트 팩",    icon: "☄️", price: 50, desc: "배틀 공격 시 파괴광선·용성군·블리자드 특수 연출이 추가됩니다.", type: "unlock" },
+    { item_id: "bp_turbo_skate",   name: "⚡ 터보 스케이트 업그레이드", icon: "🛼", price: 500, desc: "롤러스케이트 착용 시 이동 속도가 2.0배 초고속으로 상승합니다.", type: "unlock" },
+    { item_id: "egg_mystic",       name: "🥚 신비한 알 (BP 전용)",    icon: "🥚", price: 200, desc: "정답 50개를 채우면 환상·전설 포켓몬이 부화합니다. (가방 지급)", type: "bag" },
+    { item_id: "bp_egg_booster",   name: "⏩ 알 부화 가속기 (+5칸)",  icon: "🔋", price: 30, desc: "현재 부화기에서 품고 있는 알의 게이지를 즉시 5칸 충전합니다.", type: "instant" },
     { item_id: "bp_star3_ticket",  name: "⭐ 3성 특훈 도전권",        icon: "🎫", price: 30, desc: "가방에서 사용 후 포켓기어 주관식 3문제 연속 정답 시 대표 파트너 3성 승급!", type: "bag" },
-    { item_id: "bp_shiny_ticket",  name: "🎨 BP 이로치 변경권",       icon: "💎", price: 45, desc: "가방에서 사용하면 대표 파트너(거대 포함)를 랜덤 이로치로 변색시킵니다.", type: "bag" },
-    { item_id: "bp_friend_snack",  name: "🍰 파트너 친밀도 간식",     icon: "🍰", price: 10, desc: "대표 파트너의 친밀도를 즉시 +50 올려 단짝(도주 방어)을 앞당깁니다.", type: "instant" }
+    { item_id: "bp_shiny_ticket",  name: "🎨 BP 이로치 변경권",       icon: "💎", price: 200, desc: "가방에서 사용하면 대표 파트너(거대 포함)를 랜덤 이로치로 변색시킵니다.", type: "bag" },
+    { item_id: "bp_friend_snack",  name: "🍰 파트너 친밀도 간식",     icon: "🍰", price: 20, desc: "대표 파트너의 친밀도를 즉시 +50 올려 단짝(도주 방어)을 앞당깁니다.", type: "instant" }
   ];
 
   let currentShopTab = 'candy';
