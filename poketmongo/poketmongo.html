@@ -1593,7 +1593,12 @@
             <button class="dex-chip active" data-status-filter="all" onclick="setDexFilter('status', 'all', this)">전체</button>
             <button class="dex-chip" data-status-filter="caught" onclick="setDexFilter('status', 'caught', this)">✅ 수집완료</button>
             <button class="dex-chip" data-status-filter="uncaught" onclick="setDexFilter('status', 'uncaught', this)">❓ 미발견</button>
-            <button class="dex-chip" onclick="toggleDexSort(this)" style="margin-left:auto; border-color:#ffd166; color:#ffd166;">No. ▲ 오름차순</button>
+            <button class="dex-chip" onclick="toggleDexSort(this)" style="margin-left:auto; border-color:#ffd166; color:#ffd166;">No. ▲ 오름차순
+            <button class="dex-chip" data-status-filter="shiny" onclick="setDexFilter('status', 'shiny', this)">✨이로치</button>
+            <button class="dex-chip" data-status-filter="giant" onclick="setDexFilter('status', 'giant', this)">👑거대</button>
+            <button class="dex-chip" data-status-filter="ready" onclick="setDexFilter('status', 'ready', this)" style="border-color:#06d6a0; color:#80ed99;">⚡ 성장가능</button>
+             <button class="dex-chip" data-status-filter="high_tier" onclick="setDexFilter('status', 'high_tier', this)" style="border-color:#ff758f; color:#ffccd5;">★ 전설·희귀</button>
+</button>
           </div>
           <div class="dex-filter-bar" id="dex-biome-filter-bar">
             <span style="font-size:10px; color:#a8dadc; align-self:center; margin-right:2px;">지형:</span>
@@ -3969,8 +3974,8 @@ const WALK_SPEED = 0.007;
 
   // 🌟 [설정] 이로치(변색 포켓몬) 등장 확률 및 5종 변색 데이터 (숫자만 수정해 확률 조절 가능)
   const SHINY_CONFIG = {
-    normalRate: 0.01, // 평소 야생 등장 확률 (0.01 = 1%)
-    feverRate:  0.03, // 골든 피버 중 등장 확률 (0.02 = 3%)
+    normalRate: 0.001, // 평소 야생 등장 확률 (0.001 = 0.1%)
+    feverRate:  0.003, // 골든 피버 중 등장 확률 (0.003 = 0.3%)
     variants: [
       { code: 1, suffix: '.1', prefix: '금색',     cssClass: 'shiny-golden',  weight: 30 },
       { code: 2, suffix: '.2', prefix: '알비노',   cssClass: 'shiny-albino',  weight: 25 },
@@ -4568,17 +4573,17 @@ const chosenBattle = createFormattedBattle(currentMapId, biomeType);
       pImg.style.transform = 'scaleX(-1)';
 
       if (partnerBox) {
-        partnerBox.style.transformOrigin = 'bottom center';
-        partnerBox.style.transform = `scale(${giantScale})`;
-        partnerBox.style.zIndex = '67';
-        partnerBox.style.marginTop = isGiantP ? '10px' : '0px';
-      }
-      if (partnerHudEl) {
-        partnerHudEl.style.position = 'relative';
-        partnerHudEl.style.zIndex = '72';
-        partnerHudEl.style.marginBottom = isGiantP ? '18px' : '-5px';
-        partnerHudEl.style.maxWidth = '210px';
-      }
+          partnerBox.style.transformOrigin = 'bottom center';
+          partnerBox.style.transform = `scale(${giantScale})`;
+          partnerBox.style.zIndex = '67';
+          partnerBox.style.marginTop = isGiantP ? '12px' : '0px';
+        }
+        if (partnerHudEl) {
+          partnerHudEl.style.position = 'relative';
+          partnerHudEl.style.zIndex = '72';
+          partnerHudEl.style.marginBottom = isGiantP ? '52px' : '-5px';
+          partnerHudEl.style.maxWidth = isGiantP ? '240px' : '210px';
+        }
 
       // 🌟 오라 효과는 파트너 발판(.battle-base-partner)에 적용해 이로치 필터와 충돌 방지
       const basePartnerEl = pWrap.querySelector('.battle-base-partner');
@@ -7900,7 +7905,7 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
   }
 
   // 🌟 도감 수집 상태, 지형, 정렬 상태 관리 ('id_asc' | 'id_desc' | 'recent')
-  let currentDexStatusFilter = 'all'; // all | caught | uncaught
+ let currentDexStatusFilter = 'all'; // all | caught | uncaught | ready | high_tier | shiny | giant
   let currentDexBiomeFilter = 'all';  // all | grass | water | snow | volcano | sand
   let dexSortMode = 'id_asc';
 
@@ -8038,13 +8043,65 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       }
     });
 
-    // 1. 수집 상태 필터링 (수집완료 / 미발견)
-    let filtered = combinedDexPool.filter(mon => {
-      const isCaught = currentUser.captured_ids.some(cid => Number(cid) === Number(mon.id));
-      if (currentDexStatusFilter === 'caught') return isCaught;
-      if (currentDexStatusFilter === 'uncaught') return !isCaught;
-      return true;
-    });
+
+// 1. 수집 상태 · 성장 가능 · 전설/희귀 필터링
+ const filterInv = currentUser.inventory || {};
+ let filtered = combinedDexPool.filter(mon => {
+ const numId = Number(mon.id);
+const isGiant = typeof isGiantMonsterId === 'function' && isGiantMonsterId(numId);
+        const hasShiny = !!(
+          (isGiant && typeof getGiantShinyVariant === 'function' && getGiantShinyVariant(numId)) ||
+          (!isGiant && typeof getShinyVariantById === 'function' && getShinyVariantById(numId))
+        );
+ const isCaught = currentUser.captured_ids.some(cid => Number(cid) === numId);
+ const rawTier = String(mon.tier || 'normal').toLowerCase().trim();
+
+ if (currentDexStatusFilter === 'caught') return isCaught;
+ if (currentDexStatusFilter === 'uncaught') return !isCaught;
+ if (currentDexStatusFilter === 'high_tier') {
+ return rawTier === 'legendary' || rawTier === 'rare';
+ }
+ if (currentDexStatusFilter === 'ready') {
+ if (!isCaught) return false;
+ const shadowObj = filterInv.shadows && filterInv.shadows[numId];
+ // ① 100보 달성 그림자 정화 가능
+ if (shadowObj) {
+ return (Number(shadowObj.steps_walked) || 0) >= 100;
+ }
+ const isPurified = Array.isArray(filterInv.purified) && filterInv.purified.includes(numId);
+ const variant = isGiant ? getGiantShinyVariant(numId) : getShinyVariantById(numId);
+
+ // ② 진화 가능 여부
+ const evoTargetId = Number(mon.evolveTo || mon['evolve to'] || mon.evolveto || 0);
+ const evoNeedCandy = getEvolveCandyCost(mon, isPurified);
+ let canEvolveNow = false;
+ if (!isGiant && evoTargetId > 0 && evoNeedCandy > 0) {
+ const nextMon = monsterPool.find(m => Number(m.id) === evoTargetId);
+ if (nextMon) {
+ const finalEvoId = variant ? Number((evoTargetId + variant.code * 0.1).toFixed(1)) : evoTargetId;
+ const alreadyEvolved = currentUser.captured_ids.some(cid => Number(cid) === finalEvoId);
+ if (!alreadyEvolved) {
+ const curSolves = getPartnerSolveCount(numId);
+ const reqSolves = getEvolveReqSolves(mon);
+ canEvolveNow = (currentUser.candy_count >= evoNeedCandy) && (curSolves >= reqSolves);
+ }
+ }
+ }
+
+ // ③ +강화 가능 여부
+ const upgLv = (filterInv.upgrades && Number(filterInv.upgrades[numId])) || 0;
+ let canReinforceNow = false;
+ if (upgLv < 5) {
+ const reinfCost = getReinforceCost(upgLv, isPurified);
+ const reinfCond = checkReinforceCondition(numId, upgLv);
+ canReinforceNow = (currentUser.candy_count >= reinfCost) && reinfCond.ok;
+ }
+
+ return canEvolveNow || canReinforceNow;
+ }
+ return true;
+ });
+
 
     // 2. 🌟 지형 바이옴 및 맵 ID 양방향 정밀 필터링
     if (currentDexBiomeFilter !== 'all') {
@@ -10518,7 +10575,7 @@ function triggerRaidVictory() {
     currentUser.cleared_quests.push(npc.id);
   }
   const baseGiantId = toGiantMonsterId(monId);
-  const isGiantShinyWin = Math.random() < 0.20; // 레이드 승리 시 20% 확률로 거대 이로치 출현
+  const isGiantShinyWin = Math.random() < 0.10; // 레이드 승리 시 10% 확률로 거대 이로치 출현
   const shinyVar = isGiantShinyWin ? rollShinyVariant() : null;
   const numMonId = shinyVar ? Number((baseGiantId + shinyVar.code * 0.1).toFixed(1)) : baseGiantId;
   const winMonName = shinyVar ? `${shinyVar.prefix} ${battleState.monster.name}` : battleState.monster.name;
