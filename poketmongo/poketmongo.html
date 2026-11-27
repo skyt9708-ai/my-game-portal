@@ -1655,9 +1655,9 @@
             </div>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:10.5px; font-weight:bold; color:#ffd166;">🏆 리그 TOP 5 트레이너</span>
-            <span style="font-size:8.5px; color:#8e99b7;">※ 5위까지만 명예 공개됩니다</span>
-          </div>
+ <span style="font-size:10.5px; font-weight:bold; color:#ffd166;">🏆 리그 TOP 10 트레이너</span>
+ <span style="font-size:8.5px; color:#8e99b7;">※ 10위까지 명예 공개됩니다</span>
+ </div>
           <div class="lb-list" id="lb-ranking-list" style="max-height:190px;">
             <div style="text-align:center; color:#888; font-size:11px; padding:20px 0;">랭킹 기록을 불러오는 중...</div>
           </div>
@@ -6924,24 +6924,72 @@ document.getElementById('b-dialog-text').innerHTML = `${formattedDesc}${previewH
   // =======================================================
   // 🌟 [세분화 개편] 0~100마리(10단위) 및 100~400마리(50단위) 17단계 공식 칭호 티어 테이블
   const TRAINER_RANKS = [
-    { min: 400, title: "👑 불멸의 챔피언", color: "#ffd700", reqText: "400마리 이상", desc: "모든 수학적 시련을 정복하고 세계의 전설이 된 불멸의 챔피언!" },
-    { min: 350, title: "🌌 신화의 수호자", color: "#e0aaff", reqText: "350마리 이상", desc: "우주와 신화의 영역에 도달한 위대한 수학 마스터!" },
-    { min: 300, title: "🏆 전설의 마스터", color: "#ffd166", reqText: "300마리 이상", desc: "모든 대륙의 수학 시련을 끝마치고 전당에 오른 전설의 마스터!" },
-    { min: 250, title: "🌠 은하계 트레이너", color: "#70d6ff", reqText: "250마리 이상", desc: "한계를 돌파하여 은하처럼 넓은 수학 지식을 펼치는 실력자!" },
-    { min: 200, title: "🔱 그랜드 마스터", color: "#ff9e00", reqText: "200마리 이상", desc: "수학 대륙 전역에서 최고로 인정받는 정상급 트레이너!" },
-    { min: 150, title: "💎 다이아 트레이너", color: "#06d6a0", reqText: "150마리 이상", desc: "다이아몬드처럼 단단하고 정밀한 계산력을 지닌 숙련자!" },
-    { min: 100, title: "⚡ 베테랑 트레이너", color: "#f72585", reqText: "100마리 이상", desc: "고난도 수학 계산도 막힘없이 풀어내는 백전노장 실력자!" },
-    { min: 90,  title: "🔮 엑스퍼트",       color: "#b5179e", reqText: "90마리 이상",  desc: "복잡한 수식의 해답도 단숨에 꿰뚫어 보는 전문 트레이너!" },
-    { min: 80,  title: "🎖️ 수석 트레이너",   color: "#7209b7", reqText: "80마리 이상",  desc: "모든 탐험가들 사이에서 모범이 되는 수석 수학 탐험가!" },
-    { min: 70,  title: "🎯 마스터 트레이너", color: "#560bad", reqText: "70마리 이상",  desc: "계산의 오차 없이 정답을 명중시키는 명사수 트레이너!" },
-    { min: 60,  title: "🛡️ 탑 트레이너",     color: "#480ca8", reqText: "60마리 이상",  desc: "어려운 난관도 단단한 기초로 이겨내는 정상급 트레이너!" },
-    { min: 50,  title: "⚔️ 엘리트 트레이너", color: "#3f37c9", reqText: "50마리 이상",  desc: "수학 모험의 중급 시련을 정복하고 대륙을 누비는 정예 트레이너!" },
-    { min: 40,  title: "🏹 숙련 트레이너",   color: "#4361ee", reqText: "40마리 이상",  desc: "계산 실수를 스스로 잡아내며 안정적으로 성장하는 숙련자!" },
-    { min: 30,  title: "🧭 모험가 트레이너", color: "#4895ef", reqText: "30마리 이상",  desc: "다양한 지형의 포켓몬을 두루 포획하며 길을 개척하는 모험가!" },
-    { min: 20,  title: "🚀 프론티어",       color: "#4cc9f0", reqText: "20마리 이상",  desc: "연산의 속도가 붙으며 거침없이 전진하는 프론티어 유망주!" },
-    { min: 10,  title: "🌟 루키 트레이너",   color: "#52b788", reqText: "10마리 이상",  desc: "기초 수학 계산을 터득하고 잠재력을 뽐내기 시작한 유망주!" },
-    { min: 0,   title: "🌱 비기너 트레이너", color: "#a8dadc", reqText: "기본 지급",    desc: "포켓몬 수학 월드에 첫 발을 내딛은 신입 트레이너!" }
-  ];
+ { min: 1000, title: "👑 만물의 그랜드 챔피언", color: "#ffd700", reqText: "1,000마리 이상", desc: "천 마리 수집이라는 대업을 완성한 포켓몬 수학 월드의 최종 챔피언!" },
+ { min: 950, title: "🏆 이터널 레전드", color: "#ff70a6", reqText: "950마리 이상", desc: "천 마리 정상을 눈앞에 두고 영원히 기억될 불후의 레전드!" },
+ { min: 900, title: "💎 미라클 소버린", color: "#c77dff", reqText: "900마리 이상", desc: "기적 같은 집중력과 끈기로 구백 마리 고지에 오른 최정예 마스터!" },
+ { min: 850, title: "🔱 오리진 마스터", color: "#06d6a0", reqText: "850마리 이상", desc: "포켓몬 세계의 기원과 진화의 갈래를 깊이 이해한 근원의 마스터!" },
+ { min: 800, title: "🌠 코스모스 임페리얼", color: "#ffd166", reqText: "800마리 이상", desc: "은하를 넘어 우주적 스케일의 수집을 일궈낸 황제급 트레이너!" },
+ { min: 750, title: "🌀 인피니티 세이지", color: "#48cae4", reqText: "750마리 이상", desc: "무한에 가까운 탐구심으로 어려운 난관도 해답으로 바꾸는 현자!" },
+ { min: 700, title: "🛡️ 에테르 가디언", color: "#ff9e00", reqText: "700마리 이상", desc: "수학 대륙의 질서와 방대한 도감 기록을 수호하는 수호자!" },
+ { min: 650, title: "✨ 코스믹 레전드", color: "#80ed99", reqText: "650마리 이상", desc: "별빛처럼 빛나는 희귀 개체들까지 품어낸 살아있는 전설!" },
+ { min: 600, title: "💠 오메가 소버린", color: "#70d6ff", reqText: "600마리 이상", desc: "방대한 포켓몬 수집과 흔들리지 않는 수리력을 겸비한 지휘관!" },
+ { min: 550, title: "🔥 아스트랄 로드", color: "#e0aaff", reqText: "550마리 이상", desc: "끈질긴 문제 풀이와 탐험으로 한계를 넘어선 열정의 길잡이!" },
+ { min: 500, title: "🪐 차원 여행자", color: "#ffbe0b", reqText: "500마리 이상", desc: "반천 마리 고지를 넘어 시공간과 지형을 넘나드는 차원 여행자!" },
+ { min: 450, title: "🌟 초월의 아키텍트", color: "#06d6a0", reqText: "450마리 이상", desc: "수식과 도형의 구조를 꿰뚫어 새로운 도감의 경지를 설계하는 탐험가!" },
+ { min: 400, title: "👑 불멸의 챔피언", color: "#ffd700", reqText: "400마리 이상", desc: "모든 수학적 시련을 정복하고 세계의 전설이 된 불멸의 챔피언!" },
+ { min: 350, title: "🌌 신화의 수호자", color: "#c77dff", reqText: "350마리 이상", desc: "우주와 신화의 영역에 도달한 위대한 수학 마스터!" },
+ { min: 300, title: "🏆 전설의 마스터", color: "#ff9e00", reqText: "300마리 이상", desc: "모든 대륙의 수학 시련을 끝마치고 전당에 오른 전설의 마스터!" },
+ { min: 250, title: "🌠 은하계 트레이너", color: "#48cae4", reqText: "250마리 이상", desc: "한계를 돌파하여 은하처럼 넓은 수학 지식을 펼치는 실력자!" },
+ { min: 200, title: "🔱 그랜드 마스터", color: "#ff70a6", reqText: "200마리 이상", desc: "수학 대륙 전역에서 최고로 인정받는 정상급 트레이너!" },
+ { min: 150, title: "💎 다이아 트레이너", color: "#80ed99", reqText: "150마리 이상", desc: "다이아몬드처럼 단단하고 정밀한 계산력을 지닌 숙련자!" },
+ { min: 100, title: "⚡ 베테랑 트레이너", color: "#ffd166", reqText: "100마리 이상", desc: "고난도 수학 계산도 막힘없이 풀어내는 백전노장 실력자!" },
+ { min: 90, title: "🔮 엑스퍼트", color: "#c77dff", reqText: "90마리 이상", desc: "복잡한 수식의 해답도 단숨에 꿰뚫어 보는 전문 트레이너!" },
+ { min: 80, title: "🎖️ 수석 트레이너", color: "#ff9e00", reqText: "80마리 이상", desc: "모든 탐험가들 사이에서 모범이 되는 수석 수학 탐험가!" },
+ { min: 70, title: "🎯 마스터 트레이너", color: "#06d6a0", reqText: "70마리 이상", desc: "계산의 오차 없이 정답을 명중시키는 명사수 트레이너!" },
+ { min: 60, title: "🛡️ 탑 트레이너", color: "#ff70a6", reqText: "60마리 이상", desc: "어려운 난관도 단단한 기초로 이겨내는 정상급 트레이너!" },
+ { min: 50, title: "⚔️ 엘리트 트레이너", color: "#70d6ff", reqText: "50마리 이상", desc: "수학 모험의 중급 시련을 정복하고 대륙을 누비는 정예 트레이너!" },
+ { min: 40, title: "🏹 숙련 트레이너", color: "#ffbe0b", reqText: "40마리 이상", desc: "계산 실수를 스스로 잡아내며 안정적으로 성장하는 숙련자!" },
+ { min: 30, title: "🧭 모험가 트레이너", color: "#80ed99", reqText: "30마리 이상", desc: "다양한 지형의 포켓몬을 두루 포획하며 길을 개척하는 모험가!" },
+ { min: 20, title: "🚀 프론티어", color: "#48cae4", reqText: "20마리 이상", desc: "연산의 속도가 붙으며 거침없이 전진하는 프론티어 유망주!" },
+ { min: 10, title: "🌟 루키 트레이너", color: "#ffd166", reqText: "10마리 이상", desc: "기초 수학 계산을 터득하고 잠재력을 뽐내기 시작한 유망주!" },
+ { min: 0, title: "🌱 비기너 트레이너", color: "#a8dadc", reqText: "기본 지급", desc: "포켓몬 수학 월드에 첫 발을 내딛은 신입 트레이너!" }
+];
+
+// 🌟 10만번대 포켓몬 수집 단계별 칭호 테이블
+ const SPECIAL_100K_RANKS = [
+ { min: 1,  title: "백천(10만)의 첫 조우",    color: "#4FC3F7" },
+ { min: 2,  title: "이형 개체 목격자",        color: "#BA68C8" },
+ { min: 4,  title: "변칙 스폰 추적자",        color: "#81C784" },
+ { min: 7,  title: "초차원의 수집가",        color: "#FF8A65" },
+ { min: 11, title: "특이점의 개척자",        color: "#26C6DA" },
+ { min: 16, title: "심연의 폼 헌터",         color: "#F06292" },
+ { min: 23, title: "초월 개체 아키비스트",    color: "#FFD54F" },
+ { min: 32, title: "차원의 균열 조율자",      color: "#9575CD" },
+ { min: 45, title: "이형 도감의 현자",        color: "#4DB6AC" },
+ { min: 60, title: "10만번대 레전드 마스터",  color: "#FF5252" },
+ ];
+
+ function get100kCapturedCount(userObj) {
+ const rawIds = Array.isArray(userObj && userObj.captured_ids)
+ ? userObj.captured_ids
+ : (Array.isArray(userObj && userObj.capturedIds) ? userObj.capturedIds : []);
+ const unique100k = new Set(
+ rawIds
+ .map(Number)
+ .filter(id => Number.isFinite(id) && id >= 100000)
+ );
+ return unique100k.size;
+ }
+
+ function getSpecial100kRank(count100k) {
+ if (!count100k || count100k < SPECIAL_100K_RANKS[0].min) return null;
+ let matched = SPECIAL_100K_RANKS[0];
+ for (const r of SPECIAL_100K_RANKS) {
+ if (count100k >= r.min) matched = r;
+ }
+ return matched;
+ }
+
 
   function getTrainerRank() {
     const total = (currentUser.captured_ids || []).length;
@@ -7749,78 +7797,86 @@ const qList = Array.isArray(u.cleared_quests) ? u.cleared_quests : [];
       hofGrid.innerHTML = `<span style="font-size:9px; color:#888;">아직 전당등록을 마친 챔피언이 없습니다.</span>`;
     }
 
-    // 5. 🌟 [핵심] 전체 순위는 Top 5까지만 공개!
-    rankingList.innerHTML = '';
-    const badgeIcons = { water: "💧", city: "⚡", sky: "🐉", volcano: "🔥", sand: "🏜️" };
-    const top5 = sorted.slice(0, 5);
 
-    top5.forEach((user, idx) => {
-      const rankNum = idx + 1;
-      const isMe = (user.id === String(currentUser.student_id));
+ // 5. 🌟 전체 순위는 Top 10까지 공개 + 10만번대 수집 칭호 반영!
+ rankingList.innerHTML = '';
+ const badgeIcons = { water: "💧", city: "⚡", sky: "🐉", volcano: "🔥", sand: "🏜️" };
+ const top10 = sorted.slice(0, 10);
 
-      let rankClass = '';
-      let medalIcon = `${rankNum}`;
-      if (rankNum === 1) { rankClass = 'rank-1'; medalIcon = '🥇'; }
-      else if (rankNum === 2) { rankClass = 'rank-2'; medalIcon = '🥈'; }
-      else if (rankNum === 3) { rankClass = 'rank-3'; medalIcon = '🥉'; }
-      if (isMe) rankClass += ' my-rank-item';
+ top10.forEach((user, idx) => {
+ const rankNum = idx + 1;
+ const isMe = (user.id === String(currentUser.student_id));
 
-      const badgesHtml = user.badges.map(b => badgeIcons[b] || "🏅").join('');
+ let rankClass = '';
+ let medalIcon = `${rankNum}`;
+ if (rankNum === 1) { rankClass = 'rank-1'; medalIcon = '🥇'; }
+ else if (rankNum === 2) { rankClass = 'rank-2'; medalIcon = '🥈'; }
+ else if (rankNum === 3) { rankClass = 'rank-3'; medalIcon = '🥉'; }
+ if (isMe) rankClass += ' my-rank-item';
 
-      let partnerBadgeHtml = '';
-      if (user.partnerId) {
-        const pNumId = Number(user.partnerId);
-        const isGiantP = isGiantMonsterId(pNumId);
-        const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
-        const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
-        const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
-        const pSrc = pMon
-          ? (pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`)
-          : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
-        const pDisplayName = pMon
-          ? `${isGiantP ? '거대 ' : ''}${pVariant ? pVariant.prefix + ' ' : ''}${pMon.name}`
-          : formatDexNo(pNumId);
-        const shinyCls = pVariant ? pVariant.cssClass : '';
+ const badgesHtml = user.badges.map(b => badgeIcons[b] || "🏅").join('');
+ const count100k = isMe ? get100kCapturedCount(currentUser) : (user.special100kCount || 0);
+ const specialRank = getSpecial100kRank(count100k);
+ const specialRankHtml = specialRank
+ ? `<span style="background:#141824; color:${specialRank.color}; border:1px solid ${specialRank.color}; border-radius:4px; padding:0 4px; font-size:8px; font-weight:bold; margin-left:3px;">✨${specialRank.title}(${count100k})</span>`
+ : '';
 
-        const uInv = user.inventory || {};
-        const pUpgLv = (uInv.upgrades && Number(uInv.upgrades[pNumId])) || 0;
-        const pIsShadow = !!(uInv.shadows && uInv.shadows[pNumId]);
-        const pStarRaw = (uInv.stars && uInv.stars[pNumId] !== undefined) ? Number(uInv.stars[pNumId]) : 1;
-        const pStarCount = Math.min(3, Math.max(1, pStarRaw || 1));
+ let partnerBadgeHtml = '';
+ if (user.partnerId) {
+ const pNumId = Number(user.partnerId);
+ const isGiantP = isGiantMonsterId(pNumId);
+ const pBaseId = isGiantP ? toBaseMonsterId(pNumId) : Math.floor(pNumId);
+ const pVariant = isGiantP ? getGiantShinyVariant(pNumId) : getShinyVariantById(pNumId);
+ const pMon = monsterPool.find(m => Number(m.id) === pBaseId);
+ const pSrc = pMon
+ ? (pMon.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`)
+ : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png`;
+ const pDisplayName = pMon
+ ? `${isGiantP ? '거대 ' : ''}${pVariant ? pVariant.prefix + ' ' : ''}${pMon.name}`
+ : formatDexNo(pNumId);
+ const shinyCls = pVariant ? pVariant.cssClass : '';
 
-        const pStarHtml = pIsShadow
-          ? `<span style="color:#c77dff; font-weight:bold;">🟣그림자</span>`
-          : `<span style="color:${pStarCount === 3 ? '#ffd166' : (pStarCount === 2 ? '#4cc9f0' : '#adb5bd')}; letter-spacing:-1px;">${'★'.repeat(pStarCount)}${'☆'.repeat(3 - pStarCount)}</span>`;
-        const pUpgHtml = pUpgLv > 0
-          ? `<span style="background:#d90429; color:#fff; padding:0 3px; border-radius:3px; font-weight:bold;">+${pUpgLv}강</span>`
-          : '';
+ const uInv = user.inventory || {};
+ const pUpgLv = (uInv.upgrades && Number(uInv.upgrades[pNumId])) || 0;
+ const pIsShadow = !!(uInv.shadows && uInv.shadows[pNumId]);
+ const pStarRaw = (uInv.stars && uInv.stars[pNumId] !== undefined) ? Number(uInv.stars[pNumId]) : 1;
+ const pStarCount = Math.min(3, Math.max(1, pStarRaw || 1));
 
-        partnerBadgeHtml = `
-          <span style="display:inline-flex; align-items:center; gap:3px; background:#252b42; border:1px solid #ffd166; border-radius:4px; padding:1px 5px; margin-left:4px; font-size:8.5px; color:#ffd166;">
-            <img src="${pSrc}" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png';" alt="partner" class="${shinyCls}" style="width:20px; height:20px; object-fit:contain; image-rendering:pixelated; animation:none;">
-            <span>${pDisplayName}</span>
-            ${pUpgHtml}
-            ${pStarHtml}
-          </span>
-        `;
-      }
+ const pStarHtml = pIsShadow
+ ? `<span style="color:#c77dff; font-weight:bold;">🟣그림자</span>`
+ : `<span style="color:${pStarCount === 3 ? '#ffd166' : (pStarCount === 2 ? '#4cc9f0' : '#adb5bd')}; letter-spacing:-1px;">${'★'.repeat(pStarCount)}${'☆'.repeat(3 - pStarCount)}</span>`;
+ const pUpgHtml = pUpgLv > 0
+ ? `<span style="background:#d90429; color:#fff; padding:0 3px; border-radius:3px; font-weight:bold;">+${pUpgLv}강</span>`
+ : '';
 
-      const item = document.createElement('div');
-      item.className = `lb-item ${rankClass}`;
-      item.innerHTML = `
-        <div class="lb-rank-num">${medalIcon}</div>
-        <div class="lb-user-info">
-          <div class="lb-user-name" style="display:flex; align-items:center; flex-wrap:wrap; gap:2px;">
-            <span class="${(user.inventory && user.inventory.rank_name_color) ? 'lb-name-gold' : ''}">${user.id} ${user.name}</span>
-            ${isMe ? '<span style="font-size:8px; color:#06d6a0; margin-left:2px;">(나)</span>' : ''}
-            ${partnerBadgeHtml}
-          </div>
-          <div class="lb-user-detail">배지: ${badgesHtml || '없음'} · 도감: ${user.capturedCount}마리 · 🍬${user.candyCount}</div>
-        </div>
-        <div class="lb-pts">${user.score.toLocaleString()} <span style="font-size:8px; color:#aaa;">pts</span></div>
-      `;
-      rankingList.appendChild(item);
-    });
+ partnerBadgeHtml = `
+ <span style="display:inline-flex; align-items:center; gap:3px; background:#252b42; border:1px solid #ffd166; border-radius:4px; padding:1px 5px; margin-left:4px; font-size:8.5px; color:#ffd166;">
+ <img src="${pSrc}" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pBaseId}.png';" alt="partner" class="${shinyCls}" style="width:20px; height:20px; object-fit:contain; image-rendering:pixelated; animation:none;">
+ <span>${pDisplayName}</span>
+ ${pUpgHtml}
+ ${pStarHtml}
+ </span>
+ `;
+ }
+
+ const item = document.createElement('div');
+ item.className = `lb-item ${rankClass}`;
+ item.innerHTML = `
+ <div class="lb-rank-num">${medalIcon}</div>
+ <div class="lb-user-info">
+ <div class="lb-user-name" style="display:flex; align-items:center; flex-wrap:wrap; gap:2px;">
+ <span class="${(user.inventory && user.inventory.rank_name_color) ? 'lb-name-gold' : ''}">${user.id} ${user.name}</span>
+ ${isMe ? '<span style="font-size:8px; color:#06d6a0; margin-left:2px;">(나)</span>' : ''}
+ ${specialRankHtml}
+ ${partnerBadgeHtml}
+ </div>
+ <div class="lb-user-detail">배지: ${badgesHtml || '없음'} · 도감: ${user.capturedCount}마리 · 🍬${user.candyCount}</div>
+ </div>
+ <div class="lb-pts">${user.score.toLocaleString()} <span style="font-size:8px; color:#aaa;">pts</span></div>
+ `;
+ rankingList.appendChild(item);
+ });
+
 
     // 6. 🌟 [개인 맞춤형] 내 등급 성장률 및 백분율 안내 (하위권도 기분 좋게 도전!)
     const currentCatches = (currentUser.captured_ids || []).length;
